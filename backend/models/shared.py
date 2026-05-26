@@ -1,0 +1,80 @@
+"""
+models/shared.py — tabele współdzielone z swi.campas.pl.
+NIE dodawaj tutaj tabel app_* — tylko czytaj/zapisuj istniejące.
+"""
+from datetime import datetime, date, timezone
+from typing import Optional
+from sqlalchemy import String, Boolean, Date, DateTime, Text, SmallInteger
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
+from sqlalchemy.orm import Mapped, mapped_column
+import uuid
+
+from database import Base
+
+_uuid = lambda: str(uuid.uuid4())
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id:                     Mapped[str]                = mapped_column(PG_UUID(as_uuid=False), primary_key=True, default=_uuid)
+    email:                  Mapped[str]                = mapped_column(String(255), unique=True, nullable=False)
+    password_hash:          Mapped[str]                = mapped_column(String(255), nullable=False)
+    display_name:           Mapped[Optional[str]]      = mapped_column(String(255))
+    role:                   Mapped[str]                = mapped_column(String(20), default="user")
+    created_at:             Mapped[datetime]           = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    email_verified:         Mapped[bool]               = mapped_column(Boolean, default=False)
+    verification_token:     Mapped[Optional[str]]      = mapped_column(String(255), nullable=True)
+    verification_token_exp: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    reset_token:            Mapped[Optional[str]]      = mapped_column(String(255), nullable=True)
+    reset_token_exp:        Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class Camp(Base):
+    __tablename__ = "camps"
+
+    id:         Mapped[str]                = mapped_column(PG_UUID(as_uuid=False), primary_key=True, default=_uuid)
+    unit_name:  Mapped[Optional[str]]      = mapped_column(Text)
+    date_start: Mapped[date]               = mapped_column(Date)
+    date_end:   Mapped[date]               = mapped_column(Date)
+    terrain_id: Mapped[Optional[str]]      = mapped_column(PG_UUID(as_uuid=False))
+    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+
+class Patrol(Base):
+    __tablename__ = "patrols"
+
+    id:            Mapped[str]           = mapped_column(PG_UUID(as_uuid=False), primary_key=True, default=_uuid)
+    camp_id:       Mapped[Optional[str]] = mapped_column(PG_UUID(as_uuid=False))
+    patrol_name:   Mapped[Optional[str]] = mapped_column(Text)
+    people_number: Mapped[Optional[int]] = mapped_column(SmallInteger)
+
+
+class CampAccess(Base):
+    __tablename__ = "camp_access"
+
+    id:          Mapped[str]           = mapped_column(PG_UUID(as_uuid=False), primary_key=True, default=_uuid)
+    user_id:     Mapped[str]           = mapped_column(PG_UUID(as_uuid=False))
+    camp_id:     Mapped[Optional[str]] = mapped_column(PG_UUID(as_uuid=False))
+    permissions: Mapped[Optional[str]] = mapped_column(Text)
+
+
+class CampInvitation(Base):
+    __tablename__ = "camp_invitations"
+
+    id:         Mapped[str]                = mapped_column(String(32), primary_key=True, default=_uuid)
+    camp_id:    Mapped[str]                = mapped_column(String(32))
+    email:      Mapped[Optional[str]]      = mapped_column(String(255), nullable=True)
+    invited_by: Mapped[str]                = mapped_column(String(32))
+    token:      Mapped[str]                = mapped_column(String(255), unique=True, nullable=False)
+    type:       Mapped[str]                = mapped_column(String(10), default="single")
+    created_at: Mapped[datetime]           = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    expires_at: Mapped[datetime]           = mapped_column(DateTime(timezone=True))
+    used_at:    Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class Terrain(Base):
+    __tablename__ = "terrains"
+
+    id:   Mapped[str] = mapped_column(PG_UUID(as_uuid=False), primary_key=True)
+    name: Mapped[str] = mapped_column(Text)
