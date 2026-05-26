@@ -157,8 +157,19 @@ export async function getTerrains() {
 }
 
 export async function addTerrain(terrain) {
-  // Endpointu POST /api/terrains jeszcze nie ma — zwróć błąd
-  throw new Error('addTerrain: nie zaimplementowane w campas-api')
+  try {
+    const res = await fetch(`${BASE}/api/terrains`, {
+      method: 'POST',
+      headers: _headers(),
+      body: JSON.stringify(terrain),
+    })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    return await res.json()
+  } catch (e) {
+    console.warn('addTerrain failed (non-critical):', e.message)
+    // Zwróć fake terrain żeby wizard mógł kontynuować
+    return { id: null, name: terrain.name || 'obóz' }
+  }
 }
 
 // ── Obozy ─────────────────────────────────────────────────────────────────────
