@@ -1,0 +1,20 @@
+export const SEED_INGREDIENTS = [
+  'ziemniaki', 'marchew', 'cebula', 'czosnek', 'pomidory', 'ogórki', 'papryka', 'kapusta', 'sałata', 'buraki',
+  'pomidory koktajlowe', 'pietruszka', 'seler', 'por', 'kalafior', 'brokuły', 'fasolka szparagowa', 'groszek',
+  'kukurydza', 'cukinia', 'bakłażan', 'szpinak', 'rzodkiewka', 'szczypior', 'koperek', 'natka pietruszki',
+  'imbir', 'chrzan', 'dynia', 'jarmuż', 'jabłka', 'banany', 'pomarańcze', 'cytryny', 'gruszki', 'śliwki',
+  'truskawki', 'maliny', 'jagody', 'winogrona', 'brzoskwinie', 'morele', 'arbuz', 'kiwi', 'rodzynki',
+  'kurczak', 'schab', 'karkówka', 'boczek', 'kiełbasa', 'szynka', 'wędlina', 'mięso mielone', 'parówki',
+  'ryba', 'tuńczyk', 'sardynki', 'pierś z kurczaka', 'udka z kurczaka', 'filet z kurczaka', 'baleron',
+  'salami', 'kabanosy', 'pasztet', 'paprykarz', 'mleko', 'masło', 'ser żółty', 'ser biały', 'śmietana',
+  'jogurt', 'jajka', 'margaryna', 'kefir', 'maślanka', 'ser topiony', 'mozzarella', 'chleb', 'bułki',
+  'chleb tostowy', 'bagietka', 'bułka tarta', 'sucharki', 'mąka', 'mąka ziemniaczana', 'cukier', 'ryż',
+  'makaron', 'kasza gryczana', 'kasza jęczmienna', 'kasza manna', 'płatki owsiane', 'płatki kukurydziane',
+  'musli', 'budyń', 'kisiel', 'galaretka', 'cukier puder', 'cukier waniliowy', 'groszek konserwowy',
+  'kukurydza konserwowa', 'fasola konserwowa', 'koncentrat pomidorowy', 'ogórki konserwowe', 'buraczki konserwowe',
+  'dżem', 'miód', 'nutella', 'ananas konserwowy', 'sól', 'pieprz', 'majonez', 'ketchup', 'musztarda',
+  'olej', 'oliwa', 'ocet', 'sos sojowy', 'przyprawa uniwersalna', 'vegeta', 'kostka rosołowa',
+  'ziele angielskie', 'liść laurowy', 'majeranek', 'oregano', 'bazylia', 'papryka słodka', 'papryka ostra',
+  'curry', 'cynamon', 'kakao', 'gałka muszkatołowa', 'rozmaryn', 'tymianek', 'woda mineralna', 'herbata',
+  'kawa', 'sok', 'kompot', 'syrop', 'czekolada', 'ciastka', 'chipsy', 'paluszki', 'orzechy', 'woda', 'cukier brązowy'
+]

@@ -1,0 +1,37 @@
+version: "3.9"
+
+services:
+  campas:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: campas:latest
+    container_name: campas
+    restart: unless-stopped
+
+    ports:
+      - "8001:8001"
+
+    volumes:
+      # SQLite — współdzielona baza z swi.campas.pl
+      # Na serwerze: /home/user/app/obozlog/backend/obozlog.db
+      - campas_db:/data/db
+      # Pliki użytkowników
+      - campas_uploads:/data/uploads
+
+    env_file:
+      - backend/.env
+
+    # Zdrowie: FastAPI musi odpowiedzieć na /health
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  campas_db:
+    driver: local
+  campas_uploads:
+    driver: local

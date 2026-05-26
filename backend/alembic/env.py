@@ -15,9 +15,14 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from config import settings
 from database import Base
 
-# Importuj modele żeby Alembic je wykrył
-import models.shared  # noqa
-import models.app     # noqa
+# Importuj WSZYSTKIE modele żeby Alembic je wykrył
+import models.shared       # noqa
+import models.app          # noqa
+import models.tasks        # noqa
+import models.calendar     # noqa
+import models.external     # noqa
+import models.files        # noqa
+import models.ingredients  # noqa
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.db_url)
@@ -35,13 +40,18 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        version_table="alembic_version_api",   # osobna tabela wersji — nie koliduje z swi.campas.pl
     )
     with context.begin_transaction():
         context.run_migrations()
 
 
 def do_run_migrations(connection: Connection) -> None:
-    context.configure(connection=connection, target_metadata=target_metadata)
+    context.configure(
+        connection=connection,
+        target_metadata=target_metadata,
+        version_table="alembic_version_api",   # osobna tabela wersji — nie koliduje z swi.campas.pl
+    )
     with context.begin_transaction():
         context.run_migrations()
 
