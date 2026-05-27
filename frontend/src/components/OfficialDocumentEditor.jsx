@@ -4,41 +4,40 @@ import jsPDF from 'jspdf'
 import officialDocs from '../data/official-docs.json'
 
 let pdfjsLib = null
-let pdfWorkerStarted = false
+let pdfjsLoading = false
+let pdfjsResolvers = []
 
 function loadPdfJs() {
   return new Promise((resolve) => {
     if (pdfjsLib) return resolve(pdfjsLib)
-    if (!pdfWorkerStarted) {
-      pdfWorkerStarted = true
-      const existingScript = document.querySelector('script[src*="pdf.js"]')
-      if (existingScript) {
-        if (window.pdfjsLib) { pdfjsLib = window.pdfjsLib; return resolve(pdfjsLib) }
-        existingScript.addEventListener('load', () => {
-          pdfjsLib = window.pdfjsLib
-          pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'
-          resolve(pdfjsLib)
-        })
-        return
-      }
-    }
+    pdfjsResolvers.push(resolve)
+    if (pdfjsLoading) return
+    pdfjsLoading = true
     const script = document.createElement('script')
     script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js'
     script.onload = () => {
       pdfjsLib = window.pdfjsLib
       pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'
-      resolve(pdfjsLib)
+      pdfjsResolvers.forEach(r => r(pdfjsLib))
+      pdfjsResolvers = []
+    }
+    script.onerror = () => {
+      pdfjsLoading = false
+      pdfjsResolvers.forEach(r => r(null))
+      pdfjsResolvers = []
     }
     document.head.appendChild(script)
   })
 }
 
 async function renderPdfPages(fileUrl) {
-  await loadPdfJs()
-  const response = await fetch(fileUrl)
-  if (!response.ok) throw new Error(`PDF not found: ${fileUrl}`)
+  const lib = await loadPdfJs()
+  if (!lib) throw new Error('Nie udało się załadować biblioteki PDF.js')
+  const response = await fetch(fileUrl + '?v=2', { cache: 'no-cache' })
+  if (!response.ok) throw new Error(`PDF not found: ${response.status}`)
   const arrayBuffer = await response.arrayBuffer()
-  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
+  if (arrayBuffer.byteLength < 100) throw new Error('Plik PDF jest uszkodzony lub za mały')
+  const pdf = await lib.getDocument({ data: arrayBuffer }).promise
   const pages = []
   const scale = 1.5
   for (let i = 1; i <= pdf.numPages; i++) {
