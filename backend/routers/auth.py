@@ -4,8 +4,10 @@ Logika: services/auth.py + services/email.py
 Modele: models/shared.py
 """
 import datetime
-import secrets
+import os
+from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import FileResponse
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -260,3 +262,14 @@ async def auth_magic_login(
             "camp_id": user.camp_id,
         },
     }
+
+
+# ── Serwowanie dokumentów PDF (działa przez Cloudflare) ─────────────────────
+
+@router.get("/dokumenty/{filename}")
+async def serve_document(filename: str):
+    safe = os.path.basename(filename)
+    doc_path = Path(__file__).parent.parent.parent / "frontend" / "public" / "dokumenty" / safe
+    if not doc_path.exists():
+        raise HTTPException(status_code=404, detail="Dokument nie istnieje")
+    return FileResponse(str(doc_path), media_type="application/pdf")
