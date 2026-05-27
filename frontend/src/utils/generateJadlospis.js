@@ -167,7 +167,7 @@ export async function generateCompactShoppingPdf(days, meta) {
   // Kategoryzuj przez AI
   let categories = [{ category: 'Wszystko', items: all }]
   try {
-    const res = await fetch('/api/categorize-shopping', {
+    const res = await fetch('/api/robert/categorize-shopping', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ingredients: all }),

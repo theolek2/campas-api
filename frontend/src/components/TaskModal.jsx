@@ -1,7 +1,7 @@
 ﻿import { useState, useEffect, useRef } from 'react'
 import {
   updateTask, deleteTask, toggleChecklistItem, addChecklistItem, deleteChecklistItem,
-  addTaskComment, getTaskComments, uploadSharedFile, getTeamMembers,
+  addTaskComment, getTaskComments, uploadSharedFile, getTeamMembers, logActivity,
 } from '../lib/api'
 
 const COLORS = { urgent: '#ef4444', high: '#f97316', medium: '#eab308', low: '#6b7280' }
@@ -245,7 +245,7 @@ export default function TaskModal({ task, onClose, onUpdate, isDruzynowy, user }
           <button
             onClick={async () => {
               if (!confirm('Usunąć to zadanie?')) return
-              await deleteTask(task.id)
+              await deleteTask(campId, task.id)
               logActivity('task_deleted', { title: task.title })
               onUpdate?.()
               onClose()

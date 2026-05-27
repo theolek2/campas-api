@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import get_db
 from dependencies import get_current_user
-from models.shared import User, CampAccess, CampInvitation, Camp
+from models.shared import User, CampAccess, CampInvitation, Camp, Profile
 from models.external import AppExternalUser
 from schemas.auth import RegisterIn, LoginIn, ForgotPasswordIn, ResetPasswordIn, AcceptInviteIn, AuthResponse, UserOut
 from services.auth import hash_password, verify_password, create_jwt, generate_token, validate_password
@@ -63,6 +63,15 @@ async def register(data: RegisterIn, db: AsyncSession = Depends(get_db)):
     db.add(user)
     await db.commit()
     await db.refresh(user)
+
+    # Utwórz profil dla nowego użytkownika
+    db.add(Profile(
+        id=user.id,
+        display_name=data.display_name,
+        organization=data.organization,
+        phone=data.phone,
+    ))
+    await db.commit()
 
     # Nadaj dostęp do obozu z zaproszenia
     if auto_verify and data.invite_token:

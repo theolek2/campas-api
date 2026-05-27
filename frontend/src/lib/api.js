@@ -41,12 +41,12 @@ function _qs(params) {
  * Rejestracja nowego konta.
  * @returns {Promise<{token, user}|{message}>}
  */
-export async function signUp(email, password, displayName = '', inviteToken = '') {
+export async function signUp(email, password, displayName = '', inviteToken = '', org = '', phone = '') {
   try {
     const res = await fetch(`${BASE}/api/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, display_name: displayName, invite_token: inviteToken || undefined }),
+      body: JSON.stringify({ email, password, display_name: displayName, organization: org, phone, invite_token: inviteToken || undefined }),
     })
     const data = await _json(res)
     if (data?.token) {
@@ -141,8 +141,17 @@ export async function getProfile(_userId) {
 }
 
 export async function upsertProfile(profile) {
-  // Brak osobnej tabeli profiles — ignoruj lub prześlij do /api/auth/me gdy powstanie
-  console.debug('[api] upsertProfile ignored (no endpoint yet)', profile)
+  try {
+    const res = await fetch(`${BASE}/api/camps/profiles/me`, {
+      method: 'PATCH',
+      headers: _headers(),
+      body: JSON.stringify(profile),
+    })
+    return await _json(res)
+  } catch {
+    console.warn('[api] upsertProfile failed')
+    return null
+  }
 }
 
 // ── Camp meta / Checklista ────────────────────────────────────────────────────
@@ -150,11 +159,29 @@ export async function upsertProfile(profile) {
 // Klucz: campas_meta_{camp_id}
 
 export async function saveCampMeta(_userId, meta, campId) {
+  try {
+    const res = await fetch(`${BASE}/api/camps/profiles/me`, {
+      method: 'PATCH',
+      headers: _headers(),
+      body: JSON.stringify({ camp_meta: meta }),
+    })
+    await _json(res)
+  } catch (e) {
+    console.warn('[api] saveCampMeta failed:', e.message)
+  }
+  // Backup lokalny
   const key = campId ? `campas_meta_${campId}` : 'campas_meta_default'
   localStorage.setItem(key, JSON.stringify(meta))
 }
 
 export async function loadCampMeta(_userId, campId) {
+  // Spróbuj z serwera
+  try {
+    const res = await fetch(`${BASE}/api/camps/profiles/me`, { headers: _headers() })
+    const data = await _json(res)
+    if (data?.camp_meta) return data.camp_meta
+  } catch {}
+  // Fallback do localStorage
   const key = campId ? `campas_meta_${campId}` : 'campas_meta_default'
   try { return JSON.parse(localStorage.getItem(key) || 'null') }
   catch { return null }

@@ -22,7 +22,7 @@ export const PICTOGRAM_CATEGORIES = [
   {
     name: 'Bezpieczeństwo',
     items: [
-      { id: 'gasnica',       icon: '/icons/ga%C5%9Bnica.svg',        label: 'Gaśnica' },
+      { id: 'gasnica',       icon: '/icons/gasnica.svg',        label: 'Gaśnica' },
       { id: 'ognisko_ppoz',  icon: '/icons/ognisko_z_pkt_ppoz.svg',  label: 'Ognisko + p.poż.' },
       { id: 'ognisko_znak',  icon: '/icons/ognisko_znak.svg',        label: 'Znak ogniska' },
       { id: 'ewakuacja',     icon: '/icons/Punkt-zbiorki-do-ewakuacji.svg', label: 'Punkt zbiórki ewak.' },
@@ -34,7 +34,7 @@ export const PICTOGRAM_CATEGORIES = [
       { id: 'ognisko',       icon: '/icons/ognisko.svg',             label: 'Ognisko' },
       { id: 'kosciol',       icon: '/icons/kosciol.svg',             label: 'Kościół / msza' },
       { id: 'stacja_kol',    icon: '/icons/stacja_kol.svg',          label: 'Stacja kolejowa' },
-      { id: 'rozne',         icon: '/icons/r%C3%B3%C5%BCne.svg',     label: 'Inne' },
+      { id: 'rozne',         icon: '/icons/rozne.svg',     label: 'Inne' },
     ],
   },
   {

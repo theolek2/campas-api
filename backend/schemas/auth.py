@@ -20,6 +20,8 @@ class RegisterIn(BaseModel):
     email: EmailStr
     password: str
     display_name: Optional[str] = None
+    organization: Optional[str] = None
+    phone: Optional[str] = None
     invite_token: Optional[str] = None
 
     @field_validator("display_name")

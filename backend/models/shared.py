@@ -4,7 +4,7 @@ NIE dodawaj tutaj tabel app_* — tylko czytaj/zapisuj istniejące.
 """
 from datetime import datetime, date, timezone
 from typing import Optional
-from sqlalchemy import String, Boolean, Date, DateTime, Text, SmallInteger
+from sqlalchemy import String, Boolean, Date, DateTime, Text, SmallInteger, JSON
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 import uuid
@@ -78,3 +78,14 @@ class Terrain(Base):
 
     id:   Mapped[str] = mapped_column(PG_UUID(as_uuid=False), primary_key=True)
     name: Mapped[str] = mapped_column(String(255))
+
+
+class Profile(Base):
+    __tablename__ = "profiles"
+
+    id:           Mapped[str]            = mapped_column(PG_UUID(as_uuid=False), primary_key=True)
+    display_name: Mapped[Optional[str]]  = mapped_column(String(255), nullable=True)
+    organization: Mapped[Optional[str]]  = mapped_column(String(255), nullable=True)
+    phone:        Mapped[Optional[str]]  = mapped_column(String(20), nullable=True)
+    camp_meta:    Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    created_at:   Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))

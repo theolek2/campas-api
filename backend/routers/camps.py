@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import get_db
 from dependencies import get_current_user, require_camp_access, require_camp_owner
-from models.shared import Camp, Patrol, CampAccess, CampInvitation, User
+from models.shared import Camp, Patrol, CampAccess, CampInvitation, User, Profile
 from schemas.camps import CampOut, CampCreate, CampUpdate, PatrolCreate, PatrolOut, InviteCreate
 from services.auth import generate_token
 
@@ -133,7 +133,7 @@ async def create_invite(
     )
     db.add(inv)
     await db.commit()
-    return {"token": token, "type": invite_type}
+    return {"token": token, "type": data.type}
 
 
 # ── Dostęp uczestników ────────────────────────────────────────────────────────
@@ -153,3 +153,41 @@ async def list_members(
         {"id": u.id, "email": u.email, "display_name": u.display_name, "permissions": p}
         for u, p in result.all()
     ]
+
+
+# ── Profile użytkownika ──────────────────────────────────────────────────────
+
+@router.get("/profiles/me")
+async def get_my_profile(
+    user_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    profile = await db.get(Profile, user_id)
+    if not profile:
+        return {"id": user_id, "display_name": None, "organization": None, "phone": None, "camp_meta": None}
+    return {
+        "id": profile.id,
+        "display_name": profile.display_name,
+        "organization": profile.organization,
+        "phone": profile.phone,
+        "camp_meta": profile.camp_meta,
+    }
+
+
+@router.patch("/profiles/me")
+async def update_my_profile(
+    data: dict,
+    user_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    profile = await db.get(Profile, user_id)
+    allowed = ("display_name", "organization", "phone", "camp_meta")
+    if not profile:
+        profile = Profile(id=user_id)
+        db.add(profile)
+        await db.flush()
+    for field in allowed:
+        if field in data:
+            setattr(profile, field, data[field])
+    await db.commit()
+    return {"ok": True}

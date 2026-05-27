@@ -220,7 +220,8 @@ export default function DashboardTab({ meta, days, user, onNavigate, checklist =
   const [selectedTask, setSelectedTask] = useState(null)
   useEffect(() => {
     import('../data/file-map.json').then(m => setFileMap(m.default || {})).catch(() => {})
-    getTasks().then(async (existing) => {
+    const campId = localStorage.getItem('campas_camp_id') || ''
+    getTasks({ campId }).then(async (existing) => {
       setTasks(existing)
       // Auto-twórz taski dla itemów które nie istnieją
       if (existing.length < 10) {
@@ -228,7 +229,7 @@ export default function DashboardTab({ meta, days, user, onNavigate, checklist =
           const found = existing.find(t => (t.title || '').toLowerCase() === item.title.toLowerCase())
           if (!found) {
             try {
-              const { data: newT } = await createTask({
+              const newT = await createTask(campId, {
                 title: item.title,
                 column: 'todo',
                 priority: item.urgent ? 'urgent' : item.star ? 'high' : 'medium',
@@ -240,7 +241,7 @@ export default function DashboardTab({ meta, days, user, onNavigate, checklist =
           }
         }
         // Po stworzeniu batchu — załaduj ponownie
-        const all = await getTasks()
+        const all = await getTasks({ campId })
         setTasks(all)
       }
     }).catch(() => {})

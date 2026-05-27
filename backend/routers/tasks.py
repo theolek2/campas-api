@@ -149,7 +149,7 @@ async def update_task(
     if data.column is not None and data.column != old_column:
         db.add(AppActivityLog(user_id=user_id, action=f"task_move_{data.column}",
                               entity_type="task", entity_id=task_id,
-                              meta={"title": task.title, "from": old_column, "to": data["column"]}))
+                              meta={"title": task.title, "from": old_column, "to": data.column}))
         await db.commit()
     return _task_dict(task)
 

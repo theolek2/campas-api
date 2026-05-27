@@ -2,7 +2,7 @@
 import { signIn, signUp, upsertProfile } from '../lib/api'
 
 export default function AuthModal({ onClose, onAuth, resetToken: initResetToken }) {
-  const [mode, setMode]         = useState(initResetToken ? 'reset' : 'login')   // 'login' | 'register' | 'guest' | 'reset'
+  const [mode, setMode]         = useState(initResetToken ? 'reset' : 'login')   // 'login' | 'register' | 'guest' | 'reset' | 'forgot'
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
   const [name, setName]         = useState('')
@@ -11,6 +11,7 @@ export default function AuthModal({ onClose, onAuth, resetToken: initResetToken 
   const [error, setError]       = useState('')
   const [loading, setLoading]   = useState(false)
   const [resetToken, setResetToken] = useState(initResetToken || '')
+  const [successMsg, setSuccessMsg] = useState('')
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -31,6 +32,28 @@ export default function AuthModal({ onClose, onAuth, resetToken: initResetToken 
         if (!res.ok) throw new Error(data.detail || 'Błąd resetowania hasła')
         setError('✅ Hasło zmienione! Możesz się zalogować.')
         setTimeout(() => { setMode('login'); setError(''); setPassword('') }, 2000)
+      } catch (err) {
+        setError(err.message)
+      } finally {
+        setLoading(false)
+      }
+      return
+    }
+
+    // Zapomniałem hasła
+    if (mode === 'forgot') {
+      try {
+        if (!email) throw new Error('Podaj adres email')
+        const res = await fetch('/api/auth/forgot-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email }),
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.detail || 'Błąd')
+        setSuccessMsg('Link do resetu hasła został wysłany na podany adres email.')
+        setMode('login')
+        setTimeout(() => setSuccessMsg(''), 5000)
       } catch (err) {
         setError(err.message)
       } finally {
@@ -72,7 +95,7 @@ export default function AuthModal({ onClose, onAuth, resetToken: initResetToken 
         if (err) throw err
         onAuth(data.user)
       } else {
-        const { data, error: err } = await signUp(email, password, name)
+        const { data, error: err } = await signUp(email, password, name, '', org, phone)
         if (err) throw err
         if (data.needs_verification) {
           setMode('confirm')
@@ -95,7 +118,7 @@ export default function AuthModal({ onClose, onAuth, resetToken: initResetToken 
         {/* Header */}
         <div className="bg-green-700 text-white px-6 py-4 rounded-t-2xl flex items-center justify-between">
           <h2 className="text-lg font-bold">
-            {mode === 'login' ? '🔐 Zaloguj się' : mode === 'reset' ? '🔑 Nowe hasło' : '📝 Utwórz konto'}
+            {mode === 'login' ? '🔐 Zaloguj się' : mode === 'reset' ? '🔑 Nowe hasło' : mode === 'forgot' ? '📧 Reset hasła' : '📝 Utwórz konto'}
           </h2>
           <button onClick={onClose} className="text-white/70 hover:text-white text-xl">×</button>
         </div>
@@ -125,12 +148,14 @@ export default function AuthModal({ onClose, onAuth, resetToken: initResetToken 
                 placeholder="email@harcerze.pl" />
             </div>
           )}
+          {mode !== 'forgot' && (
           <div>
             <label className="block text-xs font-semibold text-gray-600 mb-1">{mode === 'reset' ? 'Nowe hasło *' : 'Hasło *'}</label>
             <input type="password" required value={password} onChange={e => setPassword(e.target.value)}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-green-500"
               placeholder="min. 10 znaków, wymagany znak specjalny" minLength={10} />
           </div>
+          )}
 
           {mode === 'register' && <>
             <div>
@@ -154,18 +179,23 @@ export default function AuthModal({ onClose, onAuth, resetToken: initResetToken 
           </>}
 
           {error && <p className={`text-sm px-3 py-2 rounded-lg ${error.startsWith('✅') ? 'text-green-600 bg-green-50' : 'text-red-600 bg-red-50'}`}>{error}</p>}
+          {successMsg && <p className="text-green-600 text-sm bg-green-50 px-3 py-2 rounded-lg">{successMsg}</p>}
 
           <button type="submit" disabled={loading}
             className="w-full bg-green-700 text-white py-2.5 rounded-xl font-bold hover:bg-green-800 disabled:opacity-50">
-            {loading ? 'Proszę czekać...' : mode === 'login' ? 'Zaloguj się' : mode === 'reset' ? 'Ustaw nowe hasło' : 'Utwórz konto'}
+            {loading ? 'Proszę czekać...' : mode === 'login' ? 'Zaloguj się' : mode === 'reset' ? 'Ustaw nowe hasło' : mode === 'forgot' ? 'Wyślij link resetujący' : 'Utwórz konto'}
           </button>
 
-          {mode !== 'reset' && (<>
+          {mode !== 'reset' && mode !== 'forgot' && (<>
           <p className="text-center text-sm text-gray-500">
             {mode === 'login' ? (
               <>Nie masz konta?{' '}
                 <button type="button" onClick={() => setMode('register')} className="text-green-700 font-semibold hover:underline">
                   Zarejestruj się
+                </button>
+                <br/>
+                <button type="button" onClick={() => setMode('forgot')} className="text-gray-400 text-xs hover:text-green-600 mt-1 inline-block">
+                  Nie pamiętam hasła?
                 </button>
               </>
             ) : mode === 'register' ? (
