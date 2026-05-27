@@ -16,6 +16,7 @@ import JadlospisTab from './components/JadlospisTab'
 import RobertTab from './components/RobertTab'
 import ZadaniaTab from './components/ZadaniaTab'
 import OfficialDocumentEditor from './components/OfficialDocumentEditor'
+import officialDocs from './data/official-docs.json'
 import FloatingRobert from './components/FloatingRobert'
 import Confetti from './components/Confetti'
 import { makeDay, DEFAULT_CAMP_ACTIVITIES } from './utils/defaults'
@@ -752,6 +753,7 @@ export default function App() {
       {selectedDocument && (
         <OfficialDocumentEditor
           docId={selectedDocument}
+          doc={officialDocs[selectedDocument] || null}
           meta={meta}
           onClose={() => setSelectedDocument(null)}
         />

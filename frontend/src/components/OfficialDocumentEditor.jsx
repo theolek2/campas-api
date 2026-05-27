@@ -1,9 +1,8 @@
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
-import officialDocs from '../data/official-docs.json'
 
 function fieldValue(meta, varName) {
-  const w = (meta?.wychowawcy || []).filter(x => x.name)
+  const w = (meta?.wychowawcy || []).filter(x => x && x.name)
   const m = {
     data_dzis: new Date().toLocaleDateString('pl-PL', { day: 'numeric', month: 'long', year: 'numeric' }),
     kontakt1: w[0]?.name || '', tel_kontakt1: w[0]?.phone || '',
@@ -14,8 +13,7 @@ function fieldValue(meta, varName) {
   return m[varName] || meta?.[varName] || ''
 }
 
-export default function OfficialDocumentEditor({ docId, meta, onClose }) {
-  const doc = officialDocs?.[docId]
+export default function OfficialDocumentEditor({ docId, doc, meta, onClose }) {
   if (!doc) return null
 
   const file = (doc.file || '').split('/').pop()
@@ -59,7 +57,7 @@ export default function OfficialDocumentEditor({ docId, meta, onClose }) {
         <span style={{fontSize:12,color:'#888'}}>{doc.fields?.length||0} pól · {pages} str.</span>
         <div style={{display:'flex',gap:8}}>
           <button onClick={handlePrint} style={{padding:'6px 14px',fontSize:12,fontWeight:'bold',background:'#2d6a2d',color:'#fff',border:'none',borderRadius:6,cursor:'pointer'}}>Drukuj PDF</button>
-          <button onClick={onClose} style={{width:28,height:28,borderRadius:'50%',background:'#ef4444',color:'#fff',border:'none',cursor:'pointer',fontSize:16,fontWeight:'bold'}}>x</button>
+          <button onClick={onClose} style={{width:28,height:28,borderRadius:'50%',background:'#ef4444',color:'#fff',border:'none',cursor:'pointer',fontSize:16,fontWeight:'bold'}}>×</button>
         </div>
       </div>
       <div style={{flex:1,display:'flex',overflow:'hidden'}}>
