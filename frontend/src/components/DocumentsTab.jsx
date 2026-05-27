@@ -1,6 +1,8 @@
 ﻿import { useState } from 'react'
 import officialDocs from '../data/official-docs.json'
+import { DOC_TEMPLATES } from '../data/dokumenty-szablony.js'
 import DocumentEditorView from './DocumentEditorView.jsx'
+import DocumentEditor from './DocumentEditor.jsx'
 
 const OFFICIAL_DOCS = Object.entries(officialDocs).map(([id, t]) => ({ id, ...t }))
 
@@ -9,6 +11,21 @@ export default function DocumentsTab({ meta, onNavigate, progress, onToggleProgr
   const [selectedId, setSelectedId] = useState(null)
 
   if (selectedId) {
+    const htmlTemplate = DOC_TEMPLATES[selectedId]
+    if (htmlTemplate) {
+      return (
+        <DocumentEditor
+          templateHtml={htmlTemplate.html || ''}
+          meta={meta}
+          docLabel={htmlTemplate.label}
+          onClose={() => setSelectedId(null)}
+          onSave={() => {}}
+          recipients={htmlTemplate.recipients || null}
+          multiRecipient={htmlTemplate.multiRecipient || false}
+          attachments={htmlTemplate.attachments || null}
+        />
+      )
+    }
     const doc = officialDocs[selectedId]
     if (!doc) { setSelectedId(null); return null }
     return <DocumentEditorView doc={doc} meta={meta} onBack={() => setSelectedId(null)} />
@@ -28,7 +45,7 @@ export default function DocumentsTab({ meta, onNavigate, progress, onToggleProgr
             </button>
           </div>
           <p className="text-sm text-gray-500 mt-1">
-            Oficjalne dokumenty PDF — dane pobierane automatycznie z zakładki Dane obozu
+            Oficjalne dokumenty — dane pobierane automatycznie z zakładki Dane obozu
           </p>
         </div>
 

@@ -93,15 +93,63 @@ export const DOC_TEMPLATES = {
   wojt: {
     label: 'Pismo do Wójta',
     icon: '🏛️',
-    html: `${SENDER}
-<div style="margin-bottom:18px;">
-  <p>Sz. P. Wójt / Burmistrz Gminy <b>{{gmina}}</b></p>
+    html: `<div style="text-align:right;margin-bottom:18px;font-size:10pt;color:#555;">
+  {{miejsce}}, dnia {{data_dzis}}
 </div>
+
+<table style="width:100%;border-collapse:collapse;margin-bottom:18px;">
+  <tr style="vertical-align:top;">
+    <td style="width:48%;padding-right:12px;border-right:1px solid #ccc;">
+      <p style="font-weight:bold;font-size:11pt;margin:0 0 4px;">Skauci Europy</p>
+      <p style="margin:0 0 4px;font-size:10pt;">Stowarzyszenie Harcerstwa Katolickiego „Zawisza"<br/>Federacja Skautingu Europejskiego</p>
+      <p style="margin:8px 0 0;"><b>Hufiec:</b> {{hufiec}}</p>
+      <p style="margin:6px 0 0;"><b>Kierownik wypoczynku:</b></p>
+      <p style="margin:2px 0;">Imię i nazwisko: {{kierownik}}<br/>E-mail: {{email}}<br/>Telefon: {{tel_kierownik}}</p>
+    </td>
+    <td style="width:4%;">&nbsp;</td>
+    <td style="width:48%;padding-left:12px;">
+      <p style="margin:0 0 4px;"><b>Sz. P.</b> .........................................</p>
+      <p style="margin:2px 0;font-style:italic;font-size:9pt;">Imię i nazwisko</p>
+      <p style="margin:8px 0 0;"><b>Wójt</b> {{gmina}}</p>
+      <p style="margin:2px 0;font-style:italic;font-size:9pt;">Nazwa gminy</p>
+    </td>
+  </tr>
+</table>
+
 <p style="font-weight:bold;text-align:center;font-size:12pt;margin:18px 0 14px;">Wniosek o wyrażenie zgody na użytkowanie latryn oraz dołów chłonnych</p>
-<p>Szanowny Panie Wójcie,</p>
-<p>w związku z planowaną organizacją obozu harcerskiego na terenie Gminy <b>{{gmina}}</b>, w obrębie Nadleśnictwa <b>{{nadlesnictwo}}</b> (oddział leśny nr <b>{{oddzial_lesny}}</b>), zwracam się z uprzejmą prośbą o wyrażenie pisemnej zgody na wykopanie i użytkowanie latryn naturalnych oraz dołów chłonnych na czas trwania wypoczynku, tj. od <b>{{date_start}}</b> do <b>{{date_end}}</b>.</p>
-<p>Organizatorem obozu jest <b>{{hufiec}}</b>, działający w ramach Stowarzyszenia Harcerstwa Katolickiego „Zawisza" – Federacji Skautingu Europejskiego (Skauci Europy), reprezentowany przez kierownika wypoczynku <b>{{kierownik}}</b> (<b>{{tel_kierownik}}</b>). W obozie weźmie udział około <b>{{uczestnicy}}</b> uczestników w wieku <b>{{wiek}}</b> lat oraz <b>{{liczba_kadry}}</b> osób kadry wychowawczej. Uczestnikami będą {{CHOICE:plec:dziewczęta|chłopcy}} należący do {{CHOICE:galaz:gromad|drużyn}} Skautów Europy.</p>
-<p>Obóz organizowany jest za zgodą Nadleśnictwa <b>{{nadlesnictwo}}</b>. Latryny i doły chłonne zostaną wykonane zgodnie z normami i zasypane po zakończeniu obozu.</p>
+
+<p style="text-align:justify;margin-bottom:6pt;font-size:12pt;">Szanowny Panie,</p>
+
+<p style="text-align:justify;margin-bottom:6pt;font-size:12pt;">w związku z planowaną organizacją obozu harcerskiego na terenie Gminy <b>{{gmina}}</b>, w obrębie Nadleśnictwa <b>{{nadlesnictwo}}</b> (oddział leśny nr <b>{{oddzial_lesny}}</b>), zwracam się z uprzejmą prośbą o wyrażenie pisemnej zgody na wykopanie i użytkowanie latryn naturalnych oraz dołów chłonnych na czas trwania wypoczynku, tj. od <b>{{date_start}}</b> do <b>{{date_end}}</b>.</p>
+
+<p style="text-align:justify;margin-bottom:6pt;font-size:12pt;">Organizatorem obozu jest <b>{{hufiec}}</b>, działający w ramach Stowarzyszenia Harcerstwa Katolickiego „Zawisza" – Federacji Skautingu Europejskiego (Skauci Europy), reprezentowany przez kierownika wypoczynku <b>{{kierownik}}</b> (<b>{{tel_kierownik}}</b>). W obozie weźmie udział około <b>{{uczestnicy}}</b> uczestników w wieku <b>{{wiek}}</b> lat oraz <b>{{liczba_kadry}}</b> osób kadry wychowawczej. Uczestnikami będą {{CHOICE:plec:dziewczęta|chłopcy}} należący do {{CHOICE:galaz:gromad|drużyn}} Skautów Europy wraz z pełnoletnimi opiekunami.</p>
+
+<p style="text-align:justify;margin-bottom:6pt;font-size:12pt;">Obóz organizowany jest za zgodą Nadleśnictwa <b>{{nadlesnictwo}}</b>, na podstawie zawartej umowy. Wydarzenie zostanie zgłoszone do właściwego Kuratorium Oświaty oraz zorganizowane z zachowaniem obowiązujących przepisów przeciwpożarowych i sanitarnych.</p>
+
+<p style="text-align:justify;margin-bottom:6pt;font-size:12pt;">Obóz prowadzony będzie w oparciu o klasyczny system zastępowy (odmienny od modelu funkcjonującego w innych organizacjach harcerskich). Podstawową jednostką wychowawczą jest kilkuosobowy zastęp stanowiący stałą, autonomiczną wspólnotę. Każdy zastęp samodzielnie przygotowuje posiłki, odpowiada za porządek oraz buduje własną infrastrukturę obozową.</p>
+
+<p style="text-align:justify;margin-bottom:6pt;font-size:12pt;">W pierwszych 3-5 dniach obozu uczestnicy wznoszą w ramach pionierki swoje konstrukcje obejmujące platformy namiotowe z wyplatanymi pryczami, stoły (jadalny i kuchenny), punkt do mycia rąk, zmywalnię, półki na sprzęt oraz bramę wejściową. Konstrukcje wykonywane są wyłącznie z żerdzi i sznurka, bez użycia gwoździ, z zastosowaniem tradycyjnych wiązań oraz połączeń kołkowych.</p>
+
+<p style="text-align:justify;margin-bottom:6pt;font-size:12pt;">Powołując się na aktualną „Instrukcję w sprawie wymagań higieniczno-sanitarnych dla stacjonarnych obozów pod namiotami" Głównego Inspektoratu Sanitarnego oraz w związku z pozytywnym rozpatrzeniem tożsamego wniosku skierowanego do Nadleśnictwa, jako właściciela terenu, zwracam się również do Państwa z prośbą o wyrażenie zgody na:</p>
+
+<ul style="margin:0 0 6pt 30pt;font-size:12pt;">
+  <li style="margin-bottom:3pt;">wykopanie dołów chłonnych na wodę pochodzącą z czynności higienicznych, zgodnie z § 32 ust. 2 ww. Instrukcji.</li>
+  <li style="margin-bottom:3pt;">wykopanie i użytkowanie latryn naturalnych, zgodnie z § 27 ust. 1, 6 i 7 ww. Instrukcji.</li>
+</ul>
+
+<p style="text-align:justify;margin-bottom:6pt;font-size:12pt;">Rozwiązania te zostaną wykonane i zabezpieczone zgodnie z obowiązującymi przepisami. Stosowane będą wyłącznie środki biodegradowalne, a latryny będą regularnie odkażane preparatami zawierającymi kultury bakterii.</p>
+
+<p style="text-align:justify;margin-bottom:6pt;font-size:12pt;">Jednocześnie uprzejmie proszę o informację dotyczącą zasad postępowania z odpadami komunalnymi na terenie Gminy oraz wskazanie podmiotu odpowiedzialnego za odbiór odpadów. Odpady nieorganiczne będą gromadzone selektywnie i przekazywane do odbioru w ramach zawartej umowy na wywóz śmieci.</p>
+
+<p style="text-align:justify;margin-bottom:6pt;font-size:12pt;">Poszukujemy również miejsca tymczasowego schronienia na wypadek ewakuacji z możliwością skorzystania ze schronienia przez jednostkę – np. szkoły/ świetlicy wiejskiej/ domu parafialnego/ leśniczówki/ remizy strażackiej/ agroturystyki itp. Miejsce to dobrze by było możliwie blisko obozu i z bezpośrednim dostępem tj. kontaktem do osoby dysponującej kluczem.</p>
+
+<p style="text-align:justify;margin-bottom:6pt;font-size:12pt;">Będziemy wdzięczni za pozytywne rozpatrzenie niniejszego wniosku.</p>
+
+<p style="text-align:justify;margin-bottom:6pt;font-size:12pt;">Z wyrazami szacunku</p>
+
+<p style="margin-top:20pt;">........................................</p>
+<p style="font-size:9pt;font-style:italic;margin-top:0;">podpis kierownika wypoczynku</p>
+
 <div style="margin-top:40px;display:flex;justify-content:space-between;">
   <div><div style="border-top:1px solid #333;width:190px;padding-top:4px;text-align:center;">Podpis kierownika</div></div>
   <div><div style="border-top:1px solid #333;width:190px;padding-top:4px;text-align:center;">Pieczęć i podpis hufcowego</div></div>
