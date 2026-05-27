@@ -5,9 +5,10 @@ Prefix: /api/robert
 import os
 import re
 import json
+import subprocess
 from pathlib import Path
-from fastapi import APIRouter, Depends, HTTPException
-import httpx
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import FileResponse
 
 from dependencies import get_current_user
 from schemas.robert import RobertAsk, RobertSuggestMeal, CategorizeShopping
@@ -165,6 +166,37 @@ async def _retrieve(question: str) -> tuple[str, list[dict]]:
 
 # ── Endpointy ────────────────────────────────────────────────────────────────
 
+# Renderowanie PDF → PNG (przez poppler-utils)
+@router.get("/render-document")
+async def render_document(file: str = Query(...), page: int = Query(1), scale: int = Query(150)):
+    safe = os.path.basename(file)
+    pdf = (Path(__file__).resolve().parent.parent.parent / "frontend" / "public" / "dokumenty" / safe)
+    if not pdf.exists():
+        raise HTTPException(status_code=404, detail="PDF not found")
+
+    cache_name = f"{pdf.stem}-p{page}-s{scale}.png"
+    cache_path = pdf.parent / cache_name
+
+    if not cache_path.exists():
+        try:
+            base = pdf.parent / pdf.stem
+            subprocess.run(
+                ["pdftoppm", "-png", "-f", str(page), "-l", str(page),
+                 "-scale-to", str(scale), str(pdf), str(base)],
+                check=True, capture_output=True, timeout=30,
+            )
+            tmp = pdf.parent / f"{pdf.stem}-{page}.png"
+            if tmp.exists():
+                tmp.rename(cache_path)
+        except Exception:
+            pass
+
+    if cache_path.exists():
+        return FileResponse(str(cache_path), media_type="image/png")
+
+    raise HTTPException(status_code=500, detail="Render failed")
+
+
 @router.post("/suggest-meal")
 async def suggest_meal_ingredients(
     data: RobertSuggestMeal,
@@ -291,9 +323,9 @@ async def categorize_shopping(
 
     prompt = (
         f"Masz listę składników: {ing_list}. Podziel je na kategorie sklepowe. "
-        f"Zwróć TYLKO JSON: [{{\"category\":\"Nabiał\",\"items\":[{{\"name\":\"mleko\",\"qty\":5,\"unit\":\"L\"}}]}]}. "
-        f"Kategorie: Nabiał, Pieczywo, Mięso i wędliny, Warzywa i owoce, Produkty sypkie, Przyprawy, Napoje, Słodycze i przekąski, Chemia i higiena, Inne. "
-        f"Nie zmieniaj nazw ani ilości, tylko pogrupuj."
+        "Zwróć TYLKO JSON: [{\"category\":\"Nabiał\",\"items\":[{\"name\":\"mleko\",\"qty\":5,\"unit\":\"L\"}]}]. "
+        "Kategorie: Nabiał, Pieczywo, Mięso i wędliny, Warzywa i owoce, Produkty sypkie, Przyprawy, Napoje, Słodycze i przekąski, Chemia i higiena, Inne. "
+        "Nie zmieniaj nazw ani ilości, tylko pogrupuj."
     )
 
     try:

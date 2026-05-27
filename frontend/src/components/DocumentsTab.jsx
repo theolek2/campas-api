@@ -1,9 +1,18 @@
-﻿import officialDocs from '../data/official-docs.json'
+﻿import { useState } from 'react'
+import officialDocs from '../data/official-docs.json'
+import DocumentEditorView from './DocumentEditorView.jsx'
 
 const OFFICIAL_DOCS = Object.entries(officialDocs).map(([id, t]) => ({ id, ...t }))
 
-export default function DocumentsTab({ meta, onNavigate, progress, onToggleProgress, onOpenDocument }) {
+export default function DocumentsTab({ meta, onNavigate, progress, onToggleProgress }) {
   const metaOk = meta.jednostka && meta.kierownik
+  const [selectedId, setSelectedId] = useState(null)
+
+  if (selectedId) {
+    const doc = officialDocs[selectedId]
+    if (!doc) { setSelectedId(null); return null }
+    return <DocumentEditorView doc={doc} meta={meta} onBack={() => setSelectedId(null)} />
+  }
 
   return (
     <div className="flex-1 overflow-y-auto bg-gray-50">
@@ -40,18 +49,16 @@ export default function DocumentsTab({ meta, onNavigate, progress, onToggleProgr
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {OFFICIAL_DOCS.map(doc => (
             <button key={doc.id}
-              onClick={() => onOpenDocument(doc.id)}
+              onClick={() => setSelectedId(doc.id)}
               className={`w-full flex items-center gap-4 p-4 bg-white rounded-2xl border-2 text-left transition ${
-                metaOk
-                  ? 'border-gray-200 hover:border-green-400 hover:bg-green-50'
-                  : 'border-gray-200 opacity-60 cursor-not-allowed'
+                metaOk ? 'border-gray-200 hover:border-green-400 hover:bg-green-50' : 'border-gray-200 opacity-60 cursor-not-allowed'
               }`}
               disabled={!metaOk}
             >
               <span className="text-3xl shrink-0">{doc.icon}</span>
               <div className="flex-1 min-w-0">
                 <div className="font-semibold text-sm text-gray-800 leading-tight truncate">{doc.label}</div>
-                <div className="text-xs text-gray-400 mt-0.5">{doc.fields?.length || 0} pól · {doc.pages || 1} str.</div>
+                <div className="text-xs text-gray-400 mt-0.5">{(doc.fields?.length||0)+(doc.selects?.length||0)} pól · {doc.pages||1} str.</div>
               </div>
             </button>
           ))}

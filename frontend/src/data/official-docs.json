@@ -3,7 +3,11 @@
     "label": "Zawiadomienie o obozie",
     "icon": "📨",
     "file": "/dokumenty/zawiadomienie.pdf",
-    "pages": 1,
+    "pages": 2,
+    "selects": [
+      { "var": "plec", "label": "Płeć uczestników", "options": ["dziewczęta", "chłopcy"], "x": 28, "y": 52, "w": 25 },
+      { "var": "galaz", "label": "Gałąź", "options": ["gromad", "drużyn"], "x": 55, "y": 52, "w": 20 }
+    ],
     "fields": [
       { "var": "data_dzis",     "x": 75, "y": 8,  "w": 22, "label": "Data" },
       { "var": "miejsce",       "x": 75, "y": 11, "w": 22, "label": "Miejscowość" },
@@ -30,7 +34,12 @@
     "label": "Pismo przewodnie (PSP)",
     "icon": "🔥",
     "file": "/dokumenty/przewodnie.pdf",
-    "pages": 1,
+    "pages": 2,
+    "selects": [
+      { "var": "psp_typ", "label": "Typ PSP", "options": ["Powiatowej", "Miejskiej"], "x": 25, "y": 34, "w": 25 },
+      { "var": "plec",    "label": "Płeć",     "options": ["dziewczęta", "chłopcy"],          "x": 25, "y": 58, "w": 25 },
+      { "var": "galaz",   "label": "Gałąź",   "options": ["gromad", "drużyn"],              "x": 55, "y": 58, "w": 20 }
+    ],
     "fields": [
       { "var": "data_dzis",     "x": 75, "y": 8,  "w": 22, "label": "Data" },
       { "var": "miejsce",       "x": 75, "y": 11, "w": 22, "label": "Miejscowość" },
@@ -59,6 +68,10 @@
     "icon": "🏛️",
     "file": "/dokumenty/wojt.pdf",
     "pages": 1,
+    "selects": [
+      { "var": "plec",  "label": "Płeć",   "options": ["dziewczęta", "chłopcy"], "x": 28, "y": 62, "w": 22 },
+      { "var": "galaz", "label": "Gałąź", "options": ["gromad", "drużyn"],      "x": 55, "y": 62, "w": 20 }
+    ],
     "fields": [
       { "var": "data_dzis",     "x": 75, "y": 8,  "w": 22, "label": "Data" },
       { "var": "miejsce",       "x": 75, "y": 11, "w": 22, "label": "Miejscowość" },
@@ -82,6 +95,10 @@
     "icon": "🌲",
     "file": "/dokumenty/nadlesnictwo.pdf",
     "pages": 1,
+    "selects": [
+      { "var": "plec",  "label": "Płeć",   "options": ["dziewczęta", "chłopcy"], "x": 28, "y": 64, "w": 22 },
+      { "var": "galaz", "label": "Gałąź", "options": ["gromad", "drużyn"],      "x": 55, "y": 64, "w": 20 }
+    ],
     "fields": [
       { "var": "data_dzis",     "x": 75, "y": 8,  "w": 22, "label": "Data" },
       { "var": "miejsce",       "x": 75, "y": 11, "w": 22, "label": "Miejscowość" },
@@ -104,6 +121,10 @@
     "icon": "📝",
     "file": "/dokumenty/oswiadczenie.pdf",
     "pages": 1,
+    "selects": [
+      { "var": "podp",    "label": "Podpisujący",   "options": ["podpisany", "podpisana"],     "x": 15, "y": 22, "w": 22 },
+      { "var": "zamiesz", "label": "Zamieszkały/a", "options": ["zamieszkały", "zamieszkała"], "x": 40, "y": 22, "w": 22 }
+    ],
     "fields": [
       { "var": "data_dzis",     "x": 70, "y": 6,  "w": 25, "label": "Data" },
       { "var": "miejsce",       "x": 70, "y": 9,  "w": 25, "label": "Miejscowość" },
@@ -117,6 +138,26 @@
       { "var": "kierownik",     "x": 20, "y": 68, "w": 30, "label": "Kierownik" },
       { "var": "tel_kierownik", "x": 55, "y": 68, "w": 20, "label": "Tel. kierownika" },
       { "var": "email",         "x": 20, "y": 72, "w": 35, "label": "E-mail" }
+    ]
+  },
+  "szkola": {
+    "label": "Wniosek o pom. szkolne",
+    "icon": "🏫",
+    "file": "/dokumenty/szkola.pdf",
+    "pages": 1,
+    "selects": [
+      { "var": "typ", "label": "Rodzaj wydarzenia", "options": ["biwaku", "zimowiska"], "x": 50, "y": 38, "w": 25 }
+    ],
+    "fields": [
+      { "var": "data_dzis",     "x": 75, "y": 8,  "w": 22, "label": "Data" },
+      { "var": "miejsce",       "x": 75, "y": 11, "w": 22, "label": "Miejscowość" },
+      { "var": "hufiec",        "x": 10, "y": 20, "w": 40, "label": "Hufiec" },
+      { "var": "date_start",    "x": 15, "y": 42, "w": 18, "label": "Data od" },
+      { "var": "date_end",      "x": 38, "y": 42, "w": 18, "label": "Data do" },
+      { "var": "jednostka",     "x": 15, "y": 46, "w": 40, "label": "Nazwa jednostki" },
+      { "var": "uczestnicy",    "x": 15, "y": 52, "w": 12, "label": "L. uczestników" },
+      { "var": "wiek",          "x": 35, "y": 52, "w": 15, "label": "Wiek" },
+      { "var": "liczba_kadry",  "x": 55, "y": 52, "w": 12, "label": "L. kadry" }
     ]
   },
   "schronienie": {
@@ -149,23 +190,6 @@
       { "var": "jednostka",     "x": 15, "y": 60, "w": 40, "label": "Nazwa jednostki" },
       { "var": "date_start",    "x": 25, "y": 64, "w": 18, "label": "Data od" },
       { "var": "date_end",      "x": 50, "y": 64, "w": 18, "label": "Data do" }
-    ]
-  },
-  "szkola": {
-    "label": "Wniosek o pom. szkolne",
-    "icon": "🏫",
-    "file": "/dokumenty/szkola.pdf",
-    "pages": 1,
-    "fields": [
-      { "var": "data_dzis",     "x": 75, "y": 8,  "w": 22, "label": "Data" },
-      { "var": "miejsce",       "x": 75, "y": 11, "w": 22, "label": "Miejscowość" },
-      { "var": "hufiec",        "x": 10, "y": 20, "w": 40, "label": "Hufiec" },
-      { "var": "date_start",    "x": 15, "y": 42, "w": 18, "label": "Data od" },
-      { "var": "date_end",      "x": 38, "y": 42, "w": 18, "label": "Data do" },
-      { "var": "jednostka",     "x": 15, "y": 46, "w": 40, "label": "Nazwa jednostki" },
-      { "var": "uczestnicy",    "x": 15, "y": 52, "w": 12, "label": "L. uczestników" },
-      { "var": "wiek",          "x": 35, "y": 52, "w": 15, "label": "Wiek" },
-      { "var": "liczba_kadry",  "x": 55, "y": 52, "w": 12, "label": "L. kadry" }
     ]
   },
   "kontaktowa": {

@@ -15,8 +15,6 @@ import InstructionsTab from './components/InstructionsTab'
 import JadlospisTab from './components/JadlospisTab'
 import RobertTab from './components/RobertTab'
 import ZadaniaTab from './components/ZadaniaTab'
-import OfficialDocumentEditor from './components/OfficialDocumentEditor'
-import officialDocs from './data/official-docs.json'
 import FloatingRobert from './components/FloatingRobert'
 import Confetti from './components/Confetti'
 import { makeDay, DEFAULT_CAMP_ACTIVITIES } from './utils/defaults'
@@ -68,8 +66,6 @@ export default function App() {
   // Stan dla linków z emaila
   const [resetToken, setResetToken] = useState(null)
   const [resetError, setResetError] = useState('')
-  // Stan dla edytora dokumentów PDF
-  const [selectedDocument, setSelectedDocument] = useState(null)
 
   // Weryfikuj sesję przybocznego przy starcie (odśwież permisje)
   useEffect(() => {
@@ -573,7 +569,7 @@ export default function App() {
               progress={progress} onToggleProgress={toggleProgress} />
           )}
           {activeTab === 'docs' && (
-            <DocumentsTab meta={meta} onNavigate={navigateToSection} progress={progress} onToggleProgress={toggleProgress} onOpenDocument={setSelectedDocument} />
+            <DocumentsTab meta={meta} onNavigate={navigateToSection} progress={progress} onToggleProgress={toggleProgress} />
           )}
           {activeTab === 'map' && (
             <div className="flex flex-1 overflow-hidden"><MapTab user={user} meta={meta} /></div>
@@ -750,14 +746,6 @@ export default function App() {
           </div>
         )
       })()}
-      {selectedDocument && (
-        <OfficialDocumentEditor
-          docId={selectedDocument}
-          doc={officialDocs[selectedDocument] || null}
-          meta={meta}
-          onClose={() => setSelectedDocument(null)}
-        />
-      )}
     </div>
   )
 }
