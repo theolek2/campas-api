@@ -1,57 +1,7 @@
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
 import officialDocs from '../data/official-docs.json'
-
-let pdfjsLib = null
-let pdfjsLoading = false
-let pdfjsResolvers = []
-
-function loadPdfJs() {
-  return new Promise((resolve) => {
-    if (pdfjsLib) return resolve(pdfjsLib)
-    pdfjsResolvers.push(resolve)
-    if (pdfjsLoading) return
-    pdfjsLoading = true
-    const script = document.createElement('script')
-    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js'
-    script.onload = () => {
-      pdfjsLib = window.pdfjsLib
-      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'
-      pdfjsResolvers.forEach(r => r(pdfjsLib))
-      pdfjsResolvers = []
-    }
-    script.onerror = () => {
-      pdfjsLoading = false
-      pdfjsResolvers.forEach(r => r(null))
-      pdfjsResolvers = []
-    }
-    document.head.appendChild(script)
-  })
-}
-
-async function renderPdfPages(fileUrl) {
-  const lib = await loadPdfJs()
-  if (!lib) throw new Error('Nie udało się załadować biblioteki PDF.js')
-  const response = await fetch(fileUrl + '?v=2', { cache: 'no-cache' })
-  if (!response.ok) throw new Error(`PDF not found: ${response.status}`)
-  const arrayBuffer = await response.arrayBuffer()
-  if (arrayBuffer.byteLength < 100) throw new Error('Plik PDF jest uszkodzony lub za mały')
-  const pdf = await lib.getDocument({ data: arrayBuffer }).promise
-  const pages = []
-  const scale = 1.5
-  for (let i = 1; i <= pdf.numPages; i++) {
-    const page = await pdf.getPage(i)
-    const viewport = page.getViewport({ scale })
-    const canvas = document.createElement('canvas')
-    canvas.width = viewport.width
-    canvas.height = viewport.height
-    const ctx = canvas.getContext('2d')
-    await page.render({ canvasContext: ctx, viewport }).promise
-    pages.push({ dataUrl: canvas.toDataURL(), width: viewport.width, height: viewport.height })
-  }
-  return pages
-}
 
 function fieldValue(meta, varName) {
   const wychowawcy = (meta.wychowawcy || []).filter(w => w.name)
@@ -68,90 +18,118 @@ function fieldValue(meta, varName) {
   return meta[varName] || ''
 }
 
-const OFFICIAL_HEADER = `
-<div style="display:flex;align-items:center;gap:12px;border-bottom:2px solid #2d6a2d;padding-bottom:8px;margin-bottom:14px;font-family:'Segoe UI',Arial,sans-serif;">
-  <img src="/logo.png" style="height:44px;width:auto;" onerror="this.style.display='none'" />
-  <div>
-    <div style="font-weight:bold;font-size:11pt;color:#1a4a1a;">Skauci Europy</div>
-    <div style="font-size:8pt;color:#555;">Stowarzyszenie Harcerstwa Katolickiego „Zawisza" · Federacja Skautingu Europejskiego</div>
-  </div>
-</div>`
-
-const OFFICIAL_FOOTER = (page, total) => `
-<div style="border-top:1px solid #ccc;margin-top:10px;padding-top:6px;text-align:center;font-size:7.5pt;color:#666;font-family:'Segoe UI',Arial,sans-serif;">
-  Skauci Europy · ul. Bitwy Warszawskiej 1920 r. nr 14, 02-366 Warszawa · skauci-europy.pl · biuro@skauci-europy.pl
-  <br/>Strona ${page} z ${total}
-</div>`
-
 export default function OfficialDocumentEditor({ docId, meta, onClose }) {
   const docConfig = officialDocs[docId]
-  const [pages, setPages] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
   const [fieldData, setFieldData] = useState({})
   const [selectedField, setSelectedField] = useState(null)
-  const containerRef = useRef(null)
-
-  const MAX_W = 794
-
-  useEffect(() => {
-    if (!docConfig) { setError('Dokument nie znaleziony'); setLoading(false); return }
-    setLoading(true)
-    setError('')
-    renderPdfPages(docConfig.file)
-      .then(loadedPages => {
-        setPages(loadedPages)
-        const init = {}
-        docConfig.fields.forEach(f => { init[f.var] = fieldValue(meta, f.var) })
-        setFieldData(init)
-        setLoading(false)
-      })
-      .catch(e => { setError(e.message); setLoading(false) })
-  }, [docId, docConfig])
+  const [exporting, setExporting] = useState(false)
+  const exportRef = useRef(null)
 
   useEffect(() => {
     if (!docConfig) return
     const init = {}
     docConfig.fields.forEach(f => { init[f.var] = fieldValue(meta, f.var) })
     setFieldData(init)
-  }, [meta])
+  }, [docId, meta])
+
+  if (!docConfig) return null
 
   const handleExport = async () => {
-    if (!containerRef.current || pages.length === 0) return
+    if (!exportRef.current) return
+    setExporting(true)
     try {
-      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
-      const imgW = 210
+      const A4_W = 794 // px at 96dpi
+      const A4_H = 1123
+      const margin = 40
+      const logoImg = new Image()
+      logoImg.src = '/logo.png'
 
-      for (let pi = 0; pi < pages.length; pi++) {
+      await new Promise(r => { logoImg.onload = r; if (logoImg.complete) r() })
+
+      const canvas = document.createElement('canvas')
+      canvas.width = A4_W
+      canvas.height = A4_H * docConfig.pages
+      const ctx = canvas.getContext('2d')
+      ctx.fillStyle = '#fff'
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+      for (let pi = 0; pi < docConfig.pages; pi++) {
+        const pageY = pi * A4_H
+        const pageFields = docConfig.fields.filter(f => (f.page || 1) === pi + 1)
+
+        // Nagłówek (tylko pierwsza strona)
+        if (pi === 0) {
+          ctx.strokeStyle = '#2d6a2d'
+          ctx.lineWidth = 2
+          ctx.beginPath()
+          ctx.moveTo(margin, margin + 70)
+          ctx.lineTo(A4_W - margin, margin + 70)
+          ctx.stroke()
+
+          if (logoImg.width > 0) {
+            ctx.drawImage(logoImg, margin, margin + 10, 52, 52)
+          }
+          ctx.fillStyle = '#1a4a1a'
+          ctx.font = 'bold 17px Segoe UI, Arial, sans-serif'
+          ctx.fillText('Skauci Europy', margin + 64, margin + 38)
+          ctx.fillStyle = '#555'
+          ctx.font = '11px Segoe UI, Arial, sans-serif'
+          ctx.fillText('Stowarzyszenie Harcerstwa Katolickiego „Zawisza" · Federacja Skautingu Europejskiego', margin + 64, margin + 56)
+        }
+
+        // Pola
+        ctx.font = '12px Segoe UI, Arial, sans-serif'
+        ctx.textBaseline = 'top'
+        let lastBottom = 0
+        pageFields.forEach(f => {
+          const x = margin + (f.x / 100) * (A4_W - margin * 2)
+          const y = pageY + margin + 70 + (f.y / 100) * (A4_H - margin * 2 - 70)
+          const w = (f.w / 100) * (A4_W - margin * 2)
+
+          ctx.fillStyle = '#666'
+          ctx.font = '9px Segoe UI, Arial, sans-serif'
+          ctx.fillText(f.label || f.var, x, y - 14)
+          ctx.fillStyle = '#111'
+          ctx.font = 'bold 11px Segoe UI, Arial, sans-serif'
+          ctx.fillText(fieldData[f.var] || '_____________', x, y)
+          ctx.strokeStyle = '#ccc'
+          ctx.lineWidth = 0.5
+          ctx.beginPath()
+          ctx.moveTo(x, y + 16)
+          ctx.lineTo(x + Math.max(w, 80), y + 16)
+          ctx.stroke()
+
+          if (y > lastBottom) lastBottom = y + 20
+        })
+
+        // Stopka
+        const footerY = pageY + A4_H - margin + 5
+        ctx.strokeStyle = '#ccc'
+        ctx.lineWidth = 0.5
+        ctx.beginPath()
+        ctx.moveTo(margin, footerY - 14)
+        ctx.lineTo(A4_W - margin, footerY - 14)
+        ctx.stroke()
+        ctx.fillStyle = '#888'
+        ctx.font = '9px Segoe UI, Arial, sans-serif'
+        ctx.fillText('Skauci Europy · ul. Bitwy Warszawskiej 1920 r. nr 14, 02-366 Warszawa · skauci-europy.pl', margin, footerY)
+        ctx.fillText(`Strona ${pi + 1} z ${docConfig.pages}`, A4_W - margin - 80, footerY)
+      }
+
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+      for (let pi = 0; pi < docConfig.pages; pi++) {
         if (pi > 0) pdf.addPage()
-        const pageEl = document.getElementById(`pdf-page-${pi}`)
-        if (!pageEl) continue
-        const canvas = await html2canvas(pageEl, { scale: 2, backgroundColor: '#ffffff' })
-        const imgH = (canvas.height * imgW) / canvas.width
-        pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, imgW, imgH)
+        const pageCanvas = document.createElement('canvas')
+        pageCanvas.width = A4_W
+        pageCanvas.height = A4_H
+        const pctx = pageCanvas.getContext('2d')
+        pctx.drawImage(canvas, 0, pi * A4_H, A4_W, A4_H, 0, 0, A4_W, A4_H)
+        pdf.addImage(pageCanvas.toDataURL('image/png'), 'PNG', 0, 0, 210, 297)
       }
       pdf.save(`${docConfig.label.replace(/\s+/g, '_')}.pdf`)
-    } catch { alert('Błąd eksportu PDF') }
+    } catch { alert('Błąd eksportu') }
+    finally { setExporting(false) }
   }
-
-  if (loading) return (
-    <div className="fixed inset-0 z-[3000] bg-gray-900/60 flex items-center justify-center">
-      <div className="bg-white rounded-2xl p-8 text-center"><div className="animate-spin text-4xl mb-3">⏳</div><p className="text-gray-600">Wczytywanie dokumentu...</p></div>
-    </div>
-  )
-
-  if (error) return (
-    <div className="fixed inset-0 z-[3000] bg-gray-900/60 flex items-center justify-center">
-      <div className="bg-white rounded-2xl p-8 text-center max-w-md">
-        <div className="text-4xl mb-3">⚠️</div>
-        <p className="text-red-600 font-semibold mb-2">{error}</p>
-        <button onClick={onClose} className="mt-3 text-sm text-gray-500 hover:text-red-600">Zamknij</button>
-      </div>
-    </div>
-  )
-
-  const pageFields = (configFields, pageNum) =>
-    configFields.filter(f => (f.page || 1) === pageNum)
 
   return (
     <div className="fixed inset-0 z-[3000] flex flex-col bg-gray-900/60 backdrop-blur-sm overflow-hidden">
@@ -159,13 +137,12 @@ export default function OfficialDocumentEditor({ docId, meta, onClose }) {
         <div className="flex items-center justify-between px-4 py-2">
           <div className="flex items-center gap-3">
             <h2 className="font-bold text-gray-800 text-sm">{docConfig.icon} {docConfig.label}</h2>
-            <span className="text-xs text-gray-400">{pages.length} stron</span>
-            <span className="text-xs text-gray-400 bg-blue-50 px-2 py-0.5 rounded">{docConfig.fields.length} pól do wypełnienia</span>
+            <span className="text-xs text-gray-400">{docConfig.pages} str. · {docConfig.fields.length} pól</span>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={handleExport}
-              className="text-xs bg-green-700 text-white px-4 py-1.5 rounded-lg font-bold hover:bg-green-800 transition">
-              🖨️ Drukuj / Zapisz PDF
+            <button onClick={handleExport} disabled={exporting}
+              className="text-xs bg-green-700 text-white px-4 py-1.5 rounded-lg font-bold hover:bg-green-800 transition disabled:opacity-50">
+              {exporting ? 'Generowanie...' : '🖨️ Drukuj PDF'}
             </button>
             <button onClick={onClose}
               className="w-8 h-8 flex items-center justify-center bg-red-500 text-white rounded-full hover:bg-red-600 font-bold">×</button>
@@ -173,46 +150,48 @@ export default function OfficialDocumentEditor({ docId, meta, onClose }) {
         </div>
       </div>
 
-      <div ref={containerRef} className="flex-1 overflow-y-auto p-4 flex flex-col items-center gap-6">
-        {pages.map((page, pi) => {
-          const scale = Math.min(1, MAX_W / page.width)
-          const pw = page.width * scale
-          const ph = page.height * scale
-          const fields = pageFields(docConfig.fields, pi + 1)
+      <div className="flex-1 flex overflow-hidden">
+        {/* Lewa: Podgląd PDF */}
+        <div className="flex-1 bg-gray-200 flex items-start justify-center overflow-auto p-4">
+          <div className="bg-white shadow-xl" style={{ width: '210mm', minHeight: '297mm' }}>
+            <iframe
+              src={docConfig.file}
+              className="w-full border-0"
+              style={{ height: `${docConfig.pages * 297}mm` }}
+              title="Podgląd dokumentu"
+            />
+          </div>
+        </div>
 
-          return (
-            <div key={pi} id={`pdf-page-${pi}`} className="bg-white shadow-xl shrink-0" style={{ width: pw }}>
-              {pi === 0 && (
-                <div className="px-4 pt-3" dangerouslySetInnerHTML={{ __html: OFFICIAL_HEADER }} />
-              )}
-              <div className="relative" style={{ width: pw, height: ph }}>
-                <img src={page.dataUrl} alt={`Strona ${pi + 1}`} className="w-full h-full block" />
-                {fields.map(f => {
-                  const relX = (f.x / 100) * pw
-                  const relY = (f.y / 100) * ph
-                  const relW = (f.w / 100) * pw
-                  const val = fieldData[f.var] || ''
-                  const isActive = selectedField === f.var
-                  return (
-                    <div key={f.var} className="absolute" style={{ left: relX, top: relY, width: relW, minWidth: 80 }}>
-                      <div className="text-[8px] text-gray-400 mb-0.5 ml-0.5">{f.label}</div>
-                      <input
-                        className={`w-full border-2 rounded px-1.5 py-0.5 text-xs bg-white/95 focus:outline-none ${isActive ? 'border-green-500' : f.var === selectedField ? 'border-blue-400' : 'border-blue-200'}`}
-                        value={val}
-                        onChange={e => setFieldData(p => ({ ...p, [f.var]: e.target.value }))}
-                        onFocus={() => setSelectedField(f.var)}
-                        onBlur={() => setSelectedField(null)}
-                        style={{ fontSize: '10px', lineHeight: '1.3' }}
-                      />
-                    </div>
-                  )
-                })}
+        {/* Prawa: Panel pól */}
+        <div className="w-72 shrink-0 bg-white border-l border-gray-200 flex flex-col overflow-y-auto">
+          <div className="p-3 border-b border-gray-100">
+            <h3 className="font-semibold text-sm text-gray-700">Pola do wypełnienia</h3>
+            <p className="text-xs text-gray-400 mt-0.5">Dane auto-uzupełniane z zakładki Dane obozu</p>
+          </div>
+          <div className="flex-1 p-3 space-y-3">
+            {Array.from(new Set(docConfig.fields.map(f => f.page || 1))).map(pi => (
+              <div key={pi}>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Strona {pi}</p>
+                {docConfig.fields.filter(f => (f.page || 1) === pi).map(f => (
+                  <div key={f.var} className="mb-2.5">
+                    <label className="block text-[10px] text-gray-500 mb-0.5">{f.label}</label>
+                    <input
+                      className={`w-full border-2 rounded px-2 py-1 text-xs focus:outline-none ${f.var === selectedField ? 'border-green-500 bg-green-50' : 'border-gray-200 hover:border-blue-300'}`}
+                      value={fieldData[f.var] || ''}
+                      onChange={e => { setFieldData(p => ({ ...p, [f.var]: e.target.value })); setSelectedField(f.var) }}
+                      onFocus={() => setSelectedField(f.var)}
+                      onBlur={() => setSelectedField(null)}
+                    />
+                  </div>
+                ))}
               </div>
-              <div dangerouslySetInnerHTML={{ __html: OFFICIAL_FOOTER(pi + 1, pages.length) }} />
-            </div>
-          )
-        })}
+            ))}
+          </div>
+        </div>
       </div>
+
+      <div ref={exportRef} style={{ position: 'absolute', left: '-9999px', top: 0 }} />
     </div>
   )
 }
