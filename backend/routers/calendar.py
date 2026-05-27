@@ -2,7 +2,7 @@
 routers/calendar.py — kalendarz obozowy (app_calendar_events).
 Prefix: /api/camps/{camp_id}/calendar
 """
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from database import get_db
 from dependencies import require_camp_access
 from models.calendar import AppCalendarEvent
+from schemas.calendar import CalendarEventCreate, CalendarEventUpdate
 
 router = APIRouter(prefix="/api/camps/{camp_id}/calendar", tags=["calendar"])
 
@@ -51,22 +52,21 @@ async def list_events(
 @router.post("", status_code=201)
 async def create_event(
     camp_id: str,
-    data: dict,
+    data: CalendarEventCreate,
     user_id: str = Depends(require_camp_access),
     db: AsyncSession = Depends(get_db),
 ):
-    from datetime import date
     event = AppCalendarEvent(
         camp_id=camp_id,
-        title=data.get("title", ""),
-        description=data.get("description"),
-        date_start=date.fromisoformat(data["date_start"]) if data.get("date_start") else None,
-        date_end=date.fromisoformat(data["date_end"]) if data.get("date_end") else None,
-        time_start=data.get("time_start"),
-        time_end=data.get("time_end"),
-        color=data.get("color", "#2d6a2d"),
+        title=data.title,
+        description=data.description,
+        date_start=data.date_start,
+        date_end=data.date_end,
+        time_start=data.time_start,
+        time_end=data.time_end,
+        color=data.color,
         created_by=user_id,
-        task_id=data.get("task_id"),
+        task_id=data.task_id,
     )
     db.add(event)
     await db.commit()
@@ -78,7 +78,7 @@ async def create_event(
 async def update_event(
     camp_id: str,
     event_id: str,
-    data: dict,
+    data: CalendarEventUpdate,
     user_id: str = Depends(require_camp_access),
     db: AsyncSession = Depends(get_db),
 ):
@@ -86,15 +86,10 @@ async def update_event(
     if not event or event.camp_id != camp_id:
         raise HTTPException(status_code=404, detail="Wydarzenie nie istnieje")
 
-    from datetime import date
-    allowed = ("title", "description", "time_start", "time_end", "color", "task_id")
-    for field in allowed:
-        if field in data:
-            setattr(event, field, data[field])
-    if "date_start" in data:
-        event.date_start = date.fromisoformat(data["date_start"]) if data["date_start"] else None
-    if "date_end" in data:
-        event.date_end = date.fromisoformat(data["date_end"]) if data["date_end"] else None
+    for field in ("title", "description", "time_start", "time_end", "color", "task_id", "date_start", "date_end"):
+        val = getattr(data, field, None)
+        if val is not None:
+            setattr(event, field, val)
     event.updated_at = _now()
     await db.commit()
     await db.refresh(event)

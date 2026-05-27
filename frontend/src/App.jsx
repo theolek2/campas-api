@@ -20,7 +20,7 @@ import Confetti from './components/Confetti'
 import { makeDay, DEFAULT_CAMP_ACTIVITIES } from './utils/defaults'
 import { generatePdf } from './utils/generatePdf'
 import { saveState, loadState } from './utils/storage'
-import { supabase, signOut, getProfile, upsertProfile, saveCampMeta, loadCampMeta, saveChecklist, loadChecklist, getCamps } from './lib/api'
+import { supabase, signOut, getProfile, upsertProfile, saveCampMeta, loadCampMeta, saveChecklist, loadChecklist, getCamps, verifyEmail } from './lib/api'
 
 const DEFAULT_STATE = {
   meta: { jednostka: '', kierownik: '', miejsce: '', termin: '', date_start: '', date_end: '' },
@@ -63,6 +63,9 @@ export default function App() {
   const [showChangePwd, setShowChangePwd] = useState(false)
   // campId — aktywny obóz (z localStorage, ładowany po logowaniu)
   const [campId, setCampId] = useState(() => localStorage.getItem('campas_camp_id') || null)
+  // Stan dla linków z emaila
+  const [resetToken, setResetToken] = useState(null)
+  const [resetError, setResetError] = useState('')
 
   // Weryfikuj sesję przybocznego przy starcie (odśwież permisje)
   useEffect(() => {
@@ -197,6 +200,37 @@ export default function App() {
     return () => subscription.unsubscribe()
   }, [])
 
+  // ── Obsługa linków z emaila (weryfikacja + reset hasła) ────────────────────
+  // /login?verify=<token>  →  auto-weryfikacja email
+  // /login?token=<token>   →  otwiera zmianę hasła
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const verifyToken = params.get('verify')
+    const resetToken = params.get('token')
+
+    if (verifyToken) {
+      verifyEmail(verifyToken).then(({ data, error }) => {
+        if (data?.user) {
+          setUser(data.user)
+          window.history.replaceState({}, '', '/')
+        } else {
+          setResetError('Nieprawidłowy lub wygasły link weryfikacyjny. Spróbuj zalogować się ponownie.')
+          window.history.replaceState({}, '', '/login')
+        }
+      }).catch(() => {
+        setResetError('Nie udało się zweryfikować emaila. Spróbuj ponownie później.')
+        window.history.replaceState({}, '', '/login')
+      })
+      return
+    }
+
+    if (resetToken) {
+      setResetToken(resetToken)
+      setShowAuth(true)
+      return
+    }
+  }, [])
+
   const { meta, activities, days, template, activityLog = [], mealTemplate = [], mealActivities = [] } = state
 
   useEffect(() => { saveState(state) }, [state])
@@ -313,6 +347,11 @@ export default function App() {
           <h1 className="text-3xl font-bold text-white">Książka Obozowa</h1>
           <p className="text-green-300 mt-1">Skauci Europy · Ramowy plan pracy</p>
         </div>
+        {resetError && (
+          <div className="bg-white rounded-xl shadow-lg w-full max-w-sm p-4 mb-4">
+            <p className="text-red-600 text-sm text-center">{resetError}</p>
+          </div>
+        )}
         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-8">
           <p className="text-center text-gray-600 text-sm mb-6">
             Zaloguj się aby korzystać z aplikacji.<br/>
@@ -327,7 +366,8 @@ export default function App() {
         </div>
         {showAuth && (
           <AuthModal
-            onClose={() => setShowAuth(false)}
+            resetToken={resetToken}
+            onClose={() => { setShowAuth(false); setResetToken(null); window.history.replaceState({}, '', '/login') }}
             onAuth={u => {
               setUser(u)
               setShowAuth(false)
@@ -647,20 +687,22 @@ export default function App() {
 
       {showChangePwd && (() => {
         const [pwd, setPwd] = useState('')
+        const [oldPwd, setOldPwd] = useState('')
         const [msg, setMsg] = useState('')
         const [loading, setLoading] = useState(false)
         const handle = async () => {
-          if (pwd.length < 4) return setMsg('Minimum 4 znaki')
+          if (pwd.length < 10) return setMsg('Minimum 10 znaków')
+          if (!/[!@#$%^&*()_+\-=\[\]{}|;:',.<>?/`~]/.test(pwd)) return setMsg('Wymagany znak specjalny')
           setLoading(true)
           try {
             const sess = JSON.parse(localStorage.getItem('skauting_external_session'))
-            const res = await fetch('/api/change-password', {
+            const res = await fetch(`/api/camps/${sess.camp_id}/team/change-password`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ sessionToken: sess?.token, newPassword: pwd }),
+              body: JSON.stringify({ sessionToken: sess?.token, oldPassword: oldPwd, newPassword: pwd }),
             })
             const data = await res.json()
-            if (!res.ok) throw new Error(data.error)
+            if (!res.ok) throw new Error(data.detail || data.error)
             setMsg('✅ Hasło zmienione!')
             setTimeout(() => setShowChangePwd(false), 1000)
           } catch (e) { setMsg(e.message) }
@@ -670,8 +712,10 @@ export default function App() {
           <div className="fixed inset-0 bg-black/40 z-[3000] flex items-center justify-center p-4" onClick={() => setShowChangePwd(false)}>
             <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm" onClick={e => e.stopPropagation()}>
               <h3 className="font-bold text-gray-800 mb-3">🔒 Zmiana hasła</h3>
-              <input type="text" className="w-full border rounded-lg px-3 py-2 text-sm mb-3 focus:outline-none focus:border-green-500"
-                placeholder="Nowe hasło (min 4 znaki)" value={pwd} onChange={e => setPwd(e.target.value)} />
+              <input type="password" className="w-full border rounded-lg px-3 py-2 text-sm mb-2 focus:outline-none focus:border-green-500"
+                placeholder="Obecne hasło" value={oldPwd} onChange={e => setOldPwd(e.target.value)} />
+              <input type="password" className="w-full border rounded-lg px-3 py-2 text-sm mb-3 focus:outline-none focus:border-green-500"
+                placeholder="Nowe hasło (min 10 znaków, znak specjalny)" value={pwd} onChange={e => setPwd(e.target.value)} />
               {msg && <p className={`text-xs mb-2 ${msg.includes('✅') ? 'text-green-600' : 'text-red-500'}`}>{msg}</p>}
               <div className="flex gap-2">
                 <button onClick={() => setShowChangePwd(false)} className="flex-1 border rounded-lg py-2 text-sm text-gray-600">Anuluj</button>

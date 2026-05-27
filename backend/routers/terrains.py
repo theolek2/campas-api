@@ -3,8 +3,6 @@ routers/terrains.py — tereny obozowe (terrains).
 Prefix: /api/terrains
 """
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
-from typing import Optional
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 import uuid
@@ -12,27 +10,7 @@ import uuid
 from database import get_db
 from dependencies import get_current_user
 from models.shared import Terrain
-
-router = APIRouter(prefix="/api/terrains", tags=["terrains"])
-
-
-def _terrain_dict(t: Terrain) -> dict:
-    return {
-        "id":   t.id,
-        "name": t.name,
-    }
-
-
-class TerrainCreate(BaseModel):
-    name: str
-    lat: Optional[float] = None
-    lng: Optional[float] = None
-    address: Optional[str] = None
-    owner_name: Optional[str] = None
-    owner_contact: Optional[str] = None
-    owner_notes: Optional[str] = None
-    created_by: Optional[str] = None
-    is_public: Optional[bool] = True
+from schemas.terrains import TerrainCreate
 
 
 @router.get("")

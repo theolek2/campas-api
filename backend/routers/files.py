@@ -19,6 +19,22 @@ from models.files import AppSharedFile
 router = APIRouter(prefix="/api/camps/{camp_id}/files", tags=["files"])
 
 UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", "/data/uploads"))
+MAX_UPLOAD_SIZE = 20 * 1024 * 1024  # 20 MB
+ALLOWED_MIME_TYPES = {
+    "application/pdf", "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.ms-excel",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "image/jpeg", "image/png", "image/gif", "image/webp",
+    "text/plain", "text/csv",
+    "application/zip", "application/x-rar-compressed",
+}
+
+ALLOWED_EXTENSIONS = {
+    ".pdf", ".doc", ".docx", ".xls", ".xlsx",
+    ".jpg", ".jpeg", ".png", ".gif", ".webp",
+    ".txt", ".csv", ".zip", ".rar",
+}
 
 
 def _file_dict(f: AppSharedFile) -> dict:
@@ -56,13 +72,22 @@ async def upload_file(
     user_id: str = Depends(require_camp_access),
     db: AsyncSession = Depends(get_db),
 ):
+    # Walidacja rozmiaru
+    content = await file.read()
+    if len(content) > MAX_UPLOAD_SIZE:
+        raise HTTPException(status_code=400, detail=f"Plik przekracza limit {MAX_UPLOAD_SIZE // 1024 // 1024} MB")
+
+    # Walidacja rozszerzenia
+    ext = Path(file.filename or "").suffix.lower()
+    if ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(status_code=400, detail="Niedozwolone rozszerzenie pliku")
+
     # Bezpieczna nazwa pliku
     safe_name = f"{uuid.uuid4().hex}_{file.filename}"
     camp_dir = UPLOAD_DIR / camp_id
     camp_dir.mkdir(parents=True, exist_ok=True)
     dest = camp_dir / safe_name
 
-    content = await file.read()
     async with aiofiles.open(dest, "wb") as f:
         await f.write(content)
 

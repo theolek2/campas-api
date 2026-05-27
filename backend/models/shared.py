@@ -34,7 +34,7 @@ class Camp(Base):
     __tablename__ = "camps"
 
     id:         Mapped[str]                = mapped_column(PG_UUID(as_uuid=False), primary_key=True, default=_uuid)
-    unit_name:  Mapped[Optional[str]]      = mapped_column(Text)
+    unit_name:  Mapped[Optional[str]]      = mapped_column(String(255))
     date_start: Mapped[date]               = mapped_column(Date)
     date_end:   Mapped[date]               = mapped_column(Date)
     terrain_id: Mapped[Optional[str]]      = mapped_column(PG_UUID(as_uuid=False))
@@ -46,7 +46,7 @@ class Patrol(Base):
 
     id:            Mapped[str]           = mapped_column(PG_UUID(as_uuid=False), primary_key=True, default=_uuid)
     camp_id:       Mapped[Optional[str]] = mapped_column(PG_UUID(as_uuid=False))
-    patrol_name:   Mapped[Optional[str]] = mapped_column(Text)
+    patrol_name:   Mapped[Optional[str]] = mapped_column(String(100))
     people_number: Mapped[Optional[int]] = mapped_column(SmallInteger)
 
 
@@ -56,7 +56,7 @@ class CampAccess(Base):
     id:          Mapped[str]           = mapped_column(PG_UUID(as_uuid=False), primary_key=True, default=_uuid)
     user_id:     Mapped[str]           = mapped_column(PG_UUID(as_uuid=False))
     camp_id:     Mapped[Optional[str]] = mapped_column(PG_UUID(as_uuid=False))
-    permissions: Mapped[Optional[str]] = mapped_column(Text)
+    permissions: Mapped[Optional[str]] = mapped_column(String(50))
 
 
 class CampInvitation(Base):
@@ -77,4 +77,4 @@ class Terrain(Base):
     __tablename__ = "terrains"
 
     id:   Mapped[str] = mapped_column(PG_UUID(as_uuid=False), primary_key=True)
-    name: Mapped[str] = mapped_column(Text)
+    name: Mapped[str] = mapped_column(String(255))

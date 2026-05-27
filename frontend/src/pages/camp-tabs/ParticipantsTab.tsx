@@ -55,7 +55,7 @@ export default function ParticipantsTab({ campId }: Props) {
               </div>
               <div>
                 <label className="label">PESEL</label>
-                <input className="input" maxLength={11} value={form.pesel ?? ""}
+                <input className="input" maxLength={11} pattern="\d{11}" value={form.pesel ?? ""}
                   onChange={e => setForm(f => ({...f, pesel: e.target.value}))} />
               </div>
             </div>
@@ -67,7 +67,7 @@ export default function ParticipantsTab({ campId }: Props) {
               </div>
               <div>
                 <label className="label">Telefon do rodzica</label>
-                <input className="input" type="tel" value={form.parent_phone ?? ""}
+                <input className="input" type="tel" maxLength={15} value={form.parent_phone ?? ""}
                   onChange={e => setForm(f => ({...f, parent_phone: e.target.value}))} />
               </div>
             </div>

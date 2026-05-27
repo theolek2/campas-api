@@ -12,17 +12,44 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from database import get_db
 from dependencies import get_current_user, require_camp_access, require_camp_owner
 from models.external import AppExternalUser, AppRole
+from services.auth import hash_password as _hash_bcrypt, verify_password as _verify_bcrypt, validate_password, generate_password
+from schemas.external_users import InviteMember, CreateGuest, GuestLogin, ChangePassword, UpdateMember
 
 router = APIRouter(prefix="/api/camps/{camp_id}/team", tags=["team"])
 
 _now = lambda: datetime.now(timezone.utc)
 
-GUEST_HASH_SALT = "campos-guest-hash-2026"
+SESSION_EXPIRE_DAYS = 30
+# Stara sól SHA256 — tylko do obsługi istniejących haseł
+_LEGACY_SALT = "campos-guest-hash-2026"
 
 
-def _hash_password(password: str, email: str) -> str:
-    """SHA256 zgodny z api/create-guest.js."""
-    return hashlib.sha256(f"{password}:{GUEST_HASH_SALT}:{email}".encode()).hexdigest()
+def _verify_guest_password(password: str, stored_hash: str, email: str) -> bool:
+    """Weryfikuje hasło gościa — obsługuje bcrypt (nowe) i SHA256 (stare)."""
+    if not stored_hash:
+        return False
+    if stored_hash.startswith("$"):
+        return _verify_bcrypt(password, stored_hash)
+    # Legacy SHA256
+    expected = hashlib.sha256(f"{password}:{_LEGACY_SALT}:{email}".encode()).hexdigest()
+    return expected == stored_hash
+
+
+def _set_session_expiry(user: AppExternalUser) -> None:
+    """Ustawia wygaśnięcie sesji — bezpieczne jeśli kolumna jeszcze nie istnieje."""
+    try:
+        user.session_token_expires = _now() + timedelta(days=SESSION_EXPIRE_DAYS)
+    except Exception:
+        pass
+
+
+def _check_session_expired(user: AppExternalUser) -> bool:
+    """Sprawdza czy sesja wygasła. False jeśli kolumna nie istnieje."""
+    try:
+        expires = user.session_token_expires
+    except Exception:
+        return False
+    return bool(expires and _now() > expires)
 
 
 def _user_dict(u: AppExternalUser) -> dict:
@@ -59,11 +86,11 @@ async def list_team(
 @router.post("/invite", status_code=201)
 async def invite_member(
     camp_id: str,
-    data: dict,
+    data: InviteMember,
     user_id: str = Depends(require_camp_owner),
     db: AsyncSession = Depends(get_db),
 ):
-    email = data.get("email", "").strip().lower()
+    email = data.email
     if not email:
         raise HTTPException(status_code=400, detail="Email jest wymagany")
 
@@ -81,15 +108,15 @@ async def invite_member(
         existing.token_expires = expires
         existing.camp_id = camp_id
         existing.invited_by = user_id
-        existing.display_name = data.get("name", existing.display_name)
-        existing.phone = data.get("phone", existing.phone)
-        existing.role = data.get("role", existing.role or "przyboczny")
+        existing.display_name = data.name or existing.display_name
+        existing.phone = data.phone or existing.phone
+        existing.role = data.role or "przyboczny"
     else:
         db.add(AppExternalUser(
             email=email,
-            display_name=data.get("name"),
-            phone=data.get("phone"),
-            role=data.get("role", "przyboczny"),
+            display_name=data.name,
+            phone=data.phone,
+            role=data.role or "przyboczny",
             invited_by=user_id,
             magic_token=token,
             token_expires=expires,
@@ -100,7 +127,7 @@ async def invite_member(
 
     from config import settings
     url = f"{settings.FRONTEND_URL}/magic?token={token}"
-    return {"success": True, "token": token, "url": url}
+    return {"success": True, "url": url}
 
 
 # ── Magic login ───────────────────────────────────────────────────────────────
@@ -127,6 +154,7 @@ async def magic_login(
     session_token = secrets.token_urlsafe(48)
     user.active = True
     user.session_token = session_token
+    _set_session_expiry(user)
     user.last_login = _now()
     user.magic_token = None  # jednorazowy
     await db.commit()
@@ -148,11 +176,16 @@ async def verify_session(
     result = await db.execute(
         select(AppExternalUser).where(
             AppExternalUser.session_token == token,
+            AppExternalUser.camp_id == camp_id,
             AppExternalUser.active == True,  # noqa
         )
     )
     user = result.scalar_one_or_none()
     if not user:
+        raise HTTPException(status_code=401, detail="Sesja wygasła")
+    if _check_session_expired(user):
+        user.session_token = None
+        await db.commit()
         raise HTTPException(status_code=401, detail="Sesja wygasła")
     return {"user": _user_dict(user)}
 
@@ -162,17 +195,17 @@ async def verify_session(
 @router.post("/create-guest", status_code=201)
 async def create_guest(
     camp_id: str,
-    data: dict,
+    data: CreateGuest,
     user_id: str = Depends(require_camp_owner),
     db: AsyncSession = Depends(get_db),
 ):
-    email = data.get("email", "").strip().lower()
-    name = data.get("name", email.split("@")[0])
+    email = data.email
+    name = data.name or email.split("@")[0]
     if not email:
         raise HTTPException(status_code=400, detail="Email jest wymagany")
 
-    password = secrets.token_urlsafe(8)
-    pw_hash = _hash_password(password, email)
+    password = generate_password()
+    pw_hash = _hash_bcrypt(password)
     session_token = secrets.token_urlsafe(48)
 
     result = await db.execute(
@@ -184,10 +217,11 @@ async def create_guest(
         existing.display_name = name
         existing.password_hash = pw_hash
         existing.session_token = session_token
+        _set_session_expiry(existing)
         existing.active = True
         existing.camp_id = camp_id
     else:
-        db.add(AppExternalUser(
+        new_user = AppExternalUser(
             email=email,
             display_name=name,
             password_hash=pw_hash,
@@ -196,7 +230,12 @@ async def create_guest(
             camp_id=camp_id,
             invited_by=user_id,
             role="przyboczny",
-        ))
+        )
+        db.add(new_user)
+        try:
+            new_user.session_token_expires = _now() + timedelta(days=SESSION_EXPIRE_DAYS)
+        except Exception:
+            pass
     await db.commit()
     return {"success": True, "email": email, "password": password}
 
@@ -206,26 +245,32 @@ async def create_guest(
 @router.post("/guest-login")
 async def guest_login(
     camp_id: str,
-    data: dict,
+    data: GuestLogin,
     db: AsyncSession = Depends(get_db),
 ):
-    email = data.get("email", "").strip().lower()
-    password = data.get("password", "")
-    pw_hash = _hash_password(password, email)
+    email = data.email
+    password = data.password
 
     result = await db.execute(
         select(AppExternalUser).where(
             AppExternalUser.email == email,
-            AppExternalUser.password_hash == pw_hash,
             AppExternalUser.active == True,  # noqa
         )
     )
     user = result.scalar_one_or_none()
-    if not user:
+    if not user or not user.password_hash:
         raise HTTPException(status_code=401, detail="Nieprawidłowy email lub hasło")
+
+    if not _verify_guest_password(password, user.password_hash, email):
+        raise HTTPException(status_code=401, detail="Nieprawidłowy email lub hasło")
+
+    # Jeśli to stare SHA256 — upgrade do bcrypt
+    if not user.password_hash.startswith("$"):
+        user.password_hash = _hash_bcrypt(password)
 
     session_token = secrets.token_urlsafe(48)
     user.session_token = session_token
+    _set_session_expiry(user)
     user.last_login = _now()
     await db.commit()
 
@@ -237,13 +282,15 @@ async def guest_login(
 @router.post("/change-password")
 async def change_password(
     camp_id: str,
-    data: dict,
+    data: ChangePassword,
     db: AsyncSession = Depends(get_db),
 ):
-    session_token = data.get("sessionToken", "")
-    new_password = data.get("newPassword", "")
-    if len(new_password) < 6:
-        raise HTTPException(status_code=400, detail="Hasło musi mieć min. 6 znaków")
+    session_token = data.sessionToken
+    old_password = data.oldPassword
+    new_password = data.newPassword
+    err = validate_password(new_password)
+    if err:
+        raise HTTPException(status_code=400, detail=err)
 
     result = await db.execute(
         select(AppExternalUser).where(AppExternalUser.session_token == session_token)
@@ -252,7 +299,10 @@ async def change_password(
     if not user:
         raise HTTPException(status_code=401, detail="Nieprawidłowa sesja")
 
-    user.password_hash = _hash_password(new_password, user.email)
+    if user.password_hash and not _verify_guest_password(old_password, user.password_hash, user.email):
+        raise HTTPException(status_code=400, detail="Obecne hasło jest nieprawidłowe")
+
+    user.password_hash = _hash_bcrypt(new_password)
     await db.commit()
     return {"success": True}
 
@@ -270,8 +320,8 @@ async def reset_password(
     if not user or user.camp_id != camp_id:
         raise HTTPException(status_code=404, detail="Użytkownik nie istnieje")
 
-    new_password = secrets.token_urlsafe(8)
-    user.password_hash = _hash_password(new_password, user.email)
+    new_password = generate_password()
+    user.password_hash = _hash_bcrypt(new_password)
     user.session_token = None
     await db.commit()
     return {"password": new_password}
@@ -283,7 +333,7 @@ async def reset_password(
 async def update_member(
     camp_id: str,
     member_id: str,
-    data: dict,
+    data: UpdateMember,
     user_id: str = Depends(require_camp_owner),
     db: AsyncSession = Depends(get_db),
 ):
@@ -292,8 +342,9 @@ async def update_member(
         raise HTTPException(status_code=404, detail="Użytkownik nie istnieje")
 
     for field in ("active", "robert_enabled", "display_name", "phone", "role"):
-        if field in data:
-            setattr(member, field, data[field])
+        val = getattr(data, field, None)
+        if val is not None:
+            setattr(member, field, val)
     await db.commit()
     await db.refresh(member)
     return _user_dict(member)

@@ -1,8 +1,8 @@
 ﻿import { useState } from 'react'
 import { signIn, signUp, upsertProfile } from '../lib/api'
 
-export default function AuthModal({ onClose, onAuth }) {
-  const [mode, setMode]         = useState('login')   // 'login' | 'register' | 'guest'
+export default function AuthModal({ onClose, onAuth, resetToken: initResetToken }) {
+  const [mode, setMode]         = useState(initResetToken ? 'reset' : 'login')   // 'login' | 'register' | 'guest' | 'reset'
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
   const [name, setName]         = useState('')
@@ -10,11 +10,34 @@ export default function AuthModal({ onClose, onAuth }) {
   const [phone, setPhone]       = useState('')
   const [error, setError]       = useState('')
   const [loading, setLoading]   = useState(false)
+  const [resetToken, setResetToken] = useState(initResetToken || '')
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
     setLoading(true)
+
+    // Reset hasła (link z emaila)
+    if (mode === 'reset') {
+      try {
+        if (password.length < 10) throw new Error('Hasło musi mieć co najmniej 10 znaków')
+        if (!/[!@#$%^&*()_+\-=\[\]{}|;:',.<>?/`~]/.test(password)) throw new Error('Hasło musi zawierać znak specjalny')
+        const res = await fetch('/api/auth/reset-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: resetToken, password }),
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.detail || 'Błąd resetowania hasła')
+        setError('✅ Hasło zmienione! Możesz się zalogować.')
+        setTimeout(() => { setMode('login'); setError(''); setPassword('') }, 2000)
+      } catch (err) {
+        setError(err.message)
+      } finally {
+        setLoading(false)
+      }
+      return
+    }
 
     // Guest login (przyboczny) — wymaga camp_id zapisanego w localStorage
     if (mode === 'guest') {
@@ -49,15 +72,13 @@ export default function AuthModal({ onClose, onAuth }) {
         if (err) throw err
         onAuth(data.user)
       } else {
-        const { data, error: err } = await signUp(email, password)
+        const { data, error: err } = await signUp(email, password, name)
         if (err) throw err
-        if (data.user && !data.session) {
-          // Email confirmation required
+        if (data.needs_verification) {
           setMode('confirm')
           return
         }
         if (data.user) {
-          await upsertProfile({ id: data.user.id, display_name: name, organization: org, phone })
           onAuth(data.user)
         }
       }
@@ -74,7 +95,7 @@ export default function AuthModal({ onClose, onAuth }) {
         {/* Header */}
         <div className="bg-green-700 text-white px-6 py-4 rounded-t-2xl flex items-center justify-between">
           <h2 className="text-lg font-bold">
-            {mode === 'login' ? '🔐 Zaloguj się' : '📝 Utwórz konto'}
+            {mode === 'login' ? '🔐 Zaloguj się' : mode === 'reset' ? '🔑 Nowe hasło' : '📝 Utwórz konto'}
           </h2>
           <button onClick={onClose} className="text-white/70 hover:text-white text-xl">×</button>
         </div>
@@ -96,17 +117,19 @@ export default function AuthModal({ onClose, onAuth }) {
         )}
 
         {mode !== 'confirm' && <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {mode !== 'reset' && (
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">Email *</label>
+              <input type="email" required value={email} onChange={e => setEmail(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-green-500"
+                placeholder="email@harcerze.pl" />
+            </div>
+          )}
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">Email *</label>
-            <input type="email" required value={email} onChange={e => setEmail(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-green-500"
-              placeholder="email@harcerze.pl" />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">Hasło *</label>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">{mode === 'reset' ? 'Nowe hasło *' : 'Hasło *'}</label>
             <input type="password" required value={password} onChange={e => setPassword(e.target.value)}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-green-500"
-              placeholder="min. 6 znaków" minLength={6} />
+              placeholder="min. 10 znaków, wymagany znak specjalny" minLength={10} />
           </div>
 
           {mode === 'register' && <>
@@ -124,19 +147,20 @@ export default function AuthModal({ onClose, onAuth }) {
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-600 mb-1">Telefon kontaktowy</label>
-              <input value={phone} onChange={e => setPhone(e.target.value)}
+              <input type="tel" value={phone} onChange={e => setPhone(e.target.value)}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-green-500"
-                placeholder="+48 000 000 000" />
+                placeholder="+48 000 000 000" maxLength={15} pattern="^(\+?48)?[\s-]?\d{3}[\s-]?\d{3}[\s-]?\d{3}$" />
             </div>
           </>}
 
-          {error && <p className="text-red-600 text-sm bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
+          {error && <p className={`text-sm px-3 py-2 rounded-lg ${error.startsWith('✅') ? 'text-green-600 bg-green-50' : 'text-red-600 bg-red-50'}`}>{error}</p>}
 
           <button type="submit" disabled={loading}
             className="w-full bg-green-700 text-white py-2.5 rounded-xl font-bold hover:bg-green-800 disabled:opacity-50">
-            {loading ? 'Proszę czekać...' : mode === 'login' ? 'Zaloguj się' : 'Utwórz konto'}
+            {loading ? 'Proszę czekać...' : mode === 'login' ? 'Zaloguj się' : mode === 'reset' ? 'Ustaw nowe hasło' : 'Utwórz konto'}
           </button>
 
+          {mode !== 'reset' && (
           <p className="text-center text-sm text-gray-500">
             {mode === 'login' ? (
               <>Nie masz konta?{' '}
@@ -168,6 +192,7 @@ export default function AuthModal({ onClose, onAuth }) {
             <p className="text-xs text-gray-400 bg-gray-50 px-3 py-2 rounded-lg">
               🔒 Po rejestracji otrzymasz email z linkiem aktywacyjnym.
             </p>
+          )}
           )}
         </form>}
       </div>

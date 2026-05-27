@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from database import get_db
 from dependencies import require_camp_access
 from models.app import AppDocument, AppParticipant
-from schemas.documents import DocumentOut, DocumentCreate, DocumentUpdate, ParticipantOut, ParticipantCreate
+from schemas.documents import DocumentOut, DocumentCreate, DocumentUpdate, ParticipantOut, ParticipantCreate, ParticipantUpdate
 
 router = APIRouter(prefix="/api/camps/{camp_id}", tags=["documents"])
 
@@ -123,17 +123,18 @@ async def add_participant(
 async def update_participant(
     camp_id: str,
     p_id: str,
-    data: dict,
+    data: ParticipantUpdate,
     user_id: str = Depends(require_camp_access),
     db: AsyncSession = Depends(get_db),
 ):
     p = await db.get(AppParticipant, p_id)
     if not p or p.camp_id != camp_id:
         raise HTTPException(status_code=404, detail="Uczestnik nie istnieje")
-    allowed = {"patrol_id", "first_name", "last_name", "birth_date", "pesel", "address", "parent_name", "parent_phone", "notes"}
-    for field, value in data.items():
-        if field in allowed:
-            setattr(p, field, value)
+    allowed = ("patrol_id", "first_name", "last_name", "birth_date", "pesel", "address", "parent_name", "parent_phone", "notes")
+    for field in allowed:
+        val = getattr(data, field, None)
+        if val is not None:
+            setattr(p, field, val)
     await db.commit()
     await db.refresh(p)
     return p

@@ -47,7 +47,11 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()
+    s = Settings()
+    if s.JWT_SECRET == "dev-secret-change-in-production":
+        import warnings
+        warnings.warn("SECURITY: JWT_SECRET używa domyślnej wartości dev. Ustaw JWT_SECRET w .env dla produkcji!", RuntimeWarning)
+    return s
 
 
 settings = get_settings()

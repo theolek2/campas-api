@@ -58,7 +58,7 @@ class AppParticipant(Base):
     last_name:    Mapped[str]            = mapped_column(String(100), nullable=False)
     birth_date:   Mapped[Optional[date]] = mapped_column(Date, nullable=True)
     pesel:        Mapped[Optional[str]]  = mapped_column(String(11), nullable=True)
-    address:      Mapped[Optional[str]]  = mapped_column(Text, nullable=True)
+    address:      Mapped[Optional[str]]  = mapped_column(String(500), nullable=True)
     parent_name:  Mapped[Optional[str]]  = mapped_column(String(200), nullable=True)
     parent_phone: Mapped[Optional[str]]  = mapped_column(String(20), nullable=True)
     notes:        Mapped[Optional[str]]  = mapped_column(Text, nullable=True)

@@ -12,6 +12,7 @@ from database import get_db
 from dependencies import get_current_user, require_camp_access
 from models.tasks import AppTask, AppTaskChecklist, AppTaskComment, AppTaskTemplate
 from models.ingredients import AppActivityLog
+from schemas.tasks import TaskCreate, TaskUpdate, ChecklistCreate, ChecklistUpdate, CommentCreate, TemplateApply
 
 router = APIRouter(prefix="/api/camps/{camp_id}/tasks", tags=["tasks"])
 
@@ -89,23 +90,23 @@ async def list_tasks(
 @router.post("", status_code=201)
 async def create_task(
     camp_id: str,
-    data: dict,
+    data: TaskCreate,
     user_id: str = Depends(require_camp_access),
     db: AsyncSession = Depends(get_db),
 ):
     task = AppTask(
         camp_id=camp_id,
-        title=data.get("title", ""),
-        description=data.get("description"),
-        column=data.get("column", "todo"),
-        priority=data.get("priority", "medium"),
-        assigned_to=data.get("assigned_to"),
+        title=data.title,
+        description=data.description,
+        column=data.column,
+        priority=data.priority,
+        assigned_to=data.assigned_to,
         created_by=user_id,
-        notes=data.get("notes"),
-        order=data.get("order", 0),
+        notes=data.notes,
+        order=data.order,
     )
-    if data.get("deadline"):
-        task.deadline = datetime.fromisoformat(data["deadline"])
+    if data.deadline:
+        task.deadline = datetime.fromisoformat(data.deadline)
     db.add(task)
     await db.commit()
     await db.refresh(task)
@@ -124,7 +125,7 @@ async def create_task(
 async def update_task(
     camp_id: str,
     task_id: str,
-    data: dict,
+    data: TaskUpdate,
     user_id: str = Depends(require_camp_access),
     db: AsyncSession = Depends(get_db),
 ):
@@ -135,17 +136,18 @@ async def update_task(
     old_column = task.column
     allowed = ("title", "description", "column", "priority", "assigned_to", "notes", "order")
     for field in allowed:
-        if field in data:
-            setattr(task, field, data[field])
-    if "deadline" in data:
-        task.deadline = datetime.fromisoformat(data["deadline"]) if data["deadline"] else None
+        val = getattr(data, field, None)
+        if val is not None:
+            setattr(task, field, val)
+    if data.deadline is not None:
+        task.deadline = datetime.fromisoformat(data.deadline) if data.deadline else None
     task.updated_at = _now()
     await db.commit()
     await db.refresh(task)
 
     # Log ruchu w kolumnie
-    if "column" in data and data["column"] != old_column:
-        db.add(AppActivityLog(user_id=user_id, action=f"task_move_{data['column']}",
+    if data.column is not None and data.column != old_column:
+        db.add(AppActivityLog(user_id=user_id, action=f"task_move_{data.column}",
                               entity_type="task", entity_id=task_id,
                               meta={"title": task.title, "from": old_column, "to": data["column"]}))
         await db.commit()
@@ -189,15 +191,15 @@ async def list_checklist(
 async def add_checklist_item(
     camp_id: str,
     task_id: str,
-    data: dict,
+    data: ChecklistCreate,
     user_id: str = Depends(require_camp_access),
     db: AsyncSession = Depends(get_db),
 ):
     item = AppTaskChecklist(
         task_id=task_id,
-        text=data.get("text", ""),
+        text=data.text,
         done=False,
-        order=data.get("order", 0),
+        order=data.order,
     )
     db.add(item)
     await db.commit()
@@ -210,14 +212,14 @@ async def toggle_checklist_item(
     camp_id: str,
     task_id: str,
     item_id: str,
-    data: dict,
+    data: ChecklistUpdate,
     user_id: str = Depends(require_camp_access),
     db: AsyncSession = Depends(get_db),
 ):
     item = await db.get(AppTaskChecklist, item_id)
     if not item or item.task_id != task_id:
         raise HTTPException(status_code=404, detail="Item nie istnieje")
-    item.done = data.get("done", item.done)
+    item.done = data.done
     item.done_by = user_id if item.done else None
     item.done_at = _now() if item.done else None
     await db.commit()
@@ -264,7 +266,7 @@ async def list_comments(
 async def add_comment(
     camp_id: str,
     task_id: str,
-    data: dict,
+    data: CommentCreate,
     user_id: str = Depends(require_camp_access),
     db: AsyncSession = Depends(get_db),
 ):
@@ -272,7 +274,7 @@ async def add_comment(
         task_id=task_id,
         user_id=user_id,
         user_type="internal",
-        content=data.get("content", ""),
+        content=data.content,
     )
     db.add(comment)
     await db.commit()
@@ -297,13 +299,11 @@ async def list_templates(
 @router.post("/templates/apply", status_code=201)
 async def apply_template(
     camp_id: str,
-    data: dict,
+    data: TemplateApply,
     user_id: str = Depends(require_camp_access),
     db: AsyncSession = Depends(get_db),
 ):
-    """Zastosuj szablon — utwórz wszystkie taski z szablonu dla obozu."""
-    template_id = data.get("template_id")
-    template = await db.get(AppTaskTemplate, template_id)
+    template = await db.get(AppTaskTemplate, data.template_id)
     if not template:
         raise HTTPException(status_code=404, detail="Szablon nie istnieje")
 

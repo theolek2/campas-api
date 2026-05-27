@@ -169,7 +169,7 @@ export default function OnboardingWizard({ onDone, updateMeta, meta, userId }) {
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1">Telefon kierownika *</label>
-                <input className={inp} placeholder="+48 000 000 000" value={telKier} onChange={e=>setTelKier(e.target.value)} />
+                <input type="tel" className={inp} placeholder="+48 000 000 000" value={telKier} onChange={e=>setTelKier(e.target.value)} maxLength={15} />
               </div>
             </div>
 
@@ -180,8 +180,8 @@ export default function OnboardingWizard({ onDone, updateMeta, meta, userId }) {
                 <div key={i} className="grid grid-cols-2 gap-2 mb-2">
                   <input className={inp} placeholder="Imię i nazwisko" value={w.name}
                     onChange={e => updateWychowawca(i, 'name', e.target.value)} />
-                  <input className={inp} placeholder="+48 000 000 000" value={w.phone}
-                    onChange={e => updateWychowawca(i, 'phone', e.target.value)} />
+                  <input type="tel" className={inp} placeholder="+48 000 000 000" value={w.phone}
+                    onChange={e => updateWychowawca(i, 'phone', e.target.value)} maxLength={15} />
                 </div>
               ))}
               <button onClick={addWychowawca} type="button"

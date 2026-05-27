@@ -221,7 +221,7 @@ export default function CampDataTab({ meta, onUpdateMeta, userId, progress, onTo
               />
             </Field>
             <Field label="Telefon kierownika" required>
-              <input className={inputCls}
+              <input className={inputCls} type="tel" maxLength={15}
                 placeholder="+48 000 000 000"
                 value={meta.tel_kierownik || ''}
                 onChange={e => onUpdateMeta({ tel_kierownik: e.target.value })}
@@ -261,7 +261,7 @@ export default function CampDataTab({ meta, onUpdateMeta, userId, progress, onTo
                         onUpdateMeta({ wychowawcy: arr })
                       }}
                     />
-                    <input className={inputCls} placeholder="+48 000 000 000"
+                    <input className={inputCls} type="tel" maxLength={15} placeholder="+48 000 000 000"
                       value={w.phone || ''}
                       onChange={e => {
                         const arr = [...(meta.wychowawcy || [])]
@@ -286,7 +286,7 @@ export default function CampDataTab({ meta, onUpdateMeta, userId, progress, onTo
         <Module icon="📞" title="Kontakty alarmowe" defaultOpen={false}>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label="Telefon zastępcy kierownika">
-              <input className={inputCls}
+              <input className={inputCls} type="tel" maxLength={15}
                 placeholder="+48 000 000 000"
                 value={meta.tel_zastepca || ''}
                 onChange={e => onUpdateMeta({ tel_zastepca: e.target.value })}
@@ -300,7 +300,7 @@ export default function CampDataTab({ meta, onUpdateMeta, userId, progress, onTo
               />
             </Field>
             <Field label="Telefon do szpitala">
-              <input className={inputCls}
+              <input className={inputCls} type="tel" maxLength={15}
                 placeholder="+48 000 000 000"
                 value={meta.tel_szpital || ''}
                 onChange={e => onUpdateMeta({ tel_szpital: e.target.value })}
@@ -337,7 +337,7 @@ export default function CampDataTab({ meta, onUpdateMeta, userId, progress, onTo
               />
             </Field>
             <Field label="Komendant hufca (tel.)">
-              <input className={inputCls}
+              <input className={inputCls} type="tel" maxLength={15}
                 placeholder="+48 000 000 000"
                 value={meta.komendant_tel || ''}
                 onChange={e => onUpdateMeta({ komendant_tel: e.target.value })}
@@ -390,11 +390,11 @@ export default function CampDataTab({ meta, onUpdateMeta, userId, progress, onTo
           <div className="flex items-end gap-2 mb-4">
             <div className="flex-1">
               <label className="block text-xs font-semibold text-gray-600 mb-1">Szerokość (lat)</label>
-              <input className={inputCls} placeholder="50.7658" value={geoLat} onChange={e => setGeoLat(e.target.value)} />
+              <input type="number" step="any" className={inputCls} placeholder="50.7658" value={geoLat} onChange={e => setGeoLat(e.target.value)} />
             </div>
             <div className="flex-1">
               <label className="block text-xs font-semibold text-gray-600 mb-1">Długość (lng)</label>
-              <input className={inputCls} placeholder="22.5287" value={geoLng} onChange={e => setGeoLng(e.target.value)} />
+              <input type="number" step="any" className={inputCls} placeholder="22.5287" value={geoLng} onChange={e => setGeoLng(e.target.value)} />
             </div>
             <button onClick={handleGeoFetch} disabled={gpsLoading}
               className="shrink-0 bg-green-700 text-white text-sm font-bold px-5 py-2 rounded-lg hover:bg-green-800 disabled:opacity-50">

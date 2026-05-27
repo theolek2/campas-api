@@ -4,7 +4,9 @@ Prefix: /api/uldk
 Port z api/uldk.js
 """
 import httpx
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
+
+from dependencies import get_current_user
 
 router = APIRouter(prefix="/api/uldk", tags=["uldk"])
 
@@ -17,9 +19,10 @@ async def uldk_proxy(
     lat: float | None = Query(None),
     lng: float | None = Query(None),
     xy: str | None = Query(None, description="Alternatywnie: '21.123456,50.654321'"),
+    user_id: str = Depends(get_current_user),
 ):
     """
-    Proxy do ULDK GUGIK.
+    Proxy do ULDK GUGIK. Wymaga zalogowania.
     Przykłady:
       GET /api/uldk?request=GetParcelByXY&xy=21.0122,52.2297
       GET /api/uldk?request=GetParcelByXY&lat=52.2297&lng=21.0122

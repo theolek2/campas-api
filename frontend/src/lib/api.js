@@ -42,17 +42,22 @@ function _qs(params) {
  * @returns {Promise<{token, user}|{message}>}
  */
 export async function signUp(email, password, displayName = '', inviteToken = '') {
-  const res = await fetch(`${BASE}/api/auth/register`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password, display_name: displayName, invite_token: inviteToken || undefined }),
-  })
-  const data = await _json(res)
-  if (data?.token) {
-    localStorage.setItem('campas_token', data.token)
-    localStorage.setItem('campas_user', JSON.stringify(data.user))
+  try {
+    const res = await fetch(`${BASE}/api/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password, display_name: displayName, invite_token: inviteToken || undefined }),
+    })
+    const data = await _json(res)
+    if (data?.token) {
+      localStorage.setItem('campas_token', data.token)
+      localStorage.setItem('campas_user', JSON.stringify(data.user))
+      return { data: { session: { access_token: data.token }, user: data.user, needs_verification: false }, error: null }
+    }
+    return { data: { session: null, user: null, needs_verification: true }, error: null }
+  } catch (e) {
+    return { data: null, error: e }
   }
-  return data
 }
 
 /**
@@ -80,6 +85,20 @@ export async function signOut() {
   localStorage.removeItem('campas_user')
   localStorage.removeItem('campas_camp_id')
   return { error: null }
+}
+
+/**
+ * Weryfikacja emaila — zwraca { token, user } lub rzuca błąd.
+ */
+export async function verifyEmail(token) {
+  const res = await fetch(`${BASE}/api/auth/verify-email?token=${encodeURIComponent(token)}`)
+  const data = await _json(res)
+  if (data?.token) {
+    localStorage.setItem('campas_token', data.token)
+    localStorage.setItem('campas_user', JSON.stringify(data.user))
+    return { data: { session: { access_token: data.token }, user: data.user }, error: null }
+  }
+  return { data: null, error: new Error('Weryfikacja nie powiodła się') }
 }
 
 /**
@@ -539,7 +558,7 @@ export const supabase = {
 }
 
 export default {
-  signUp, signIn, signOut, getSession, getCurrentUser,
+  signUp, signIn, signOut, verifyEmail, getSession, getCurrentUser,
   getProfile, upsertProfile,
   saveCampMeta, loadCampMeta, saveChecklist, loadChecklist,
   getTerrains, addTerrain,

@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from database import get_db
 from dependencies import get_current_user, require_camp_access, require_camp_owner
 from models.shared import Camp, Patrol, CampAccess, CampInvitation, User
-from schemas.camps import CampOut, CampCreate, PatrolOut
+from schemas.camps import CampOut, CampCreate, CampUpdate, PatrolCreate, PatrolOut, InviteCreate
 from services.auth import generate_token
 
 router = APIRouter(prefix="/api/camps", tags=["camps"])
@@ -66,7 +66,7 @@ async def get_camp(
 @router.patch("/{camp_id}", response_model=CampOut)
 async def update_camp(
     camp_id: str,
-    data: dict,
+    data: CampUpdate,
     user_id: str = Depends(require_camp_owner),
     db: AsyncSession = Depends(get_db),
 ):
@@ -74,8 +74,9 @@ async def update_camp(
     if not camp:
         raise HTTPException(status_code=404, detail="Obóz nie istnieje")
     for field in ("unit_name", "date_start", "date_end", "terrain_id"):
-        if field in data:
-            setattr(camp, field, data[field])
+        val = getattr(data, field, None)
+        if val is not None:
+            setattr(camp, field, val)
     await db.commit()
     await db.refresh(camp)
     return camp
@@ -96,14 +97,14 @@ async def list_patrols(
 @router.post("/{camp_id}/patrols", response_model=PatrolOut, status_code=201)
 async def create_patrol(
     camp_id: str,
-    data: dict,
+    data: PatrolCreate,
     user_id: str = Depends(require_camp_access),
     db: AsyncSession = Depends(get_db),
 ):
     patrol = Patrol(
         camp_id=camp_id,
-        patrol_name=data.get("patrol_name"),
-        people_number=data.get("people_number"),
+        patrol_name=data.patrol_name,
+        people_number=data.people_number,
     )
     db.add(patrol)
     await db.commit()
@@ -116,24 +117,18 @@ async def create_patrol(
 @router.post("/{camp_id}/invite", status_code=201)
 async def create_invite(
     camp_id: str,
-    data: dict,
+    data: InviteCreate,
     user_id: str = Depends(require_camp_owner),
     db: AsyncSession = Depends(get_db),
 ):
     """Utwórz link zaproszenia (multi) lub emailowe zaproszenie (single)."""
-    invite_type = data.get("type", "multi")  # "multi" | "single"
-    email       = data.get("email")
-
-    if invite_type == "single" and not email:
-        raise HTTPException(status_code=400, detail="Zaproszenie jednorazowe wymaga podania emaila")
-
     token = generate_token()
     inv   = CampInvitation(
         camp_id=camp_id,
-        email=email,
+        email=data.email,
         invited_by=user_id,
         token=token,
-        type=invite_type,
+        type=data.type,
         expires_at=datetime.datetime.now(datetime.UTC) + datetime.timedelta(days=7),
     )
     db.add(inv)

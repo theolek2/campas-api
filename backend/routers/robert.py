@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException
 import httpx
 
 from dependencies import get_current_user
+from schemas.robert import RobertAsk, RobertSuggestMeal
 
 router = APIRouter(prefix="/api/robert", tags=["robert"])
 
@@ -51,15 +52,15 @@ async def _embed(texts: list[str]) -> list[list[float]]:
 
 @router.post("/suggest-meal")
 async def suggest_meal_ingredients(
-    data: dict,
+    data: RobertSuggestMeal,
     user_id: str = Depends(get_current_user),
 ):
     """Zwraca listę składników do podanego posiłku dla N osób (JSON array)."""
     if not DEEPSEEK_API_KEY:
         raise HTTPException(status_code=503, detail="Brak DEEPSEEK_API_KEY")
 
-    meal_name    = data.get("meal_name", "").strip()
-    people_count = int(data.get("people_count", 10))
+    meal_name    = data.meal_name
+    people_count = data.people_count
 
     if not meal_name:
         raise HTTPException(status_code=400, detail="Brak nazwy posiłku")
@@ -119,16 +120,16 @@ async def suggest_meal_ingredients(
 
 @router.post("")
 async def ask_robert(
-    data: dict,
+    data: RobertAsk,
     user_id: str = Depends(get_current_user),
 ):
     if not DEEPSEEK_API_KEY:
         raise HTTPException(status_code=503, detail="Robert AI nie jest skonfigurowany (brak DEEPSEEK_API_KEY)")
 
-    question = data.get("question", "").strip()
-    history  = data.get("history", [])
+    question = data.question
+    history  = data.history
 
-    if not question:
+    if len(question) < 2:
         raise HTTPException(status_code=400, detail="Brak pytania")
 
     # Znajdź najlepsze dopasowanie dokumentów (Jina embedding)

@@ -12,7 +12,7 @@ from database import get_db
 from dependencies import get_current_user
 from models.shared import User, CampAccess, CampInvitation, Camp
 from schemas.auth import RegisterIn, LoginIn, ForgotPasswordIn, ResetPasswordIn, AcceptInviteIn, AuthResponse, UserOut
-from services.auth import hash_password, verify_password, create_jwt, generate_token
+from services.auth import hash_password, verify_password, create_jwt, generate_token, validate_password
 from services.email import send_verification_email, send_reset_email
 from config import settings
 
@@ -21,6 +21,10 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 @router.post("/register", status_code=201)
 async def register(data: RegisterIn, db: AsyncSession = Depends(get_db)):
+    err = validate_password(data.password)
+    if err:
+        raise HTTPException(status_code=400, detail=err)
+
     existing = await db.execute(select(User).where(User.email == data.email.lower()))
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=409, detail="Użytkownik już istnieje")
@@ -71,8 +75,31 @@ async def register(data: RegisterIn, db: AsyncSession = Depends(get_db)):
     if auto_verify:
         return AuthResponse(token=create_jwt(user.id, user.email, user.role), user=UserOut.model_validate(user))
 
-    await send_verification_email(user.email, verif_token)
+    sent = await send_verification_email(user.email, verif_token)
+    if not sent:
+        raise HTTPException(status_code=500, detail="Nie udało się wysłać emaila. Spróbuj ponownie później.")
+
     return {"message": "Konto utworzone. Sprawdź email, aby zweryfikować."}
+
+
+@router.post("/resend-verification")
+async def resend_verification(data: LoginIn, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(User).where(User.email == data.email.lower()))
+    user = result.scalar_one_or_none()
+    if not user:
+        return {"message": "Jeśli konto istnieje i nie jest zweryfikowane, wysłano email."}
+    if user.email_verified:
+        return {"message": "Konto jest już zweryfikowane."}
+
+    verif_token = generate_token()
+    user.verification_token = verif_token
+    user.verification_token_exp = datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=24)
+    await db.commit()
+
+    sent = await send_verification_email(user.email, verif_token)
+    if not sent:
+        raise HTTPException(status_code=500, detail="Nie udało się wysłać emaila. Spróbuj ponownie później.")
+    return {"message": "Email weryfikacyjny wysłany ponownie."}
 
 
 @router.get("/verify-email")
@@ -117,8 +144,9 @@ async def forgot_password(data: ForgotPasswordIn, db: AsyncSession = Depends(get
 
 @router.post("/reset-password")
 async def reset_password(data: ResetPasswordIn, db: AsyncSession = Depends(get_db)):
-    if len(data.password) < 6:
-        raise HTTPException(status_code=400, detail="Hasło musi mieć co najmniej 6 znaków")
+    err = validate_password(data.password)
+    if err:
+        raise HTTPException(status_code=400, detail=err)
     now    = datetime.datetime.now(datetime.UTC)
     result = await db.execute(
         select(User).where(User.reset_token == data.token, User.reset_token_exp > now)
