@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 
 const DOC_HEADER = `
-<div style="display:flex;align-items:center;gap:14px;border-bottom:2px solid #2d6a2d;padding-bottom:10px;margin-bottom:18px;">
+<div class="doc-header-inline" style="display:flex;align-items:center;gap:14px;border-bottom:2px solid #2d6a2d;padding-bottom:10px;margin-bottom:18px;">
   <img src="/logo.png" style="height:52px;width:auto;object-fit:contain;" onerror="this.style.display='none'"/>
   <div>
     <div style="font-weight:bold;font-size:12pt;color:#1a4a1a;">Skauci Europy</div>
@@ -10,7 +10,7 @@ const DOC_HEADER = `
 </div>`
 
 const DOC_FOOTER = `
-<div style="border-top:1px solid #ddd;margin-top:28px;padding-top:8px;text-align:center;font-size:8pt;color:#999;">
+<div class="doc-footer-inline" style="border-top:1px solid #ddd;margin-top:28px;padding-top:8px;text-align:center;font-size:8pt;color:#999;">
   skauci-europy.pl · Skauci Europy
 </div>`
 
@@ -72,27 +72,43 @@ function generateContactsHtml(meta) {
 ` + DOC_FOOTER
 }
 
-function generateParticipantsHtml(_meta) {
-  const rows = 20
+function generateParticipantsHtml(meta) {
+  const MAX_PER_PAGE = 20
+  const totalCount = Math.max(MAX_PER_PAGE, (parseInt(meta.uczestnicy) || 0) + 5)
+  const pageCount = Math.ceil(totalCount / MAX_PER_PAGE)
+
+  const tableBlock = (startRow, endRow) => `
+<table style="width:100%;border-collapse:collapse;font-size:10pt;">
+  <thead>
+    <tr style="background:#2d6a2d;color:#fff;">
+      <th style="padding:8px 10px;text-align:center;width:3em;">Lp.</th>
+      <th style="padding:8px 10px;text-align:left;">Imię i nazwisko</th>
+      <th style="padding:8px 10px;text-align:center;width:8em;">Rok urodzenia</th>
+    </tr>
+  </thead>
+  <tbody>
+    ${Array.from({ length: endRow - startRow }, (_, i) => {
+      const n = startRow + i + 1
+      return `<tr style="background:${n % 2 === 0 ? '#f0fdf4' : '#fff'};">
+      <td style="padding:10px;text-align:center;color:#666;">${n}</td>
+      <td style="padding:10px;color:#aaa;border-bottom:1px solid #e5e7eb;">............................</td>
+      <td style="padding:10px;text-align:center;color:#aaa;border-bottom:1px solid #e5e7eb;">..........</td>
+    </tr>`
+    }).join('')}
+  </tbody>
+</table>`
+
+  const pages = Array.from({ length: pageCount }, (_, i) =>
+    tableBlock(i * MAX_PER_PAGE, Math.min((i + 1) * MAX_PER_PAGE, totalCount))
+  ).join('<div style="page-break-after:always;height:0;"></div>')
+
   return DOC_HEADER + `
-<div style="text-align:center;font-size:13pt;font-weight:bold;margin-bottom:18px;">LISTA UCZESTNIKÓW</div>
-<div style="font-size:10pt;color:#555;margin-bottom:14px;">Załącznik do pisma przewodniego</div>
+<div style="text-align:center;font-size:13pt;font-weight:bold;margin-bottom:10px;">LISTA UCZESTNIKÓW</div>
+<div style="font-size:10pt;color:#555;margin-bottom:8px;">Załącznik do pisma przewodniego</div>
 
 <p style="font-size:9pt;color:#e11d48;background:#fef2f2;padding:8px 12px;border-radius:6px;margin-bottom:14px;font-weight:bold;">⚠️ Tu trzeba wpisać imiona — kliknij w pola tabeli i edytuj</p>
 
-<table style="width:100%;border-collapse:collapse;font-size:10pt;">
-  <tr style="background:#2d6a2d;color:#fff;">
-    <th style="padding:8px 10px;text-align:center;width:3em;">Lp.</th>
-    <th style="padding:8px 10px;text-align:left;">Imię i nazwisko</th>
-    <th style="padding:8px 10px;text-align:center;width:8em;">Rok urodzenia</th>
-  </tr>
-  ${Array.from({ length: rows }, (_, i) => `
-  <tr style="background:${i % 2 === 0 ? '#f0fdf4' : '#fff'};">
-    <td style="padding:10px 10px;text-align:center;color:#666;">${i + 1}</td>
-    <td style="padding:10px 10px;color:#aaa;border-bottom:1px solid #e5e7eb;">............................</td>
-    <td style="padding:10px 10px;text-align:center;color:#aaa;border-bottom:1px solid #e5e7eb;">..........</td>
-  </tr>`).join('')}
-</table>
+${pages}
 
 <div style="margin-top:22px;text-align:right;font-size:9pt;">
   <div style="display:inline-block;text-align:center;">
@@ -476,45 +492,99 @@ export default function DocumentEditor({ templateHtml, meta, docLabel, onClose, 
     const filename = (activeLabel || 'dokument').replace(/\s+/g, '_')
 
     const win = window.open('', '_blank')
+    if (!win) { alert('Zezwól na otwieranie okien popup w przeglądarce'); return }
     win.document.write(`<!DOCTYPE html>
 <html lang="pl">
 <head>
   <meta charset="UTF-8"/>
   <title>${filename}</title>
   <style>
-    @page { size: A4; margin: 18mm 20mm; }
+    @page { size: A4; margin: 28mm 20mm 18mm 20mm; }
     * { box-sizing: border-box; }
     body {
       font-family: 'Segoe UI', Arial, sans-serif;
       font-size: 10.5pt;
       line-height: 1.55;
       color: #111;
-      margin: 0;
-      padding: 0;
+      margin: 0; padding: 0;
       background: #fff;
     }
     img { max-width: 100%; }
     table { border-collapse: collapse; width: 100%; }
     select { appearance: none; -webkit-appearance: none; border: none; background: transparent; font: inherit; }
+
+    /* Stały nagłówek/stopka — ukryty na ekranie, widoczny tylko w druku */
+    .page-running-header { display: none; }
+    .page-running-footer { display: none; }
+
     @media print {
-      * {
-        background: transparent !important;
-        color: #000 !important;
-        box-shadow: none !important;
+      /* Powtarzający się nagłówek na każdej stronie */
+      .page-running-header {
+        display: flex !important;
+        position: fixed; top: 0; left: 0; right: 0;
+        height: 22mm;
+        align-items: center; gap: 12px;
+        padding: 4mm 20mm 5mm;
+        background: white;
+        border-bottom: 2px solid #2d6a2d;
+        font-family: 'Segoe UI', Arial, sans-serif;
       }
-      span, select {
-        padding: 0 !important;
-        border: none !important;
-        border-radius: 0 !important;
+      .page-running-header-title {
+        font-weight: bold; font-size: 11pt; color: #1a4a1a; display: block;
       }
+      .page-running-header-sub {
+        font-size: 8.5pt; color: #444; display: block;
+      }
+      /* Powtarzająca się stopka */
+      .page-running-footer {
+        display: block !important;
+        position: fixed; bottom: 0; left: 0; right: 0;
+        height: 12mm; line-height: 12mm;
+        border-top: 1px solid #ddd;
+        text-align: center; font-size: 8pt; color: #999;
+        background: white;
+        font-family: 'Segoe UI', Arial, sans-serif;
+      }
+      /* Przesuń treść body pod stały nagłówek */
+      body { padding-top: 24mm; }
+
+      /* Ukryj inline nagłówek/stopkę (zastąpione przez stałe powyżej) */
+      .doc-header-inline { display: none !important; }
+      .doc-footer-inline { display: none !important; }
+
+      /* Kontrola łamania stron */
+      li { page-break-inside: avoid; }
+      p  { orphans: 3; widows: 3; }
+      tr { page-break-inside: avoid; }
+
+      /* Czyszczenie dekoracji inline przy druku */
+      span[data-var] {
+        background: transparent !important; padding: 0 !important;
+        border-radius: 0 !important; color: inherit !important;
+      }
+      span[style*="background:#fef3c7"],
+      span[style*="background:#e0f2fe"] {
+        background: transparent !important; padding: 0 !important;
+        border: none !important; border-radius: 0 !important;
+        color: inherit !important;
+      }
+      select { padding: 0 !important; border: none !important; }
+      * { box-shadow: none !important; }
     }
   </style>
 </head>
 <body>
+<div class="page-running-header">
+  <div>
+    <span class="page-running-header-title">Skauci Europy</span>
+    <span class="page-running-header-sub">Stowarzyszenie Harcerstwa Katolickiego „Zawisza" · Federacja Skautingu Europejskiego</span>
+  </div>
+</div>
+<div class="page-running-footer">skauci-europy.pl · Skauci Europy</div>
 ${content}
 <script>
   window.onload = function() {
-    setTimeout(function() { window.print(); window.close(); }, 400);
+    setTimeout(function() { window.print(); window.close(); }, 600);
   };
 </script>
 </body>
