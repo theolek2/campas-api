@@ -1,14 +1,9 @@
-﻿import { useState } from 'react'
-import DocumentEditor from './DocumentEditor.jsx'
-import OfficialDocumentEditor from './OfficialDocumentEditor.jsx'
-import officialDocs from '../data/official-docs.json'
+﻿import officialDocs from '../data/official-docs.json'
 
 const OFFICIAL_DOCS = Object.entries(officialDocs).map(([id, t]) => ({ id, ...t }))
 
-export default function DocumentsTab({ meta, onNavigate, progress, onToggleProgress }) {
+export default function DocumentsTab({ meta, onNavigate, progress, onToggleProgress, onOpenDocument }) {
   const metaOk = meta.jednostka && meta.kierownik
-  const [selectedDoc, setSelectedDoc] = useState(null)
-  const [selectedOfficialDoc, setSelectedOfficialDoc] = useState(null)
 
   return (
     <div className="flex-1 overflow-y-auto bg-gray-50">
@@ -45,7 +40,7 @@ export default function DocumentsTab({ meta, onNavigate, progress, onToggleProgr
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {OFFICIAL_DOCS.map(doc => (
             <button key={doc.id}
-              onClick={() => setSelectedOfficialDoc(doc.id)}
+              onClick={() => onOpenDocument(doc.id)}
               className={`w-full flex items-center gap-4 p-4 bg-white rounded-2xl border-2 text-left transition ${
                 metaOk
                   ? 'border-gray-200 hover:border-green-400 hover:bg-green-50'
@@ -62,14 +57,6 @@ export default function DocumentsTab({ meta, onNavigate, progress, onToggleProgr
           ))}
         </div>
       </div>
-
-      {selectedOfficialDoc && (
-        <OfficialDocumentEditor
-          docId={selectedOfficialDoc}
-          meta={meta}
-          onClose={() => setSelectedOfficialDoc(null)}
-        />
-      )}
     </div>
   )
 }
