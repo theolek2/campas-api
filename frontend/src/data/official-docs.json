@@ -1,0 +1,193 @@
+{
+  "zawiadomienie": {
+    "label": "Zawiadomienie o obozie",
+    "icon": "📨",
+    "file": "/dokumenty/zawiadomienie.pdf",
+    "pages": 1,
+    "fields": [
+      { "var": "data_dzis",     "x": 75, "y": 8,  "w": 22, "label": "Data" },
+      { "var": "miejsce",       "x": 75, "y": 11, "w": 22, "label": "Miejscowość" },
+      { "var": "jednostka",     "x": 10, "y": 18, "w": 40, "label": "Nazwa jednostki" },
+      { "var": "hufiec",        "x": 10, "y": 22, "w": 40, "label": "Hufiec" },
+      { "var": "kierownik",     "x": 10, "y": 28, "w": 35, "label": "Kierownik" },
+      { "var": "tel_kierownik", "x": 50, "y": 28, "w": 20, "label": "Tel. kierownika" },
+      { "var": "email",         "x": 10, "y": 31, "w": 40, "label": "E-mail" },
+      { "var": "nadlesnictwo",  "x": 10, "y": 44, "w": 30, "label": "Nadleśnictwo" },
+      { "var": "lesnictwo",     "x": 45, "y": 44, "w": 25, "label": "Leśnictwo" },
+      { "var": "oddzial_lesny", "x": 75, "y": 44, "w": 15, "label": "Oddz. leśny" },
+      { "var": "date_start",    "x": 15, "y": 50, "w": 18, "label": "Data od" },
+      { "var": "date_end",      "x": 38, "y": 50, "w": 18, "label": "Data do" },
+      { "var": "uczestnicy",    "x": 15, "y": 56, "w": 12, "label": "L. uczestników" },
+      { "var": "wiek",          "x": 35, "y": 56, "w": 15, "label": "Wiek" },
+      { "var": "liczba_kadry",  "x": 55, "y": 56, "w": 12, "label": "L. kadry" },
+      { "var": "kontakt1",      "x": 10, "y": 65, "w": 30, "label": "Wychowawca 1" },
+      { "var": "tel_kontakt1",  "x": 45, "y": 65, "w": 20, "label": "Tel. wych. 1" },
+      { "var": "kontakt2",      "x": 10, "y": 69, "w": 30, "label": "Wychowawca 2" },
+      { "var": "tel_kontakt2",  "x": 45, "y": 69, "w": 20, "label": "Tel. wych. 2" }
+    ]
+  },
+  "przewodnie": {
+    "label": "Pismo przewodnie (PSP)",
+    "icon": "🔥",
+    "file": "/dokumenty/przewodnie.pdf",
+    "pages": 1,
+    "fields": [
+      { "var": "data_dzis",     "x": 75, "y": 8,  "w": 22, "label": "Data" },
+      { "var": "miejsce",       "x": 75, "y": 11, "w": 22, "label": "Miejscowość" },
+      { "var": "jednostka",     "x": 10, "y": 18, "w": 40, "label": "Nazwa jednostki" },
+      { "var": "hufiec",        "x": 10, "y": 22, "w": 40, "label": "Hufiec" },
+      { "var": "kierownik",     "x": 10, "y": 28, "w": 35, "label": "Kierownik" },
+      { "var": "tel_kierownik", "x": 50, "y": 28, "w": 20, "label": "Tel. kierownika" },
+      { "var": "email",         "x": 10, "y": 31, "w": 40, "label": "E-mail" },
+      { "var": "powiat",        "x": 10, "y": 42, "w": 30, "label": "Powiat" },
+      { "var": "nadlesnictwo",  "x": 10, "y": 48, "w": 30, "label": "Nadleśnictwo" },
+      { "var": "lesnictwo",     "x": 45, "y": 48, "w": 25, "label": "Leśnictwo" },
+      { "var": "oddzial_lesny", "x": 75, "y": 48, "w": 15, "label": "Oddz. leśny" },
+      { "var": "date_start",    "x": 15, "y": 54, "w": 18, "label": "Data od" },
+      { "var": "date_end",      "x": 38, "y": 54, "w": 18, "label": "Data do" },
+      { "var": "uczestnicy",    "x": 15, "y": 60, "w": 12, "label": "L. uczestników" },
+      { "var": "wiek",          "x": 35, "y": 60, "w": 15, "label": "Wiek" },
+      { "var": "liczba_kadry",  "x": 55, "y": 60, "w": 12, "label": "L. kadry" },
+      { "var": "kontakt1",      "x": 10, "y": 70, "w": 30, "label": "Wychowawca 1" },
+      { "var": "tel_kontakt1",  "x": 45, "y": 70, "w": 20, "label": "Tel. wych. 1" },
+      { "var": "kontakt2",      "x": 10, "y": 74, "w": 30, "label": "Wychowawca 2" },
+      { "var": "tel_kontakt2",  "x": 45, "y": 74, "w": 20, "label": "Tel. wych. 2" }
+    ]
+  },
+  "wojt": {
+    "label": "Pismo do Wójta",
+    "icon": "🏛️",
+    "file": "/dokumenty/wojt.pdf",
+    "pages": 1,
+    "fields": [
+      { "var": "data_dzis",     "x": 75, "y": 8,  "w": 22, "label": "Data" },
+      { "var": "miejsce",       "x": 75, "y": 11, "w": 22, "label": "Miejscowość" },
+      { "var": "gmina",         "x": 10, "y": 32, "w": 30, "label": "Gmina" },
+      { "var": "jednostka",     "x": 10, "y": 36, "w": 40, "label": "Nazwa jednostki" },
+      { "var": "hufiec",        "x": 10, "y": 40, "w": 40, "label": "Hufiec" },
+      { "var": "kierownik",     "x": 10, "y": 46, "w": 35, "label": "Kierownik" },
+      { "var": "tel_kierownik", "x": 50, "y": 46, "w": 20, "label": "Tel. kierownika" },
+      { "var": "email",         "x": 10, "y": 50, "w": 40, "label": "E-mail" },
+      { "var": "nadlesnictwo",  "x": 10, "y": 56, "w": 30, "label": "Nadleśnictwo" },
+      { "var": "oddzial_lesny", "x": 45, "y": 56, "w": 15, "label": "Oddz. leśny" },
+      { "var": "date_start",    "x": 15, "y": 60, "w": 18, "label": "Data od" },
+      { "var": "date_end",      "x": 38, "y": 60, "w": 18, "label": "Data do" },
+      { "var": "uczestnicy",    "x": 15, "y": 66, "w": 12, "label": "L. uczestników" },
+      { "var": "wiek",          "x": 35, "y": 66, "w": 15, "label": "Wiek" },
+      { "var": "liczba_kadry",  "x": 55, "y": 66, "w": 12, "label": "L. kadry" }
+    ]
+  },
+  "nadlesnictwo": {
+    "label": "Wniosek do Nadleśnictwa",
+    "icon": "🌲",
+    "file": "/dokumenty/nadlesnictwo.pdf",
+    "pages": 1,
+    "fields": [
+      { "var": "data_dzis",     "x": 75, "y": 8,  "w": 22, "label": "Data" },
+      { "var": "miejsce",       "x": 75, "y": 11, "w": 22, "label": "Miejscowość" },
+      { "var": "nadlesnictwo",  "x": 10, "y": 32, "w": 30, "label": "Nadleśnictwo" },
+      { "var": "lesnictwo",     "x": 10, "y": 40, "w": 25, "label": "Leśnictwo" },
+      { "var": "oddzial_lesny", "x": 40, "y": 40, "w": 15, "label": "Oddz. leśny" },
+      { "var": "jednostka",     "x": 10, "y": 46, "w": 40, "label": "Nazwa jednostki" },
+      { "var": "hufiec",        "x": 10, "y": 50, "w": 40, "label": "Hufiec" },
+      { "var": "kierownik",     "x": 10, "y": 56, "w": 35, "label": "Kierownik" },
+      { "var": "tel_kierownik", "x": 50, "y": 56, "w": 20, "label": "Tel. kierownika" },
+      { "var": "date_start",    "x": 15, "y": 62, "w": 18, "label": "Data od" },
+      { "var": "date_end",      "x": 38, "y": 62, "w": 18, "label": "Data do" },
+      { "var": "uczestnicy",    "x": 15, "y": 68, "w": 12, "label": "L. uczestników" },
+      { "var": "wiek",          "x": 35, "y": 68, "w": 15, "label": "Wiek" },
+      { "var": "liczba_kadry",  "x": 55, "y": 68, "w": 12, "label": "L. kadry" }
+    ]
+  },
+  "oswiadczenie": {
+    "label": "Oświadczenie właściciela",
+    "icon": "📝",
+    "file": "/dokumenty/oswiadczenie.pdf",
+    "pages": 1,
+    "fields": [
+      { "var": "data_dzis",     "x": 70, "y": 6,  "w": 25, "label": "Data" },
+      { "var": "miejsce",       "x": 70, "y": 9,  "w": 25, "label": "Miejscowość" },
+      { "var": "nr_dzialki",    "x": 25, "y": 32, "w": 25, "label": "Nr działki" },
+      { "var": "jednostka",     "x": 25, "y": 38, "w": 40, "label": "Nazwa jednostki" },
+      { "var": "date_start",    "x": 25, "y": 42, "w": 18, "label": "Data od" },
+      { "var": "date_end",      "x": 50, "y": 42, "w": 18, "label": "Data do" },
+      { "var": "uczestnicy",    "x": 15, "y": 50, "w": 12, "label": "L. uczestników" },
+      { "var": "liczba_kadry",  "x": 35, "y": 50, "w": 12, "label": "L. kadry" },
+      { "var": "wiek",          "x": 55, "y": 50, "w": 15, "label": "Wiek" },
+      { "var": "kierownik",     "x": 20, "y": 68, "w": 30, "label": "Kierownik" },
+      { "var": "tel_kierownik", "x": 55, "y": 68, "w": 20, "label": "Tel. kierownika" },
+      { "var": "email",         "x": 20, "y": 72, "w": 35, "label": "E-mail" }
+    ]
+  },
+  "schronienie": {
+    "label": "Umowa tymcz. schronienie",
+    "icon": "🏠",
+    "file": "/dokumenty/schronienie.pdf",
+    "pages": 1,
+    "fields": [
+      { "var": "data_dzis",         "x": 25, "y": 25, "w": 22, "label": "Data" },
+      { "var": "bezp_budynek",      "x": 15, "y": 32, "w": 40, "label": "Budynek" },
+      { "var": "kierownik",         "x": 35, "y": 36, "w": 30, "label": "Kierownik" },
+      { "var": "bezp_miejscowosc",  "x": 25, "y": 46, "w": 25, "label": "Miejscowość" },
+      { "var": "bezp_adres",        "x": 35, "y": 50, "w": 30, "label": "Adres" },
+      { "var": "uczestnicy",        "x": 25, "y": 54, "w": 12, "label": "L. uczestników" },
+      { "var": "date_start",        "x": 25, "y": 58, "w": 18, "label": "Data od" },
+      { "var": "date_end",          "x": 50, "y": 58, "w": 18, "label": "Data do" },
+      { "var": "jednostka",         "x": 15, "y": 76, "w": 40, "label": "Nazwa jednostki" },
+      { "var": "hufiec",            "x": 15, "y": 80, "w": 40, "label": "Hufiec" }
+    ]
+  },
+  "pojazd": {
+    "label": "Umowa użyczenia pojazdu",
+    "icon": "🚗",
+    "file": "/dokumenty/pojazd.pdf",
+    "pages": 1,
+    "fields": [
+      { "var": "data_dzis",     "x": 40, "y": 22, "w": 22, "label": "Data" },
+      { "var": "miejsce",       "x": 40, "y": 26, "w": 25, "label": "Miejscowość" },
+      { "var": "hufiec",        "x": 15, "y": 36, "w": 40, "label": "Hufiec" },
+      { "var": "jednostka",     "x": 15, "y": 60, "w": 40, "label": "Nazwa jednostki" },
+      { "var": "date_start",    "x": 25, "y": 64, "w": 18, "label": "Data od" },
+      { "var": "date_end",      "x": 50, "y": 64, "w": 18, "label": "Data do" }
+    ]
+  },
+  "szkola": {
+    "label": "Wniosek o pom. szkolne",
+    "icon": "🏫",
+    "file": "/dokumenty/szkola.pdf",
+    "pages": 1,
+    "fields": [
+      { "var": "data_dzis",     "x": 75, "y": 8,  "w": 22, "label": "Data" },
+      { "var": "miejsce",       "x": 75, "y": 11, "w": 22, "label": "Miejscowość" },
+      { "var": "hufiec",        "x": 10, "y": 20, "w": 40, "label": "Hufiec" },
+      { "var": "date_start",    "x": 15, "y": 42, "w": 18, "label": "Data od" },
+      { "var": "date_end",      "x": 38, "y": 42, "w": 18, "label": "Data do" },
+      { "var": "jednostka",     "x": 15, "y": 46, "w": 40, "label": "Nazwa jednostki" },
+      { "var": "uczestnicy",    "x": 15, "y": 52, "w": 12, "label": "L. uczestników" },
+      { "var": "wiek",          "x": 35, "y": 52, "w": 15, "label": "Wiek" },
+      { "var": "liczba_kadry",  "x": 55, "y": 52, "w": 12, "label": "L. kadry" }
+    ]
+  },
+  "kontaktowa": {
+    "label": "Lista kontaktowa",
+    "icon": "📞",
+    "file": "/dokumenty/lista.pdf",
+    "pages": 1,
+    "fields": [
+      { "var": "jednostka",     "x": 20, "y": 8,  "w": 55, "label": "Nazwa jednostki" },
+      { "var": "date_start",    "x": 20, "y": 12, "w": 18, "label": "Data od" },
+      { "var": "date_end",      "x": 45, "y": 12, "w": 18, "label": "Data do" },
+      { "var": "miejsce",       "x": 65, "y": 12, "w": 25, "label": "Miejscowość" },
+      { "var": "kierownik",     "x": 35, "y": 22, "w": 30, "label": "Kierownik" },
+      { "var": "tel_kierownik", "x": 65, "y": 22, "w": 18, "label": "Tel. kierownika" },
+      { "var": "kontakt1",      "x": 35, "y": 26, "w": 30, "label": "Wychowawca 1" },
+      { "var": "tel_kontakt1",  "x": 65, "y": 26, "w": 18, "label": "Tel. wych. 1" },
+      { "var": "kontakt2",      "x": 35, "y": 30, "w": 30, "label": "Wychowawca 2" },
+      { "var": "tel_kontakt2",  "x": 65, "y": 30, "w": 18, "label": "Tel. wych. 2" },
+      { "var": "psp",           "x": 35, "y": 42, "w": 35, "label": "Straż pożarna" },
+      { "var": "policja",       "x": 35, "y": 46, "w": 35, "label": "Policja" },
+      { "var": "szpital",       "x": 35, "y": 50, "w": 35, "label": "Szpital" },
+      { "var": "hufiec",        "x": 30, "y": 68, "w": 35, "label": "Hufiec" }
+    ]
+  }
+}
