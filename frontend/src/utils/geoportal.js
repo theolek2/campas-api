@@ -26,7 +26,7 @@ function toEpsg2180(lat, lng) {
 // ── Nominatim reverse geocode (adres + admin) ────────────────────────────────
 export async function reverseGeocode(lat, lng) {
   const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=13&accept-language=pl&addressdetails=1`
-  const res = await fetch(url, { headers: { 'User-Agent': 'CampOS-Skauting/1.0' } })
+  const res = await fetch(url, { headers: { 'User-Agent': 'CampAs/2.0' } })
   if (!res.ok) return null
   const data = await res.json()
   if (!data || data.error) return null
@@ -87,7 +87,7 @@ async function queryOverpass(amenity, lat, lng, radius = 40000) {
 async function searchNominatim(lat, lng, query) {
   try {
     const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&accept-language=pl&bounded=1&viewbox=${lng - 0.3},${lat - 0.2},${lng + 0.3},${lat + 0.2}`
-    const res = await fetch(url, { headers: { 'User-Agent': 'CampOS-Skauting/1.0' } })
+    const res = await fetch(url, { headers: { 'User-Agent': 'CampAs/2.0' } })
     if (!res.ok) return []
     const data = await res.json()
     return (data || []).map(item => ({

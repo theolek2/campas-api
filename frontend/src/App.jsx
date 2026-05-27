@@ -363,8 +363,8 @@ export default function App() {
         <div className="mb-8 text-center">
           <img src="/logo.png" alt="Skauci Europy" className="h-20 mx-auto mb-4"
             onError={e => { e.currentTarget.style.display='none' }} />
-          <h1 className="text-3xl font-bold text-white">Książka Obozowa</h1>
-          <p className="text-green-300 mt-1">Skauci Europy · Ramowy plan pracy</p>
+          <h1 className="text-3xl font-bold text-white">CampAs</h1>
+          <p className="text-green-300 mt-1">Skauci Europy · Asystent Obozowy</p>
         </div>
         {resetError && (
           <div className="bg-white rounded-xl shadow-lg w-full max-w-sm p-4 mb-4">
@@ -439,7 +439,7 @@ export default function App() {
               onError={e => { e.currentTarget.style.display='none'; e.currentTarget.nextSibling.style.display='flex' }} />
             <div className="hidden items-center justify-center w-8 h-8 bg-yellow-400 rounded-full text-green-900 font-black text-sm">⚜</div>
             <div>
-              <h1 className="text-sm font-bold leading-tight">CampOS</h1>
+              <h1 className="text-sm font-bold leading-tight">CampAs</h1>
               <p className="text-green-400 text-xs">Skauci Europy</p>
             </div>
           </div>

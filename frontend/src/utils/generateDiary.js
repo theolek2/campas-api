@@ -54,7 +54,7 @@ export function generateDiary({ meta, days, wychowawca, planItems, campDays, act
 
   doc.setFontSize(8)
   doc.setTextColor(150)
-  doc.text('Dokument wygenerowany przez CampOS \u00b7 Skauci Europy \u00b7 by Aleksander Nasi\u0142owski', W / 2, H - 8, { align: 'center' })
+  doc.text('Dokument wygenerowany przez CampAs \u00b7 Skauci Europy \u00b7 by Aleksander Nasi\u0142owski', W / 2, H - 8, { align: 'center' })
 
   // ── STRONA 2: Spis zaj\u0119\u0107 ────────────────────────────────────────────────
   doc.addPage()

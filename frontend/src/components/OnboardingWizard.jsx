@@ -115,7 +115,7 @@ export default function OnboardingWizard({ onDone, updateMeta, meta, userId }) {
       <div className="text-center mb-8">
         <img src="/logo.png" alt="Skauci Europy" className="h-16 mx-auto mb-3"
           onError={e => { e.currentTarget.style.display='none' }} />
-        <h1 className="text-3xl font-bold text-white">Witaj w CampOS!</h1>
+        <h1 className="text-3xl font-bold text-white">Witaj w CampAs!</h1>
         <p className="text-green-300 mt-1">Uzupełnij dane swojego obozu — zajmie to 2 minuty</p>
       </div>
 
