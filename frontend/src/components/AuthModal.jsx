@@ -160,7 +160,7 @@ export default function AuthModal({ onClose, onAuth, resetToken: initResetToken 
             {loading ? 'Proszę czekać...' : mode === 'login' ? 'Zaloguj się' : mode === 'reset' ? 'Ustaw nowe hasło' : 'Utwórz konto'}
           </button>
 
-          {mode !== 'reset' && (
+          {mode !== 'reset' && (<>
           <p className="text-center text-sm text-gray-500">
             {mode === 'login' ? (
               <>Nie masz konta?{' '}
@@ -193,7 +193,7 @@ export default function AuthModal({ onClose, onAuth, resetToken: initResetToken 
               🔒 Po rejestracji otrzymasz email z linkiem aktywacyjnym.
             </p>
           )}
-          )}
+          </>)}
         </form>}
       </div>
     </div>

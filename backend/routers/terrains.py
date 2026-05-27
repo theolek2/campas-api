@@ -12,6 +12,15 @@ from dependencies import get_current_user
 from models.shared import Terrain
 from schemas.terrains import TerrainCreate
 
+router = APIRouter(prefix="/api/terrains", tags=["terrains"])
+
+
+def _terrain_dict(t: Terrain) -> dict:
+    return {
+        "id":   t.id,
+        "name": t.name,
+    }
+
 
 @router.get("")
 async def list_terrains(
