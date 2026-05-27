@@ -73,8 +73,23 @@ export default function MealSlotRow({ slot, mealActivities, onChange, onDelete, 
   }
 
   const suggestAI = async () => {
-    // TODO: implement /api/suggest-ingredients in campas-api backend
-    alert('Sugestie AI składników nie są jeszcze dostępne w tej wersji.')
+    if (!slot.name) return alert('Najpierw wpisz nazwę posiłku')
+    setAiLoading(true)
+    try {
+      const tok = localStorage.getItem('campas_token') || ''
+      const res = await fetch('/api/robert/suggest-meal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tok}` },
+        body: JSON.stringify({ meal_name: slot.name, people_count: peopleCount || 10 }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.detail || 'Błąd AI')
+      onChange({ ...slot, ingredients: data.ingredients })
+    } catch (e) {
+      alert('Błąd AI: ' + e.message)
+    } finally {
+      setAiLoading(false)
+    }
   }
 
   const total = (ing) => {

@@ -7,6 +7,8 @@ export default function JadlospisTab({ meta, days, mealTemplate, mealActivities,
   const [peopleCount, setPeopleCount] = useState('')
   const [newName, setNewName] = useState('')
   const [newDesc, setNewDesc] = useState('')
+  const [aiAllLoading, setAiAllLoading] = useState(false)
+  const [aiAllStatus, setAiAllStatus] = useState('')
 
   const inp = 'w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500'
   const ppl = parseInt(peopleCount) || 0
@@ -47,6 +49,50 @@ export default function JadlospisTab({ meta, days, mealTemplate, mealActivities,
     if (!name) return
     onAddMealActivity(name, newDesc.trim())
     setNewName(''); setNewDesc('')
+  }
+
+  const fillAllAI = async () => {
+    if (safeDays.length === 0) return alert('Najpierw ustaw liczbę dni')
+    const tok = localStorage.getItem('campas_token') || ''
+    const people = parseInt(peopleCount) || 10
+
+    // Zbierz wszystkie sloty z nazwą i bez składników
+    const toFill = []
+    safeDays.forEach((day, di) => {
+      (day.mealSlots || []).forEach((slot, si) => {
+        if (slot.name && (!slot.ingredients || slot.ingredients.length === 0)) {
+          toFill.push({ di, si, slot })
+        }
+      })
+    })
+
+    if (toFill.length === 0) return alert('Wszystkie posiłki z nazwą mają już składniki')
+    setAiAllLoading(true)
+    setAiAllStatus(`0 / ${toFill.length}`)
+
+    // Kopia dni do aktualizacji
+    let newDays = safeDays.map(d => ({ ...d, mealSlots: [...(d.mealSlots || [])] }))
+    let done = 0
+
+    for (const { di, si, slot } of toFill) {
+      try {
+        const res = await fetch('/api/robert/suggest-meal', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tok}` },
+          body: JSON.stringify({ meal_name: slot.name, people_count: people }),
+        })
+        const data = await res.json()
+        if (res.ok && data.ingredients) {
+          newDays[di].mealSlots[si] = { ...slot, ingredients: data.ingredients }
+        }
+      } catch (_) { /* ignoruj błędy pojedynczych slotów */ }
+      done++
+      setAiAllStatus(`${done} / ${toFill.length}`)
+    }
+
+    onUpdate({ days: newDays })
+    setAiAllLoading(false)
+    setAiAllStatus('')
   }
 
   return (
@@ -104,13 +150,17 @@ export default function JadlospisTab({ meta, days, mealTemplate, mealActivities,
 
       {/* Prawy panel — dni */}
       <main className="flex-1 overflow-y-auto p-5">
-        <div className="flex items-center gap-3 mb-4">
+        <div className="flex items-center gap-3 mb-4 flex-wrap">
           <h2 className="text-xl font-bold text-gray-800">🍲 Jadłospis</h2>
           <button onClick={(e) => onToggleProgress?.('jadlospis', e)}
             className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border transition ${
               progress?.jadlospis ? 'bg-green-500 text-white border-green-600' : 'bg-white text-gray-500 border-gray-300 hover:border-green-400'
             }`}>
             {progress?.jadlospis ? '✅' : '⬜'} Zrobione
+          </button>
+          <button onClick={fillAllAI} disabled={aiAllLoading || safeDays.length === 0}
+            className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition">
+            {aiAllLoading ? `⏳ AI ${aiAllStatus}` : '🧠 Wypełnij wszystko AI'}
           </button>
         </div>
 

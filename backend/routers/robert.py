@@ -49,6 +49,74 @@ async def _embed(texts: list[str]) -> list[list[float]]:
         return [item["embedding"] for item in data["data"]]
 
 
+@router.post("/suggest-meal")
+async def suggest_meal_ingredients(
+    data: dict,
+    user_id: str = Depends(get_current_user),
+):
+    """Zwraca listę składników do podanego posiłku dla N osób (JSON array)."""
+    if not DEEPSEEK_API_KEY:
+        raise HTTPException(status_code=503, detail="Brak DEEPSEEK_API_KEY")
+
+    meal_name    = data.get("meal_name", "").strip()
+    people_count = int(data.get("people_count", 10))
+
+    if not meal_name:
+        raise HTTPException(status_code=400, detail="Brak nazwy posiłku")
+
+    prompt = (
+        f'Podaj listę składników do przygotowania: "{meal_name}" dla {people_count} osób '
+        f'na obozie harcerskim w terenie.\n\n'
+        f'Odpowiedz WYŁĄCZNIE jako tablica JSON (zero innych słów):\n'
+        f'[{{"name":"składnik","qty":100,"unit":"g","perPerson":false}},...]\n\n'
+        f'Dozwolone jednostki: g, kg, ml, L, szt, łyżka, łyżeczka, szklanka, opakowanie, puszka, plaster, kromka.\n'
+        f'perPerson=true gdy qty dotyczy 1 osoby, false gdy całości.'
+    )
+
+    try:
+        async with httpx.AsyncClient(timeout=50) as client:
+            r = await client.post(
+                DEEPSEEK_URL,
+                headers={"Authorization": f"Bearer {DEEPSEEK_API_KEY}", "Content-Type": "application/json"},
+                json={
+                    "model": "deepseek-chat",
+                    "messages": [
+                        {"role": "system", "content": "Odpowiadasz TYLKO jako JSON array składników. Zero innych słów."},
+                        {"role": "user", "content": prompt},
+                    ],
+                    "max_tokens": 800,
+                    "temperature": 0.2,
+                },
+            )
+            r.raise_for_status()
+    except httpx.TimeoutException:
+        raise HTTPException(status_code=504, detail="DeepSeek timeout — spróbuj ponownie")
+
+    text = r.json()["choices"][0]["message"]["content"]
+
+    # Wyciągnij JSON array nawet jeśli AI dodało coś wokół
+    import re
+    match = re.search(r'\[.*\]', text, re.DOTALL)
+    if not match:
+        raise HTTPException(status_code=500, detail="AI nie zwróciło JSON — spróbuj ponownie")
+
+    try:
+        ingredients = json.loads(match.group())
+        # Walidacja i normalizacja
+        cleaned = []
+        for ing in ingredients:
+            if isinstance(ing, dict) and ing.get("name"):
+                cleaned.append({
+                    "name":      str(ing.get("name", "")).strip().lower(),
+                    "qty":       float(ing.get("qty", 0)),
+                    "unit":      str(ing.get("unit", "g")),
+                    "perPerson": bool(ing.get("perPerson", False)),
+                })
+        return {"ingredients": cleaned}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Błąd parsowania JSON: {e}")
+
+
 @router.post("")
 async def ask_robert(
     data: dict,
@@ -104,22 +172,29 @@ async def ask_robert(
         messages.append({"role": h["role"], "content": h["content"]})
     messages.append({"role": "user", "content": question})
 
-    async with httpx.AsyncClient(timeout=30) as client:
-        r = await client.post(
-            DEEPSEEK_URL,
-            headers={
-                "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
-                "Content-Type": "application/json",
-            },
-            json={
-                "model": "deepseek-chat",
-                "messages": messages,
-                "max_tokens": 1024,
-                "temperature": 0.3,
-            },
-        )
-        r.raise_for_status()
-        result = r.json()
+    try:
+        async with httpx.AsyncClient(timeout=60) as client:
+            r = await client.post(
+                DEEPSEEK_URL,
+                headers={
+                    "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": "deepseek-chat",
+                    "messages": messages,
+                    "max_tokens": 1024,
+                    "temperature": 0.3,
+                },
+            )
+            r.raise_for_status()
+            result = r.json()
+    except httpx.TimeoutException:
+        raise HTTPException(status_code=504, detail="DeepSeek timeout — spróbuj ponownie za chwilę")
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(status_code=502, detail=f"Błąd AI ({e.response.status_code})")
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Błąd połączenia z AI: {str(e)[:80]}")
 
     answer = result["choices"][0]["message"]["content"]
     return {"answer": answer, "sources": sources}

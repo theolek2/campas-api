@@ -126,26 +126,38 @@ export default function FloatingRobert({ onNavigate, hidden }) {
     setVisible(false)
     setTimeout(() => { setPhase('thinking'); setVisible(true) }, 200)
     try {
-      const _tok = localStorage.getItem('campas_token') || localStorage.getItem('skauting_external_session')
-        ? (JSON.parse(localStorage.getItem('skauting_external_session') || '{}')?.token || localStorage.getItem('campas_token') || '')
-        : ''
-      const res = await fetch('/api/robert', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${_tok}` },
-        body: JSON.stringify({
-          question,
-          history: newMessages.slice(-6).map(m => ({ role: m.role, content: m.content })),
-        }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.detail || data.error || 'Błąd')
-      setMessages(prev => [...prev, {
-        role: 'assistant',
-        content: data.answer,
-        links: data.sources || [],
-      }])
+      // Token: preferuj campas_token; fallback na token z sesji zewnętrznej
+      const extSession = (() => { try { return JSON.parse(localStorage.getItem('skauting_external_session') || '{}') } catch { return {} } })()
+      const _tok = localStorage.getItem('campas_token') || extSession?.token || ''
+
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 90_000) // 90s max
+      try {
+        const res = await fetch('/api/robert', {
+          method: 'POST',
+          signal: controller.signal,
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${_tok}` },
+          body: JSON.stringify({
+            question,
+            history: newMessages.slice(-6).map(m => ({ role: m.role, content: m.content })),
+          }),
+        })
+        clearTimeout(timeout)
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.detail || data.error || `Błąd ${res.status}`)
+        setMessages(prev => [...prev, {
+          role: 'assistant',
+          content: data.answer,
+          links: data.sources || [],
+        }])
+      } finally {
+        clearTimeout(timeout)
+      }
     } catch (err) {
-      setError(err.message)
+      const msg = err.name === 'AbortError'
+        ? 'Timeout — Robert zbyt długo myśli. Spróbuj ponownie.'
+        : (err.message || 'Błąd połączenia')
+      setError(msg)
       setMessages(prev => [...prev, {
         role: 'assistant',
         content: 'Przepraszam, wystąpił błąd. Spróbuj ponownie.'
