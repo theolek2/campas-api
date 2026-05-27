@@ -38,3 +38,14 @@ class RobertSuggestMeal(BaseModel):
         if v > 10000:
             raise ValueError("Maksymalna liczba osób to 10000")
         return v
+
+
+class CategorizeShopping(BaseModel):
+    ingredients: list[dict]
+
+    @field_validator("ingredients")
+    @classmethod
+    def not_empty(cls, v: list[dict]) -> list[dict]:
+        if not v:
+            raise ValueError("Lista składników nie może być pusta")
+        return v

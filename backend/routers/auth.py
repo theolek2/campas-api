@@ -4,6 +4,7 @@ Logika: services/auth.py + services/email.py
 Modele: models/shared.py
 """
 import datetime
+import secrets
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from database import get_db
 from dependencies import get_current_user
 from models.shared import User, CampAccess, CampInvitation, Camp
+from models.external import AppExternalUser
 from schemas.auth import RegisterIn, LoginIn, ForgotPasswordIn, ResetPasswordIn, AcceptInviteIn, AuthResponse, UserOut
 from services.auth import hash_password, verify_password, create_jwt, generate_token, validate_password
 from services.email import send_verification_email, send_reset_email
@@ -206,3 +208,46 @@ async def accept_invite(
         db.add(CampAccess(camp_id=inv.camp_id, user_id=user_id, permissions="przyboczny"))
     await db.commit()
     return {"camp_id": inv.camp_id, "message": "Dołączono do obozu"}
+
+
+@router.get("/magic-login")
+async def auth_magic_login(
+    token: str = Query(...),
+    db: AsyncSession = Depends(get_db),
+):
+    """Logowanie przybocznego przez magic link. Zwraca sesję i camp_id."""
+    now = datetime.datetime.now(datetime.UTC)
+    result = await db.execute(
+        select(AppExternalUser).where(
+            AppExternalUser.magic_token == token,
+        )
+    )
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(status_code=401, detail="Nieprawidłowy lub wygasły link")
+    if user.token_expires and now > user.token_expires:
+        raise HTTPException(status_code=401, detail="Link wygasł")
+
+    session_token = secrets.token_urlsafe(48)
+    user.active = True
+    user.session_token = session_token
+    user.session_token_expires = now + datetime.timedelta(days=30)
+    user.last_login = now
+    user.magic_token = None
+    await db.commit()
+
+    return {
+        "session_token": session_token,
+        "camp_id": user.camp_id,
+        "user": {
+            "id": user.id,
+            "email": user.email,
+            "display_name": user.display_name,
+            "phone": user.phone,
+            "role": user.role,
+            "active": user.active,
+            "robert_enabled": user.robert_enabled,
+            "camp_id": user.camp_id,
+        },
+    }

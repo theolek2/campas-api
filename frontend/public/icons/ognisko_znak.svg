@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
+
+<svg
+   width="800px"
+   height="800px"
+   viewBox="0 0 24 24"
+   id="Line"
+   version="1.1"
+   sodipodi:docname="campfire-2-svgrepo-com.svg"
+   inkscape:version="1.2.2 (732a01da63, 2022-12-09)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs619" />
+  <sodipodi:namedview
+     id="namedview617"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     showgrid="false"
+     inkscape:zoom="0.75660426"
+     inkscape:cx="373.37881"
+     inkscape:cy="362.80525"
+     inkscape:window-width="1920"
+     inkscape:window-height="991"
+     inkscape:window-x="-9"
+     inkscape:window-y="-9"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="Line" />
+  <rect
+     style="fill:#ff0000;stroke-width:0.0216601;stroke-linecap:round;stroke-miterlimit:4.5;paint-order:fill markers stroke"
+     id="rect790"
+     width="24.028414"
+     height="24.107716"
+     x="0.039650831"
+     y="-1.4628065e-08" />
+  <line
+     id="primary"
+     x1="4"
+     y1="21"
+     x2="20"
+     y2="17"
+     style="fill:none;stroke:#ffffff;stroke-linecap:round;stroke-linejoin:round;stroke-width:2px" />
+  <path
+     id="primary-2"
+     data-name="primary"
+     d="M20,21,4,17m12.67-6.66a7.18,7.18,0,0,0-1.34-4,3.29,3.29,0,0,1-1.33,2A6.92,6.92,0,0,0,10.68,3c0,4-3.35,4-3.35,7.33A4.58,4.58,0,0,0,12,15C16,15,16.67,12.43,16.67,10.34Z"
+     style="fill:none;stroke:#ffffff;stroke-linecap:round;stroke-linejoin:round;stroke-width:2px" />
+</svg>

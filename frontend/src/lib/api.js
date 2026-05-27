@@ -102,6 +102,14 @@ export async function verifyEmail(token) {
 }
 
 /**
+ * Magic login dla przybocznych — zwraca session_token + camp_id + user.
+ */
+export async function magicLogin(token) {
+  const res = await fetch(`${BASE}/api/auth/magic-login?token=${encodeURIComponent(token)}`)
+  return _json(res)
+}
+
+/**
  * Pobierz aktualną sesję (z localStorage).
  * Zwraca format kompatybilny z supabase.getSession().
  */
@@ -558,7 +566,7 @@ export const supabase = {
 }
 
 export default {
-  signUp, signIn, signOut, verifyEmail, getSession, getCurrentUser,
+  signUp, signIn, signOut, verifyEmail, magicLogin, getSession, getCurrentUser,
   getProfile, upsertProfile,
   saveCampMeta, loadCampMeta, saveChecklist, loadChecklist,
   getTerrains, addTerrain,

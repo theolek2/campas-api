@@ -20,7 +20,7 @@ import Confetti from './components/Confetti'
 import { makeDay, DEFAULT_CAMP_ACTIVITIES } from './utils/defaults'
 import { generatePdf } from './utils/generatePdf'
 import { saveState, loadState } from './utils/storage'
-import { supabase, signOut, getProfile, upsertProfile, saveCampMeta, loadCampMeta, saveChecklist, loadChecklist, getCamps, verifyEmail } from './lib/api'
+import { supabase, signOut, getProfile, upsertProfile, saveCampMeta, loadCampMeta, saveChecklist, loadChecklist, getCamps, verifyEmail, magicLogin } from './lib/api'
 
 const DEFAULT_STATE = {
   meta: { jednostka: '', kierownik: '', miejsce: '', termin: '', date_start: '', date_end: '' },
@@ -200,13 +200,32 @@ export default function App() {
     return () => subscription.unsubscribe()
   }, [])
 
-  // ── Obsługa linków z emaila (weryfikacja + reset hasła) ────────────────────
-  // /login?verify=<token>  →  auto-weryfikacja email
-  // /login?token=<token>   →  otwiera zmianę hasła
+  // ── Obsługa linków z emaila (weryfikacja + reset hasła + magic link) ──────
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const verifyToken = params.get('verify')
     const resetToken = params.get('token')
+    const magicToken = params.get('magic')
+
+    if (magicToken) {
+      magicLogin(magicToken).then(data => {
+        if (data?.session_token) {
+          localStorage.setItem('campas_camp_id', data.camp_id)
+          localStorage.setItem('skauting_external_session', JSON.stringify({
+            token: data.session_token,
+            camp_id: data.camp_id,
+            user: data.user,
+          }))
+          setExternalUser(data.user)
+          window.history.replaceState({}, '', '/')
+        } else {
+          window.history.replaceState({}, '', '/login')
+        }
+      }).catch(() => {
+        window.history.replaceState({}, '', '/login')
+      })
+      return
+    }
 
     if (verifyToken) {
       verifyEmail(verifyToken).then(({ data, error }) => {
