@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import get_db
 from dependencies import get_current_user, require_camp_access, require_camp_owner
-from models.shared import Camp, Patrol, CampAccess, CampInvitation, User, Profile
+from models.shared import Camp, Patrol, CampAccess, CampInvitation, User, Terrain, Profile
 from schemas.camps import CampOut, CampCreate, CampUpdate, PatrolCreate, PatrolOut, InviteCreate
 from services.auth import generate_token
 
@@ -153,6 +153,42 @@ async def list_members(
         {"id": u.id, "email": u.email, "display_name": u.display_name, "permissions": p}
         for u, p in result.all()
     ]
+
+
+# ── Mapa krajowa — wszystkie obozy (bez filtra usera) ──────────────────────
+
+@router.get("/all")
+async def list_all_camps(
+    user_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Zwraca wszystkie obozy z danymi terenu — dla mapy krajowej."""
+    result = await db.execute(
+        select(Camp, Terrain)
+        .outerjoin(Terrain, Terrain.id == Camp.terrain_id)
+        .order_by(Camp.date_start.desc())
+    )
+    camps = []
+    for camp, terrain in result.all():
+        camps.append({
+            "id":          camp.id,
+            "unit_name":   camp.unit_name,
+            "date_start":  camp.date_start.isoformat() if camp.date_start else None,
+            "date_end":    camp.date_end.isoformat() if camp.date_end else None,
+            "terrain_id":  camp.terrain_id,
+            "created_at":  camp.created_at.isoformat() if camp.created_at else None,
+            "terrain": {
+                "id":            terrain.id,
+                "name":          terrain.name,
+                "lat":           terrain.lat,
+                "lng":           terrain.lng,
+                "address":       terrain.address,
+                "owner_name":    terrain.owner_name,
+                "owner_contact": terrain.owner_contact,
+                "owner_notes":   terrain.owner_notes,
+            } if terrain else None,
+        })
+    return camps
 
 
 # ── Profile użytkownika ──────────────────────────────────────────────────────

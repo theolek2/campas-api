@@ -262,6 +262,25 @@ export async function addCamp(camp) {
   return _json(res)
 }
 
+/**
+ * Pobiera wszystkie obozy (bez filtra użytkownika) — dla mapy krajowej.
+ */
+export async function getAllCamps() {
+  try {
+    const res = await fetch(`${BASE}/api/camps/all`, { headers: _headers() })
+    const camps = await _json(res)
+    const today = new Date().toISOString().split('T')[0]
+    return { error: null, camps: (camps || []).map(c => ({
+      ...c,
+      status: c.date_end < today ? 'ended'
+             : c.date_start <= today ? 'active'
+             : 'planned',
+    })) }
+  } catch (e) {
+    return { error: e.message, camps: [] }
+  }
+}
+
 export async function updateCamp(id, patch) {
   const res = await fetch(`${BASE}/api/camps/${id}`, {
     method: 'PATCH',
@@ -597,7 +616,7 @@ export default {
   getProfile, upsertProfile,
   saveCampMeta, loadCampMeta, saveChecklist, loadChecklist,
   getTerrains, addTerrain,
-  getCamps, getCampsForTerrain, addCamp, updateCamp,
+  getCamps, getCampsForTerrain, getAllCamps, addCamp, updateCamp,
   getAllIngredients, addIngredient, seedIngredients,
   inviteExternalUser, getExternalUserByToken, updateExternalUser, getTeamMembers,
   getTasks, createTask, updateTask, deleteTask,

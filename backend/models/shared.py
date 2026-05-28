@@ -76,8 +76,15 @@ class CampInvitation(Base):
 class Terrain(Base):
     __tablename__ = "terrains"
 
-    id:   Mapped[str] = mapped_column(PG_UUID(as_uuid=False), primary_key=True)
-    name: Mapped[str] = mapped_column(String(255))
+    id:             Mapped[str]            = mapped_column(PG_UUID(as_uuid=False), primary_key=True)
+    name:           Mapped[str]            = mapped_column(String(255))
+    lat:            Mapped[Optional[float]] = mapped_column(nullable=True)
+    lng:            Mapped[Optional[float]] = mapped_column(nullable=True)
+    address:        Mapped[Optional[str]]  = mapped_column(String(500), nullable=True)
+    owner_name:     Mapped[Optional[str]]  = mapped_column(String(200), nullable=True)
+    owner_contact:  Mapped[Optional[str]]  = mapped_column(String(20), nullable=True)
+    owner_notes:    Mapped[Optional[str]]  = mapped_column(Text, nullable=True)
+    is_public:      Mapped[bool]           = mapped_column(Boolean, default=True)
 
 
 class Profile(Base):

@@ -2,7 +2,7 @@
 import { MapContainer, TileLayer, Marker, Popup, Circle } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
-import { getCamps } from '../lib/api'
+import { getAllCamps } from '../lib/api'
 import CampRegistrationModal from './CampRegistrationModal'
 
 // Fix Leaflet icons
@@ -71,7 +71,7 @@ export default function CampsMapTab({ user, meta }) {
   const load = () => {
     setLoading(true)
     setError('')
-    getCamps()
+    getAllCamps()
       .then(result => {
         // getCamps zwraca teraz { error, camps }
         const campsArray = Array.isArray(result) ? result : (result.camps || [])

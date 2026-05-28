@@ -17,8 +17,15 @@ router = APIRouter(prefix="/api/terrains", tags=["terrains"])
 
 def _terrain_dict(t: Terrain) -> dict:
     return {
-        "id":   t.id,
-        "name": t.name,
+        "id":            t.id,
+        "name":          t.name,
+        "lat":           t.lat,
+        "lng":           t.lng,
+        "address":       t.address,
+        "owner_name":    t.owner_name,
+        "owner_contact": t.owner_contact,
+        "owner_notes":   t.owner_notes,
+        "is_public":     t.is_public,
     }
 
 
@@ -37,17 +44,24 @@ async def create_terrain(
     user_id: str = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Tworzy nowy teren (wstawia do tabeli terrains)."""
+    """Tworzy nowy teren."""
     new_id = str(uuid.uuid4())
-    # Używamy raw SQL żeby ominąć ograniczenia modelu (tabela może mieć więcej kolumn)
     try:
         await db.execute(
             text("""
-                INSERT INTO terrains (id, name)
-                VALUES (:id, :name)
+                INSERT INTO terrains (id, name, lat, lng, address, owner_name, owner_contact, owner_notes, is_public)
+                VALUES (:id, :name, :lat, :lng, :address, :owner_name, :owner_contact, :owner_notes, :is_public)
                 ON CONFLICT(id) DO NOTHING
             """),
-            {"id": new_id, "name": body.name},
+            {
+                "id": new_id, "name": body.name,
+                "lat": body.lat, "lng": body.lng,
+                "address": body.address,
+                "owner_name": body.owner_name,
+                "owner_contact": body.owner_contact,
+                "owner_notes": body.owner_notes,
+                "is_public": body.is_public,
+            },
         )
         await db.commit()
     except Exception:
