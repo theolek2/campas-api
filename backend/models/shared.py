@@ -5,6 +5,7 @@ NIE dodawaj tutaj tabel app_* — tylko czytaj/zapisuj istniejące.
 from datetime import datetime, date, timezone
 from typing import Optional
 from sqlalchemy import String, Boolean, Date, DateTime, Text, SmallInteger, JSON
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 import uuid
 
@@ -16,7 +17,7 @@ _uuid = lambda: str(uuid.uuid4())
 class User(Base):
     __tablename__ = "users"
 
-    id:                     Mapped[str]                = mapped_column(String(36), primary_key=True, default=_uuid)
+    id:                     Mapped[str]                = mapped_column(PG_UUID(as_uuid=False), primary_key=True, default=_uuid)
     email:                  Mapped[str]                = mapped_column(String(255), unique=True, nullable=False)
     password_hash:          Mapped[str]                = mapped_column(String(255), nullable=False)
     display_name:           Mapped[Optional[str]]      = mapped_column(String(255))
@@ -52,9 +53,9 @@ class Patrol(Base):
 class CampAccess(Base):
     __tablename__ = "camp_access"
 
-    id:          Mapped[str]           = mapped_column(String(36), primary_key=True, default=_uuid)
-    user_id:     Mapped[str]           = mapped_column(String(36))
-    camp_id:     Mapped[Optional[str]] = mapped_column(String(36))
+    id:          Mapped[str]           = mapped_column(PG_UUID(as_uuid=False), primary_key=True, default=_uuid)
+    user_id:     Mapped[str]           = mapped_column(PG_UUID(as_uuid=False))
+    camp_id:     Mapped[Optional[str]] = mapped_column(PG_UUID(as_uuid=False))
     permissions: Mapped[Optional[str]] = mapped_column(String(50))
 
 
