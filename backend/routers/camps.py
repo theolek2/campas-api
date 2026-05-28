@@ -164,12 +164,22 @@ async def list_all_camps(
 ):
     """Zwraca wszystkie obozy z danymi terenu — dla mapy krajowej."""
     result = await db.execute(
-        select(Camp, Terrain)
-        .outerjoin(Terrain, Terrain.id == Camp.terrain_id)
+        select(Camp)
         .order_by(Camp.date_start.desc())
     )
+    camps_data = result.scalars().all()
+
+    # Pobierz tereny osobno (omija błąd VARCHAR/UUID mismatch w JOIN-ie)
+    terrain_ids = [c.terrain_id for c in camps_data if c.terrain_id]
+    terrains_map = {}
+    if terrain_ids:
+        tr = await db.execute(select(Terrain).where(Terrain.id.in_(terrain_ids)))
+        for t in tr.scalars().all():
+            terrains_map[t.id] = t
+
     camps = []
-    for camp, terrain in result.all():
+    for camp in camps_data:
+        terrain = terrains_map.get(camp.terrain_id) if camp.terrain_id else None
         camps.append({
             "id":          camp.id,
             "unit_name":   camp.unit_name,
