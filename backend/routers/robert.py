@@ -6,6 +6,7 @@ import os
 import re
 import json
 import subprocess
+import httpx
 from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse

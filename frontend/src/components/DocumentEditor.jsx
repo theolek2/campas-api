@@ -491,6 +491,7 @@ export default function DocumentEditor({ templateHtml, meta, docLabel, onClose, 
     const content = editorRef.current.innerHTML
     const filename = (activeLabel || 'dokument').replace(/\s+/g, '_')
 
+    const logoUrl = `${window.location.origin}/logo.png`
     const win = window.open('', '_blank')
     if (!win) { alert('Zezwól na otwieranie okien popup w przeglądarce'); return }
     win.document.write(`<!DOCTYPE html>
@@ -499,12 +500,12 @@ export default function DocumentEditor({ templateHtml, meta, docLabel, onClose, 
   <meta charset="UTF-8"/>
   <title>${filename}</title>
   <style>
-    @page { size: A4; margin: 28mm 20mm 18mm 20mm; }
+    @page { size: A4; margin: 30mm 20mm 20mm 20mm; }
     * { box-sizing: border-box; }
     body {
       font-family: 'Segoe UI', Arial, sans-serif;
       font-size: 10.5pt;
-      line-height: 1.55;
+      line-height: 1.6;
       color: #111;
       margin: 0; padding: 0;
       background: #fff;
@@ -522,31 +523,55 @@ export default function DocumentEditor({ templateHtml, meta, docLabel, onClose, 
       .page-running-header {
         display: flex !important;
         position: fixed; top: 0; left: 0; right: 0;
-        height: 22mm;
-        align-items: center; gap: 12px;
-        padding: 4mm 20mm 5mm;
+        height: 24mm;
+        align-items: center; gap: 14px;
+        padding: 3mm 20mm 4mm;
         background: white;
-        border-bottom: 2px solid #2d6a2d;
+        border-bottom: 2.5px solid #2d6a2d;
         font-family: 'Segoe UI', Arial, sans-serif;
       }
+      .page-running-header img {
+        height: 44px; width: auto; object-fit: contain; flex-shrink: 0;
+      }
+      .page-running-header-text { display: flex; flex-direction: column; justify-content: center; }
       .page-running-header-title {
-        font-weight: bold; font-size: 11pt; color: #1a4a1a; display: block;
+        font-weight: bold; font-size: 11.5pt; color: #1a4a1a; display: block; line-height: 1.2;
       }
       .page-running-header-sub {
-        font-size: 8.5pt; color: #444; display: block;
+        font-size: 8pt; color: #555; display: block; margin-top: 2px;
       }
-      /* Powtarzająca się stopka */
+
+      /* Powtarzająca się stopka z numerem strony */
       .page-running-footer {
-        display: block !important;
+        display: flex !important;
         position: fixed; bottom: 0; left: 0; right: 0;
-        height: 12mm; line-height: 12mm;
-        border-top: 1px solid #ddd;
-        text-align: center; font-size: 8pt; color: #999;
+        height: 14mm;
+        align-items: center;
+        padding: 0 20mm;
+        border-top: 1.5px solid #2d6a2d;
         background: white;
         font-family: 'Segoe UI', Arial, sans-serif;
+        font-size: 8pt; color: #666;
       }
-      /* Przesuń treść body pod stały nagłówek */
-      body { padding-top: 24mm; }
+      .page-running-footer-left { flex: 1; }
+      .page-running-footer-center { flex: 1; text-align: center; }
+      .page-running-footer-right { flex: 1; text-align: right; }
+      .page-running-footer-right::after { content: "Strona " counter(page); }
+
+      /* Przesuń treść body pod stały nagłówek i nad stopkę */
+      body { padding-top: 26mm; padding-bottom: 16mm; }
+
+      /* Justowanie tekstu dla A4 */
+      p, li, td, th {
+        text-align: justify;
+        hyphens: auto;
+        -webkit-hyphens: auto;
+        hyphenate-limit-chars: 6 3 3;
+      }
+      /* Wyjątki — nagłówki i adresy nie justujemy */
+      h1, h2, h3, h4, .nadawca, .adresat, .miejsce-data, .podpis {
+        text-align: left !important;
+      }
 
       /* Ukryj inline nagłówek/stopkę (zastąpione przez stałe powyżej) */
       .doc-header-inline { display: none !important; }
@@ -556,6 +581,7 @@ export default function DocumentEditor({ templateHtml, meta, docLabel, onClose, 
       li { page-break-inside: avoid; }
       p  { orphans: 3; widows: 3; }
       tr { page-break-inside: avoid; }
+      h2, h3 { page-break-after: avoid; }
 
       /* Czyszczenie dekoracji inline przy druku */
       span[data-var] {
@@ -575,12 +601,17 @@ export default function DocumentEditor({ templateHtml, meta, docLabel, onClose, 
 </head>
 <body>
 <div class="page-running-header">
-  <div>
+  <img src="${logoUrl}" alt="Skauci Europy" onerror="this.style.display='none'"/>
+  <div class="page-running-header-text">
     <span class="page-running-header-title">Skauci Europy</span>
     <span class="page-running-header-sub">Stowarzyszenie Harcerstwa Katolickiego „Zawisza" · Federacja Skautingu Europejskiego</span>
   </div>
 </div>
-<div class="page-running-footer">skauci-europy.pl · Skauci Europy</div>
+<div class="page-running-footer">
+  <span class="page-running-footer-left">skauci-europy.pl</span>
+  <span class="page-running-footer-center">Skauci Europy</span>
+  <span class="page-running-footer-right"></span>
+</div>
 ${content}
 <script>
   window.onload = function() {

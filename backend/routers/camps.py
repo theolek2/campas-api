@@ -51,6 +51,94 @@ async def create_camp(
     return camp
 
 
+# ── Mapa krajowa — wszystkie obozy (bez filtra usera) ──────────────────────
+# WAŻNE: musi być przed /{camp_id} żeby FastAPI nie przechwycił /all jako camp_id
+
+@router.get("/all")
+async def list_all_camps(
+    user_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Zwraca wszystkie obozy z danymi terenu — dla mapy krajowej."""
+    result = await db.execute(
+        select(Camp)
+        .order_by(Camp.date_start.desc())
+    )
+    camps_data = result.scalars().all()
+
+    # Pobierz tereny osobno (omija błąd VARCHAR/UUID mismatch w JOIN-ie)
+    terrain_ids = [c.terrain_id for c in camps_data if c.terrain_id]
+    terrains_map = {}
+    if terrain_ids:
+        tr = await db.execute(select(Terrain).where(Terrain.id.in_(terrain_ids)))
+        for t in tr.scalars().all():
+            terrains_map[t.id] = t
+
+    camps = []
+    for camp in camps_data:
+        terrain = terrains_map.get(camp.terrain_id) if camp.terrain_id else None
+        camps.append({
+            "id":          camp.id,
+            "unit_name":   camp.unit_name,
+            "date_start":  camp.date_start.isoformat() if camp.date_start else None,
+            "date_end":    camp.date_end.isoformat() if camp.date_end else None,
+            "terrain_id":  camp.terrain_id,
+            "created_at":  camp.created_at.isoformat() if camp.created_at else None,
+            "terrain": {
+                "id":            terrain.id,
+                "name":          terrain.name,
+                "lat":           terrain.lat,
+                "lng":           terrain.lng,
+                "address":       terrain.address,
+                "owner_name":    terrain.owner_name,
+                "owner_contact": terrain.owner_contact,
+                "owner_notes":   terrain.owner_notes,
+            } if terrain else None,
+        })
+    return camps
+
+
+# ── Profile użytkownika ──────────────────────────────────────────────────────
+# WAŻNE: musi być przed /{camp_id}
+
+@router.get("/profiles/me")
+async def get_my_profile(
+    user_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    profile = await db.get(Profile, user_id)
+    if not profile:
+        return {"id": user_id, "display_name": None, "organization": None, "phone": None, "camp_meta": None}
+    return {
+        "id": profile.id,
+        "display_name": profile.display_name,
+        "organization": profile.organization,
+        "phone": profile.phone,
+        "camp_meta": profile.camp_meta,
+    }
+
+
+@router.patch("/profiles/me")
+async def update_my_profile(
+    data: dict,
+    user_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    profile = await db.get(Profile, user_id)
+    allowed = ("display_name", "organization", "phone", "camp_meta")
+    if not profile:
+        profile = Profile(id=user_id)
+        db.add(profile)
+        await db.flush()
+    for field in allowed:
+        if field in data:
+            setattr(profile, field, data[field])
+    await db.commit()
+    return {"ok": True}
+
+
+# ── Obóz (pojedynczy) ─────────────────────────────────────────────────────────
+
 @router.get("/{camp_id}", response_model=CampOut)
 async def get_camp(
     camp_id: str,
@@ -153,87 +241,3 @@ async def list_members(
         {"id": u.id, "email": u.email, "display_name": u.display_name, "permissions": p}
         for u, p in result.all()
     ]
-
-
-# ── Mapa krajowa — wszystkie obozy (bez filtra usera) ──────────────────────
-
-@router.get("/all")
-async def list_all_camps(
-    user_id: str = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    """Zwraca wszystkie obozy z danymi terenu — dla mapy krajowej."""
-    result = await db.execute(
-        select(Camp)
-        .order_by(Camp.date_start.desc())
-    )
-    camps_data = result.scalars().all()
-
-    # Pobierz tereny osobno (omija błąd VARCHAR/UUID mismatch w JOIN-ie)
-    terrain_ids = [c.terrain_id for c in camps_data if c.terrain_id]
-    terrains_map = {}
-    if terrain_ids:
-        tr = await db.execute(select(Terrain).where(Terrain.id.in_(terrain_ids)))
-        for t in tr.scalars().all():
-            terrains_map[t.id] = t
-
-    camps = []
-    for camp in camps_data:
-        terrain = terrains_map.get(camp.terrain_id) if camp.terrain_id else None
-        camps.append({
-            "id":          camp.id,
-            "unit_name":   camp.unit_name,
-            "date_start":  camp.date_start.isoformat() if camp.date_start else None,
-            "date_end":    camp.date_end.isoformat() if camp.date_end else None,
-            "terrain_id":  camp.terrain_id,
-            "created_at":  camp.created_at.isoformat() if camp.created_at else None,
-            "terrain": {
-                "id":            terrain.id,
-                "name":          terrain.name,
-                "lat":           terrain.lat,
-                "lng":           terrain.lng,
-                "address":       terrain.address,
-                "owner_name":    terrain.owner_name,
-                "owner_contact": terrain.owner_contact,
-                "owner_notes":   terrain.owner_notes,
-            } if terrain else None,
-        })
-    return camps
-
-
-# ── Profile użytkownika ──────────────────────────────────────────────────────
-
-@router.get("/profiles/me")
-async def get_my_profile(
-    user_id: str = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    profile = await db.get(Profile, user_id)
-    if not profile:
-        return {"id": user_id, "display_name": None, "organization": None, "phone": None, "camp_meta": None}
-    return {
-        "id": profile.id,
-        "display_name": profile.display_name,
-        "organization": profile.organization,
-        "phone": profile.phone,
-        "camp_meta": profile.camp_meta,
-    }
-
-
-@router.patch("/profiles/me")
-async def update_my_profile(
-    data: dict,
-    user_id: str = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    profile = await db.get(Profile, user_id)
-    allowed = ("display_name", "organization", "phone", "camp_meta")
-    if not profile:
-        profile = Profile(id=user_id)
-        db.add(profile)
-        await db.flush()
-    for field in allowed:
-        if field in data:
-            setattr(profile, field, data[field])
-    await db.commit()
-    return {"ok": True}
