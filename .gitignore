@@ -29,5 +29,6 @@ frontend/dist/
 Thumbs.db
 
 setup_server.sh
+start_terminal.txt
 *.sh.local
 start_terminal.txt
