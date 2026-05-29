@@ -193,11 +193,21 @@ export default function CampDataTab({ meta, onUpdateMeta, userId, progress, onTo
               />
             </Field>
             <Field label="Kategoria wiekowa">
-              <input className={inputCls}
-                placeholder="np. Zuchy 7-10 lat"
-                value={meta.wiek || ''}
-                onChange={e => onUpdateMeta({ wiek: e.target.value })}
-              />
+              <div className="flex items-center gap-2">
+                <input className={inputCls} type="number" min={0} max={120}
+                  placeholder="Min"
+                  value={meta.wiek_min || ''}
+                  onChange={e => onUpdateMeta({ wiek_min: e.target.value })}
+                  style={{ width: '48%' }}
+                />
+                <span className="text-gray-400 text-sm">–</span>
+                <input className={inputCls} type="number" min={0} max={120}
+                  placeholder="Max"
+                  value={meta.wiek_max || ''}
+                  onChange={e => onUpdateMeta({ wiek_max: e.target.value })}
+                  style={{ width: '48%' }}
+                />
+              </div>
             </Field>
           </div>
         </Module>
@@ -294,7 +304,7 @@ export default function CampDataTab({ meta, onUpdateMeta, userId, progress, onTo
             </Field>
             <Field label="Najbliższy szpital / SOR">
               <input className={inputCls}
-                placeholder="np. Szpital Miejski w Nowym Sączu"
+                placeholder="np. Szpital Miejski w Nowym Sączu" maxLength={200}
                 value={meta.szpital || ''}
                 onChange={e => onUpdateMeta({ szpital: e.target.value })}
               />
@@ -314,10 +324,15 @@ export default function CampDataTab({ meta, onUpdateMeta, userId, progress, onTo
               />
             </Field>
             <Field label="Lekarz obozowy / pielęgniarka">
-              <input className={inputCls}
-                placeholder="Imię i telefon"
-                value={meta.lekarz || ''}
-                onChange={e => onUpdateMeta({ lekarz: e.target.value })}
+              <input className={inputCls} placeholder="Imię i nazwisko" maxLength={100}
+                value={meta.lekarz_imie || ''}
+                onChange={e => onUpdateMeta({ lekarz_imie: e.target.value })}
+              />
+            </Field>
+            <Field label="Telefon lekarza">
+              <input className={inputCls} type="tel" maxLength={15} placeholder="+48 000 000 000"
+                value={meta.lekarz_tel || ''}
+                onChange={e => onUpdateMeta({ lekarz_tel: e.target.value })}
               />
             </Field>
           </div>

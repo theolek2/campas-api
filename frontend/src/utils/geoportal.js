@@ -139,13 +139,14 @@ async function addOsrmRoutes(points, originLat, originLng) {
 // ── BDL OGC API — Nadleśnictwo ──────────────────────────────────────────────
 async function getForestDistrict(lat, lng) {
   try {
-    const bbox = `${lng - 0.02},${lat - 0.02},${lng + 0.02},${lat + 0.02}`
-    const url = `https://ogcapi.bdl.lasy.gov.pl/collections/nadlesnictwa/items?bbox=${bbox}&limit=1`
+    const d = 0.0001
+    const bbox = `${lng - d},${lat - d},${lng + d},${lat + d}`
+    const url = `https://ogcapi.bdl.lasy.gov.pl/collections/nadlesnictwa/items?bbox=${bbox}&limit=1&f=json`
     const res = await fetch(url)
     if (!res.ok) return null
     const json = await res.json()
     const feature = json?.features?.[0]
-    if (feature) return { name: feature.properties?.nazwa || '' }
+    if (feature) return { name: feature.properties?.inspectorate_name || '' }
   } catch {}
   return null
 }
@@ -153,13 +154,14 @@ async function getForestDistrict(lat, lng) {
 // ── BDL OGC API — Leśnictwo ─────────────────────────────────────────────────
 async function getForestRange(lat, lng) {
   try {
-    const bbox = `${lng - 0.02},${lat - 0.02},${lng + 0.02},${lat + 0.02}`
-    const url = `https://ogcapi.bdl.lasy.gov.pl/collections/lesnictwa/items?bbox=${bbox}&limit=1`
+    const d = 0.0001
+    const bbox = `${lng - d},${lat - d},${lng + d},${lat + d}`
+    const url = `https://ogcapi.bdl.lasy.gov.pl/collections/lesnictwa/items?bbox=${bbox}&limit=1&f=json`
     const res = await fetch(url)
     if (!res.ok) return null
     const json = await res.json()
     const feature = json?.features?.[0]
-    if (feature) return { name: feature.properties?.nazwa || '' }
+    if (feature) return { name: feature.properties?.forest_range_name || '' }
   } catch {}
   return null
 }
@@ -249,8 +251,12 @@ export async function fetchAllGeoData(lat, lng) {
   const woj = geocode.wojewodztwo || ''
   const gm = geocode.gmina || ''
 
-  // PSP — filtruj po województwie
+  // PSP — filtruj po nazwie (tylko państwowa, nie OSP)
   let fire = fireList.value || []
+  fire = fire.filter(p => {
+    const n = (p.name || '').toLowerCase()
+    return n.includes('psp') || n.includes('państwowa') || n.includes('komenda')
+  })
   if (woj) {
     const filtered = fire.filter(p => {
       const addr = (p.address || '').toLowerCase()
@@ -275,9 +281,15 @@ export async function fetchAllGeoData(lat, lng) {
     if (filtered.length > 0) police = filtered
   }
 
+  // Szpitale — tylko publiczne (odrzuć prywatne)
+  let hospitals = (hospitalList.value || []).filter(h => {
+    const n = (h.name || '').toLowerCase()
+    return !n.includes('prywatn') && !n.includes('niepubliczn')
+  })
+
   return {
     geocode,
-    hospitals: hospitalList.value || [],
+    hospitals,
     police,
     fire,
     clinics: clinicList.value || [],
