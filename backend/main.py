@@ -91,4 +91,7 @@ if _static_dir.exists():
 
     @app.get("/{full_path:path}", include_in_schema=False)
     async def spa(full_path: str = ""):
+        file_path = _static_dir / full_path
+        if file_path.is_file():
+            return FileResponse(str(file_path))
         return FileResponse(str(_static_dir / "index.html"))
