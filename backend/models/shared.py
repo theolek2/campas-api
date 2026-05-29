@@ -56,7 +56,7 @@ class CampAccess(Base):
 
     id:          Mapped[str]           = mapped_column(PG_UUID(as_uuid=False), primary_key=True, default=_uuid)
     user_id:     Mapped[str]           = mapped_column(PG_UUID(as_uuid=False))
-    camp_id:     Mapped[Optional[str]] = mapped_column(PG_UUID(as_uuid=False))
+    camp_id:     Mapped[Optional[str]] = mapped_column(String(36))
     permissions: Mapped[Optional[str]] = mapped_column(String(50))
 
 
