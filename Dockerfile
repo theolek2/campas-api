@@ -31,12 +31,12 @@ COPY backend/ .
 COPY --from=frontend-build /app/frontend/dist ./frontend/dist
 
 # Dane (db + uploads) będą w volumach
-VOLUME ["/data/db", "/data/uploads"]
+VOLUME ["/data/uploads"]
 
 EXPOSE 8001
 
 # Utwórz nieuprzywilejowanego użytkownika
-RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app /data
+RUN useradd -m -u 1000 appuser && mkdir -p /data && chown -R appuser:appuser /app /data
 USER appuser
 
 # Healthcheck

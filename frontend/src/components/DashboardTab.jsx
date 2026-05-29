@@ -172,8 +172,8 @@ function PhaseCard({ phase, checklist, onToggle, onCreateTask, onNavigate, fileM
               {phase.phase}
             </span>
             {phase.tab && (
-              <button onClick={(e) => { e.stopPropagation(); onNavigate(phase.tab) }}
-                className="text-green-600 hover:text-green-800 text-xs" title="Przejdź do zakładki">→</button>
+              <span onClick={(e) => { e.stopPropagation(); onNavigate(phase.tab) }}
+                className="text-green-600 hover:text-green-800 text-xs cursor-pointer" title="Przejdź do zakładki">→</span>
             )}
             {phase.note && <span className="text-[10px] text-gray-400 hidden md:inline truncate">{phase.note}</span>}
           </div>

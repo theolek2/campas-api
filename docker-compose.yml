@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   campas:
     build:
@@ -13,9 +11,6 @@ services:
       - "127.0.0.1:8001:8001"
 
     volumes:
-      # SQLite — współdzielona baza z swi.campas.pl
-      # Na serwerze: /home/user/app/obozlog/backend/obozlog.db
-      - campas_db:/data/db
       # Pliki użytkowników
       - campas_uploads:/data/uploads
 
@@ -31,7 +26,5 @@ services:
       start_period: 15s
 
 volumes:
-  campas_db:
-    driver: local
   campas_uploads:
     driver: local

@@ -1,5 +1,5 @@
 """
-routers/calendar.py — kalendarz obozowy (app_calendar_events).
+routers/calendar.py — kalendarz obozowy (API_calendar_events).
 Prefix: /api/camps/{camp_id}/calendar
 """
 from datetime import datetime, timezone, date

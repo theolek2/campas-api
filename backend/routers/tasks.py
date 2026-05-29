@@ -1,5 +1,5 @@
 """
-routers/tasks.py — Kanban zadań obozu (app_tasks).
+routers/tasks.py — Kanban zadań obozu (API_tasks).
 Prefix: /api/camps/{camp_id}/tasks
 """
 from datetime import datetime, timezone

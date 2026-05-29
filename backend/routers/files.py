@@ -1,5 +1,5 @@
 """
-routers/files.py — pliki obozowe (app_shared_files, lokalny filesystem).
+routers/files.py — pliki obozowe (API_shared_files, lokalny filesystem).
 Prefix: /api/camps/{camp_id}/files
 """
 import os

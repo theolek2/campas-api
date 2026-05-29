@@ -1,5 +1,5 @@
 """
-routers/external_users.py — przyboczni (app_external_users).
+routers/external_users.py — przyboczni (API_external_users).
 Prefix: /api/camps/{camp_id}/team
 """
 import hashlib

@@ -361,8 +361,6 @@ export default function App() {
     return (
       <div className="min-h-screen bg-green-900 flex flex-col items-center justify-center p-4">
         <div className="mb-8 text-center">
-          <img src="/logo.png" alt="Skauci Europy" className="h-20 mx-auto mb-4"
-            onError={e => { e.currentTarget.style.display='none' }} />
           <h1 className="text-3xl font-bold text-white">CampAs</h1>
           <p className="text-green-300 mt-1">Skauci Europy · Asystent Obozowy</p>
         </div>
@@ -435,9 +433,7 @@ export default function App() {
         {/* Top row */}
         <div className="px-4 py-2 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src="/logo.png" alt="Skauci Europy" className="h-8 w-auto object-contain"
-              onError={e => { e.currentTarget.style.display='none'; e.currentTarget.nextSibling.style.display='flex' }} />
-            <div className="hidden items-center justify-center w-8 h-8 bg-yellow-400 rounded-full text-green-900 font-black text-sm">⚜</div>
+
             <div>
               <h1 className="text-sm font-bold leading-tight">CampAs</h1>
               <p className="text-green-400 text-xs">Skauci Europy</p>

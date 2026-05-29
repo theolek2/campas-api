@@ -1,5 +1,5 @@
 """
-routers/ingredients.py — składniki jadłospisu (app_ingredients).
+routers/ingredients.py — składniki jadłospisu (API_ingredients).
 Prefix: /api/ingredients
 """
 from fastapi import APIRouter, Depends

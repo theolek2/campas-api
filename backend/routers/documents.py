@@ -1,6 +1,6 @@
 """
 routers/documents.py — dokumenty obozowe i lista uczestników.
-Tabele: app_documents, app_participants
+Tabele: API_documents, API_participants
 """
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select

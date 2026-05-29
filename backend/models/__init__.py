@@ -9,7 +9,7 @@ from .ingredients import AppIngredient, AppActivityLog
 __all__ = [
     # shared
     "User", "Camp", "Patrol", "CampAccess", "CampInvitation", "Terrain",
-    # app (istniejące)
+    # API
     "AppDocument", "AppPlanItem", "AppParticipant",
     # tasks
     "AppTask", "AppTaskChecklist", "AppTaskComment", "AppTaskAttachment",

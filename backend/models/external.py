@@ -1,5 +1,5 @@
 """
-models/external.py — przyboczni (external users) i ich role, prefiks app_
+models/external.py — przyboczni (external users) i ich role, prefiks API_
 """
 from datetime import datetime, timezone
 from typing import Optional
@@ -15,7 +15,7 @@ _now  = lambda: datetime.now(timezone.utc)
 
 class AppRole(Base):
     """Role i uprawnienia przybocznych (np. drużynowy, przyboczny)."""
-    __tablename__ = "app_roles"
+    __tablename__ = "API_roles"
 
     id:          Mapped[str]            = mapped_column(String(36), primary_key=True, default=_uuid)
     name:        Mapped[str]            = mapped_column(String(100), unique=True, nullable=False)
@@ -26,13 +26,13 @@ class AppRole(Base):
 
 class AppExternalUser(Base):
     """Przyboczni — użytkownicy bez konta głównego (logują się magic linkiem lub hasłem)."""
-    __tablename__ = "app_external_users"
+    __tablename__ = "API_external_users"
 
     id:              Mapped[str]            = mapped_column(String(36), primary_key=True, default=_uuid)
     email:           Mapped[str]            = mapped_column(String(255), unique=True, nullable=False)
     display_name:    Mapped[Optional[str]]  = mapped_column(String(255), nullable=True)
     phone:           Mapped[Optional[str]]  = mapped_column(String(20), nullable=True)
-    role:            Mapped[Optional[str]]  = mapped_column(String(100), nullable=True)      # FK → app_roles.name
+    role:            Mapped[Optional[str]]  = mapped_column(String(100), nullable=True)      # FK → API_roles.name
     invited_by:      Mapped[Optional[str]]  = mapped_column(String(36), nullable=True)       # FK → users.id
     magic_token:     Mapped[Optional[str]]  = mapped_column(String(255), unique=True, nullable=True)
     token_expires:   Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)

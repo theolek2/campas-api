@@ -1,18 +1,7 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 
-const DOC_HEADER = `
-<div class="doc-header-inline" style="display:flex;align-items:center;gap:14px;border-bottom:2px solid #2d6a2d;padding-bottom:10px;margin-bottom:18px;">
-  <img src="/logo.png" style="height:52px;width:auto;object-fit:contain;" onerror="this.style.display='none'"/>
-  <div>
-    <div style="font-weight:bold;font-size:12pt;color:#1a4a1a;">Skauci Europy</div>
-    <div style="font-size:9pt;color:#444;">Stowarzyszenie Harcerstwa Katolickiego „Zawisza" · Federacja Skautingu Europejskiego</div>
-  </div>
-</div>`
-
-const DOC_FOOTER = `
-<div class="doc-footer-inline" style="border-top:1px solid #ddd;margin-top:28px;padding-top:8px;text-align:center;font-size:8pt;color:#999;">
-  skauci-europy.pl · Skauci Europy
-</div>`
+const DOC_HEADER = ''
+const DOC_FOOTER = ''
 
 function parseChoices(html) {
   const choices = {}
@@ -361,6 +350,210 @@ function generatePlaceholderHtml(icon, label) {
 ` + DOC_FOOTER
 }
 
+// ── PaginatedEditor ──────────────────────────────────────────────────────────
+
+const PAGE_W = '210mm'
+const PAGE_H = '297mm'
+const PAGE_PX = 16
+
+function PaginatedEditor({ initialHtml, activeTab, meta, attachments }) {
+  const pagesRef = useRef([])
+  const [pageCount, setPageCount] = useState(1)
+  const reflowing = useRef(false)
+  const reflowTimer = useRef(null)
+  const initDone = useRef(false)
+
+  const measurePageHPx = useCallback(() => Math.round(247 * 3.779527559), [])
+
+  useEffect(() => {
+    const pp = pagesRef.current.filter(Boolean)
+    if (pp.length === 0) return
+    pp[0].innerHTML = initialHtml || '<p><br></p>'
+    initDone.current = true
+  }, [initialHtml])
+
+  const reflow = useCallback(() => {
+    if (!initDone.current || reflowing.current) return
+    reflowing.current = true
+
+    const temp = document.createElement('div')
+    temp.style.cssText = 'width:170mm;padding:0;position:absolute;visibility:hidden;box-sizing:border-box;font-family:"Segoe UI",Arial,sans-serif;font-size:10.5pt;line-height:1.55;color:#111;word-wrap:break-word;'
+    document.body.appendChild(temp)
+
+    const pp = pagesRef.current.filter(Boolean)
+    const allNodes = []
+    pp.forEach(el => {
+      while (el.firstChild) {
+        allNodes.push(el.firstChild)
+        el.removeChild(el.firstChild)
+      }
+    })
+
+    const pageHPx = pp.length > 0 && pp[0].clientHeight > 200
+      ? pp[0].clientHeight
+      : measurePageHPx()
+    const pages = []
+    let i = 0
+    while (i < allNodes.length) {
+      temp.innerHTML = ''
+      const pageNodes = []
+      while (i < allNodes.length) {
+        const node = allNodes[i]
+        temp.appendChild(node)
+        if (Math.round(temp.scrollHeight) > pageHPx && pageNodes.length > 0) {
+          temp.removeChild(node)
+          break
+        }
+        pageNodes.push(node)
+        i++
+      }
+      pages.push(pageNodes)
+    }
+
+    if (pages.length === 0) pages.push([])
+
+    const needed = pages.length
+    if (needed !== pageCount) setPageCount(needed)
+
+    setTimeout(() => {
+      const newPp = pagesRef.current.filter(Boolean)
+      pages.forEach((nodes, pi) => {
+        if (newPp[pi]) {
+          newPp[pi].innerHTML = ''
+          nodes.forEach(n => newPp[pi].appendChild(n))
+        }
+      })
+      for (let pi = pages.length; pi < newPp.length; pi++) {
+        newPp[pi].innerHTML = '<p><br></p>'
+      }
+      reflowing.current = false
+    }, 0)
+
+    temp.remove()
+  }, [pageCount])
+
+  useEffect(() => {
+    const timer = setTimeout(() => reflow(), 150)
+    return () => clearTimeout(timer)
+  }, [initialHtml])
+
+  const handlePageNav = useCallback((e, pageIdx) => {
+    if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return
+    const el = e.currentTarget
+    const sel = window.getSelection()
+    if (!sel || !sel.rangeCount) return
+    const range = sel.getRangeAt(0).cloneRange()
+    const rect = range.getClientRects()[0]
+    if (!rect) return
+
+    if (e.key === 'ArrowUp') {
+      if (rect.top <= el.getBoundingClientRect().top + 4) {
+        if (pageIdx > 0) {
+          e.preventDefault()
+          const prev = pagesRef.current[pageIdx - 1]
+          if (prev) {
+            prev.focus()
+            requestAnimationFrame(() => {
+              const r = document.createRange()
+              r.selectNodeContents(prev)
+              r.collapse(false)
+              const s = window.getSelection()
+              s.removeAllRanges()
+              s.addRange(r)
+            })
+          }
+        }
+      }
+      return
+    }
+    if (e.key === 'ArrowDown') {
+      if (pageIdx >= pageCount - 1) return
+      const oldY = rect.top
+      window.__navCheck = () => {
+        delete window.__navCheck
+        const s2 = window.getSelection()
+        if (!s2 || !s2.rangeCount) return
+        const r2 = s2.getRangeAt(0).getClientRects()[0]
+        if (!r2) return
+        if (Math.abs(r2.top - oldY) < 2) {
+          const next = pagesRef.current[pageIdx + 1]
+          if (next) {
+            next.focus()
+            const nr = document.createRange()
+            const fc = next.firstChild
+            if (fc && fc.firstChild) { nr.setStart(fc.firstChild, 0) }
+            else if (fc) { nr.setStart(fc, 0) }
+            else { nr.selectNodeContents(next) }
+            nr.collapse(true)
+            const s3 = window.getSelection()
+            s3.removeAllRanges()
+            s3.addRange(nr)
+          }
+        }
+      }
+      setTimeout(() => { if (window.__navCheck) window.__navCheck() }, 20)
+      return
+    }
+  }, [pageCount])
+
+  const handleInput = useCallback(() => {
+    if (reflowing.current) return
+    clearTimeout(reflowTimer.current)
+    reflowTimer.current = setTimeout(() => reflow(), 1200)
+  }, [reflow])
+
+  const isEditable = activeTab === 'main'
+    || (attachments || []).find(a => a.id === activeTab)?.type === 'participants'
+    || (attachments || []).find(a => a.id === activeTab)?.type === 'placeholder'
+
+  return (
+    <div className="campas-print-area flex flex-col items-center py-6" style={{ gap: `${PAGE_PX}px` }}>
+      {Array.from({ length: pageCount }, (_, i) => (
+        <div
+          key={i}
+          className="campas-print-page bg-white shadow-lg shrink-0 flex flex-col"
+          style={{
+            width: PAGE_W,
+            height: PAGE_H,
+            boxSizing: 'border-box',
+            overflow: 'hidden',
+          }}
+        >
+          <img src="/naglowek.jpg" alt=""
+            className="shrink-0"
+            style={{ width: 'calc(100% - 10mm)', height: 'auto', objectFit: 'contain', display: 'block', margin: '5mm 5mm 0 5mm' }}
+            onError={e => { e.currentTarget.style.display = 'none' }} />
+          <div
+            ref={el => { pagesRef.current[i] = el }}
+            data-editor-page
+            data-page={i}
+            contentEditable={isEditable}
+            suppressContentEditableWarning
+            onInput={handleInput}
+            onKeyDown={(e) => handlePageNav(e, i)}
+            className="outline-none"
+            style={{
+              width: '100%',
+              flex: 1,
+              minHeight: 0,
+              padding: '0 20mm',
+              boxSizing: 'border-box',
+              fontFamily: "'Segoe UI', Arial, sans-serif",
+              fontSize: '10.5pt',
+              lineHeight: '1.55',
+              color: '#111',
+            }}
+          />
+          <img src="/stopka.jpg" alt=""
+            className="shrink-0"
+            style={{ width: 'calc(100% - 10mm)', height: 'auto', objectFit: 'contain', display: 'block', margin: '0 5mm 5mm 5mm' }}
+            onError={e => { e.currentTarget.style.display = 'none' }} />
+        </div>
+      ))}
+    </div>
+  )
+}
+
 // ── Główny komponent ──────────────────────────────────────────────────────────
 
 export default function DocumentEditor({ templateHtml, meta, docLabel, onClose, onSave, recipients, multiRecipient, attachments }) {
@@ -449,6 +642,21 @@ export default function DocumentEditor({ templateHtml, meta, docLabel, onClose, 
     return html
   }, [templateHtml, meta, recipientName, choices])
 
+  const currentContent = useMemo(() => {
+    if (activeTab === 'main') {
+      return DOC_HEADER + processedHtml + DOC_FOOTER
+    }
+    const att = (attachments || []).find(a => a.id === activeTab)
+    if (!att) return ''
+    switch (att.type) {
+      case 'contacts':     return generateContactsHtml(meta)
+      case 'participants': return generateParticipantsHtml(meta)
+      case 'regulamin':    return generateRegulaminHtml(meta)
+      case 'ppoz':         return generatePpozHtml(meta)
+      default:             return generatePlaceholderHtml(att.icon || '📄', att.label)
+    }
+  }, [activeTab, processedHtml, meta, attachments])
+
   useEffect(() => {
     window.__docChoice = (sel) => {
       const id = sel.getAttribute('data-choice')
@@ -458,169 +666,70 @@ export default function DocumentEditor({ templateHtml, meta, docLabel, onClose, 
     return () => { delete window.__docChoice }
   }, [])
 
-  // Renderuj treść do edytora przy zmianie zakładki
-  useEffect(() => {
-    if (!editorRef.current) return
-
-    if (activeTab === 'main') {
-      const full = DOC_HEADER + processedHtml + DOC_FOOTER
-      editorRef.current.innerHTML = full
-      editorRef.current.contentEditable = 'true'
-    } else {
-      const att = (attachments || []).find(a => a.id === activeTab)
-      if (!att) return
-      let content
-      switch (att.type) {
-        case 'contacts':     content = generateContactsHtml(meta); break
-        case 'participants': content = generateParticipantsHtml(meta); break
-        case 'regulamin':    content = generateRegulaminHtml(meta); break
-        case 'ppoz':         content = generatePpozHtml(meta); break
-        default:            content = generatePlaceholderHtml(att.icon || '📄', att.label); break
-      }
-      editorRef.current.innerHTML = content
-      editorRef.current.contentEditable = (att.type === 'participants' || att.type === 'placeholder') ? 'true' : 'false'
-    }
-  }, [activeTab, processedHtml, meta])
-
   const activeLabel = activeTab === 'main'
     ? docLabel
     : ((attachments || []).find(a => a.id === activeTab)?.label || docLabel)
 
   const handleExport = () => {
-    if (!editorRef.current) return
-    const content = editorRef.current.innerHTML
-    const filename = (activeLabel || 'dokument').replace(/\s+/g, '_')
+    const allPages = document.querySelectorAll('.campas-print-page')
+    const visiblePages = []
+    allPages.forEach(p => {
+      const ed = p.querySelector('[data-editor-page]')
+      const html = ed?.innerHTML || ''
+      const empty = !html || html === '<p><br></p>' || html === '<br>' || !html.replace(/<[^>]*>/g, '').replace(/\s/g, '').trim()
+      if (!empty) visiblePages.push(p.cloneNode(true))
+    })
+    if (visiblePages.length === 0) return
 
-    const logoUrl = `${window.location.origin}/logo.png`
-    const win = window.open('', '_blank')
-    if (!win) { alert('Zezwól na otwieranie okien popup w przeglądarce'); return }
-    win.document.write(`<!DOCTYPE html>
-<html lang="pl">
-<head>
-  <meta charset="UTF-8"/>
-  <title>${filename}</title>
-  <style>
-    @page { size: A4; margin: 30mm 20mm 20mm 20mm; }
-    * { box-sizing: border-box; }
-    body {
-      font-family: 'Segoe UI', Arial, sans-serif;
-      font-size: 10.5pt;
-      line-height: 1.6;
-      color: #111;
-      margin: 0; padding: 0;
-      background: #fff;
-    }
-    img { max-width: 100%; }
-    table { border-collapse: collapse; width: 100%; }
-    select { appearance: none; -webkit-appearance: none; border: none; background: transparent; font: inherit; }
+    const wrapper = document.createElement('div')
+    wrapper.id = 'campas-print-clone'
+    wrapper.style.cssText = 'position:absolute;top:0;left:0;width:210mm;background:white;z-index:99999;'
 
-    /* Stały nagłówek/stopka — ukryty na ekranie, widoczny tylko w druku */
-    .page-running-header { display: none; }
-    .page-running-footer { display: none; }
+    visiblePages.forEach((p, i) => {
+      p.style.cssText = `width:210mm;height:297mm;${i < visiblePages.length - 1 ? 'page-break-after:always;' : ''}box-shadow:none;margin:0;padding:0;background:white;overflow:hidden;position:relative;`
+      const imgs = p.querySelectorAll('img')
+      if (imgs[0]) imgs[0].style.cssText = 'position:absolute;top:5mm;left:5mm;right:5mm;height:auto;width:calc(100%-10mm);object-fit:contain;display:block;z-index:1;'
+      if (imgs[1]) imgs[1].style.cssText = 'position:absolute;bottom:5mm;left:5mm;right:5mm;height:auto;width:calc(100%-10mm);object-fit:contain;display:block;z-index:1;'
+      const ed = p.querySelector('[data-editor-page]')
+      if (ed) {
+        ed.querySelectorAll('select').forEach(sel => {
+          const txt = sel.options[sel.selectedIndex]?.text || ''
+          const span = document.createElement('span')
+          span.textContent = txt
+          sel.replaceWith(span)
+        })
+        ed.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;padding:30mm 20mm 20mm 20mm;box-sizing:border-box;overflow:hidden;font-family:"Segoe UI",Arial,sans-serif;font-size:10.5pt;line-height:1.55;color:#111;background:white;z-index:0;'
+      }
+      wrapper.appendChild(p)
+    })
 
-    @media print {
-      /* Powtarzający się nagłówek na każdej stronie */
-      .page-running-header {
-        display: flex !important;
-        position: fixed; top: 0; left: 0; right: 0;
-        height: 24mm;
-        align-items: center; gap: 14px;
-        padding: 3mm 20mm 4mm;
-        background: white;
-        border-bottom: 2.5px solid #2d6a2d;
-        font-family: 'Segoe UI', Arial, sans-serif;
+    const style = document.createElement('style')
+    style.id = 'campas-print-style'
+    style.textContent = `
+      @media print {
+        @page { size: A4; margin: 0; }
+        body > *:not(#campas-print-clone) { display: none !important; }
+        #campas-print-clone { display: block !important; position: static !important; background: white !important; }
+        span[data-var] { background: transparent !important; color: inherit !important; }
+        select { appearance: none; border: none !important; background: transparent !important; }
       }
-      .page-running-header img {
-        height: 44px; width: auto; object-fit: contain; flex-shrink: 0;
-      }
-      .page-running-header-text { display: flex; flex-direction: column; justify-content: center; }
-      .page-running-header-title {
-        font-weight: bold; font-size: 11.5pt; color: #1a4a1a; display: block; line-height: 1.2;
-      }
-      .page-running-header-sub {
-        font-size: 8pt; color: #555; display: block; margin-top: 2px;
-      }
-
-      /* Powtarzająca się stopka z numerem strony */
-      .page-running-footer {
-        display: flex !important;
-        position: fixed; bottom: 0; left: 0; right: 0;
-        height: 14mm;
-        align-items: center;
-        padding: 0 20mm;
-        border-top: 1.5px solid #2d6a2d;
-        background: white;
-        font-family: 'Segoe UI', Arial, sans-serif;
-        font-size: 8pt; color: #666;
-      }
-      .page-running-footer-left { flex: 1; }
-      .page-running-footer-center { flex: 1; text-align: center; }
-      .page-running-footer-right { flex: 1; text-align: right; }
-      .page-running-footer-right::after { content: "Strona " counter(page); }
-
-      /* Przesuń treść body pod stały nagłówek i nad stopkę */
-      body { padding-top: 26mm; padding-bottom: 16mm; }
-
-      /* Justowanie tekstu dla A4 */
-      p, li, td, th {
-        text-align: justify;
-        hyphens: auto;
-        -webkit-hyphens: auto;
-        hyphenate-limit-chars: 6 3 3;
-      }
-      /* Wyjątki — nagłówki i adresy nie justujemy */
-      h1, h2, h3, h4, .nadawca, .adresat, .miejsce-data, .podpis {
-        text-align: left !important;
-      }
-
-      /* Ukryj inline nagłówek/stopkę (zastąpione przez stałe powyżej) */
-      .doc-header-inline { display: none !important; }
-      .doc-footer-inline { display: none !important; }
-
-      /* Kontrola łamania stron */
-      li { page-break-inside: avoid; }
-      p  { orphans: 3; widows: 3; }
-      tr { page-break-inside: avoid; }
-      h2, h3 { page-break-after: avoid; }
-
-      /* Czyszczenie dekoracji inline przy druku */
-      span[data-var] {
-        background: transparent !important; padding: 0 !important;
-        border-radius: 0 !important; color: inherit !important;
-      }
-      span[style*="background:#fef3c7"],
-      span[style*="background:#e0f2fe"] {
-        background: transparent !important; padding: 0 !important;
-        border: none !important; border-radius: 0 !important;
-        color: inherit !important;
-      }
-      select { padding: 0 !important; border: none !important; }
-      * { box-shadow: none !important; }
-    }
-  </style>
-</head>
-<body>
-<div class="page-running-header">
-  <img src="${logoUrl}" alt="Skauci Europy" onerror="this.style.display='none'"/>
-  <div class="page-running-header-text">
-    <span class="page-running-header-title">Skauci Europy</span>
-    <span class="page-running-header-sub">Stowarzyszenie Harcerstwa Katolickiego „Zawisza" · Federacja Skautingu Europejskiego</span>
-  </div>
-</div>
-<div class="page-running-footer">
-  <span class="page-running-footer-left">skauci-europy.pl</span>
-  <span class="page-running-footer-center">Skauci Europy</span>
-  <span class="page-running-footer-right"></span>
-</div>
-${content}
-<script>
-  window.onload = function() {
-    setTimeout(function() { window.print(); window.close(); }, 600);
-  };
-</script>
-</body>
-</html>`)
-    win.document.close()
+    `
+    document.head.appendChild(style)
+    document.body.appendChild(wrapper)
+    const origTitle = document.title
+    const filename = (activeLabel || 'dokument').replace(/[^a-zA-Z0-9ąćęłńóśźżĄĆĘŁŃÓŚŹŻ _-]/g, '')
+    document.title = filename
+    const titleEl = document.querySelector('title')
+    if (titleEl) titleEl.textContent = filename
+    window.print()
+    wrapper.style.display = 'none'
+    document.title = origTitle
+    if (titleEl) titleEl.textContent = origTitle
+    setTimeout(() => {
+      wrapper.remove()
+      const s = document.getElementById('campas-print-style')
+      if (s) s.remove()
+    }, 1000)
   }
 
   const tabItems = [
@@ -705,23 +814,12 @@ ${content}
           )}
         </div>
 
-        <div className="flex-1 flex justify-center p-6 overflow-y-auto">
-          <div
-            ref={editorRef}
-            contentEditable
-            suppressContentEditableWarning
-            className="bg-white shadow-2xl"
-            style={{
-              width: '210mm',
-              minHeight: '297mm',
-              padding: '18mm 20mm',
-              fontFamily: "'Segoe UI', Arial, sans-serif",
-              fontSize: '10.5pt',
-              lineHeight: '1.55',
-              color: '#111',
-              outline: 'none',
-              boxSizing: 'border-box',
-            }}
+        <div className="flex-1 overflow-y-auto" style={{ background: '#6b7280' }}>
+          <PaginatedEditor
+            initialHtml={currentContent}
+            activeTab={activeTab}
+            meta={meta}
+            attachments={attachments}
           />
         </div>
       </div>

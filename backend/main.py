@@ -61,7 +61,7 @@ app.include_router(terrains.router)
 app.include_router(documents.router)
 app.include_router(planning.router)
 
-# ── Routery app_ (nowe) ───────────────────────────────────────────────────────
+# ── Routery API ───────────────────────────────────────────────────────
 app.include_router(tasks.router)
 app.include_router(calendar.router)
 app.include_router(external_users.router)

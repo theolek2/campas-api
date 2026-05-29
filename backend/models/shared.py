@@ -1,11 +1,11 @@
 """
 models/shared.py — tabele współdzielone z swi.campas.pl.
-NIE dodawaj tutaj tabel app_* — tylko czytaj/zapisuj istniejące.
+NIE dodawaj tutaj tabel API_* — tylko czytaj/zapisuj istniejące.
+Tabele te JUŻ ISTNIEJĄ w bazie PostgreSQL — NIE są tworzone przez migracje campas-api.
 """
 from datetime import datetime, date, timezone
 from typing import Optional
-from sqlalchemy import String, Boolean, Date, DateTime, Text, SmallInteger, JSON
-from sqlalchemy.dialects.postgresql import UUID as PG_UUID
+from sqlalchemy import String, Boolean, Date, DateTime, Text, Integer, JSON
 from sqlalchemy.orm import Mapped, mapped_column
 import uuid
 
@@ -17,7 +17,7 @@ _uuid = lambda: str(uuid.uuid4())
 class User(Base):
     __tablename__ = "users"
 
-    id:                     Mapped[str]                = mapped_column(PG_UUID(as_uuid=False), primary_key=True, default=_uuid)
+    id:                     Mapped[str]                = mapped_column(String(36), primary_key=True, default=_uuid)
     email:                  Mapped[str]                = mapped_column(String(255), unique=True, nullable=False)
     password_hash:          Mapped[str]                = mapped_column(String(255), nullable=False)
     display_name:           Mapped[Optional[str]]      = mapped_column(String(255))
@@ -47,15 +47,15 @@ class Patrol(Base):
     id:            Mapped[str]           = mapped_column(String(36), primary_key=True, default=_uuid)
     camp_id:       Mapped[Optional[str]] = mapped_column(String(36))
     patrol_name:   Mapped[Optional[str]] = mapped_column(String(100))
-    people_number: Mapped[Optional[int]] = mapped_column(SmallInteger)
+    people_number: Mapped[Optional[int]] = mapped_column(Integer)
 
 
 class CampAccess(Base):
     __tablename__ = "camp_access"
 
-    id:          Mapped[str]           = mapped_column(PG_UUID(as_uuid=False), primary_key=True, default=_uuid)
-    user_id:     Mapped[str]           = mapped_column(PG_UUID(as_uuid=False))
-    camp_id:     Mapped[Optional[str]] = mapped_column(PG_UUID(as_uuid=False))
+    id:          Mapped[str]           = mapped_column(String(36), primary_key=True, default=_uuid)
+    user_id:     Mapped[str]           = mapped_column(String(36))
+    camp_id:     Mapped[Optional[str]] = mapped_column(String(36))
     permissions: Mapped[Optional[str]] = mapped_column(String(50))
 
 

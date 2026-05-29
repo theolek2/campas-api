@@ -1,5 +1,5 @@
 """
-models/ingredients.py — składniki jadłospisu i log aktywności, prefiks app_
+models/ingredients.py — składniki jadłospisu i log aktywności, prefiks API_
 """
 from datetime import datetime, timezone
 from typing import Optional
@@ -15,7 +15,7 @@ _now  = lambda: datetime.now(timezone.utc)
 
 class AppIngredient(Base):
     """Składniki do jadłospisu (globalna lista)."""
-    __tablename__ = "app_ingredients"
+    __tablename__ = "API_ingredients"
 
     id:         Mapped[str]      = mapped_column(String(36), primary_key=True, default=_uuid)
     name:       Mapped[str]      = mapped_column(String(255), unique=True, nullable=False)
@@ -24,7 +24,7 @@ class AppIngredient(Base):
 
 class AppActivityLog(Base):
     """Log aktywności użytkowników w aplikacji."""
-    __tablename__ = "app_activity_log"
+    __tablename__ = "API_activity_log"
 
     id:          Mapped[str]            = mapped_column(String(36), primary_key=True, default=_uuid)
     user_id:     Mapped[Optional[str]]  = mapped_column(String(36), nullable=True, index=True)

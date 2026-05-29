@@ -73,7 +73,6 @@ export default function DocumentEditorView({ doc, meta, onBack }) {
               className="relative bg-white shadow-xl shrink-0" style={{ width: 794 }}>
               {/* Nagłówek */}
               <div className="flex items-center gap-3 px-5 pt-4 pb-2 border-b-2 border-green-800">
-                <img src="/logo.png" className="h-10" alt="" onError={e => e.target.style.display='none'} />
                 <div>
                   <div className="font-bold text-[13px] text-green-900">Skauci Europy</div>
                   <div className="text-[9px] text-gray-500">SHK „Zawisza" · Federacja Skautingu Europejskiego</div>

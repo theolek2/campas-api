@@ -3,6 +3,7 @@
 ## Wymagania sprzętowe
 - Debian Linux (lub Ubuntu 22.04+)
 - 4 GB RAM, i5 2021, 1 TB dysk
+- PostgreSQL 16+ na localhost
 - Dostęp do internetu (Cloudflare Tunnel zamiast publicznego IP)
 
 ---
@@ -33,7 +34,24 @@ usermod -aG docker $USER
 
 ---
 
-## 2. Klonowanie projektu
+## 2. Baza danych PostgreSQL
+
+Campas.pl współdzieli bazę PostgreSQL z `swi.campas.pl`. Baza powinna być już skonfigurowana przez administratora:
+
+```
+Host: localhost
+Port: 5432
+Baza: campas
+Użytkownik: campas
+```
+
+Tabele współdzielone (`users`, `camps`, `camp_access`, `patrols`, `terrains`, `camp_invitations`, `profiles`) już istnieją — zarządza nimi swi.campas.pl.
+
+Tabele własne campas.pl mają prefiks `API_` i są tworzone przez migracje Alembic.
+
+---
+
+## 3. Klonowanie projektu
 
 ```bash
 cd /home/user/app
@@ -43,7 +61,7 @@ cd campas-api
 
 ---
 
-## 3. Konfiguracja `.env`
+## 4. Konfiguracja `.env`
 
 ```bash
 cp backend/.env.example backend/.env
@@ -52,7 +70,7 @@ nano backend/.env
 
 Ustaw:
 ```env
-DATABASE_URL=sqlite+aiosqlite:////data/db/obozlog.db
+DATABASE_URL=postgresql+asyncpg://campas:HASLO@localhost/campas
 JWT_SECRET=<openssl rand -hex 64>
 FRONTEND_URL=https://campas.pl
 ALLOWED_ORIGINS=https://campas.pl,https://swi.campas.pl
@@ -70,13 +88,13 @@ SMTP_FROM=noreply@campas.pl
 
 ---
 
-## 4. Pierwsze uruchomienie
+## 5. Pierwsze uruchomienie
 
 ```bash
 # Zbuduj i uruchom
 docker compose up -d --build
 
-# Uruchom migracje bazy danych
+# Uruchom migracje bazy danych (z jawnym DATABASE_URL)
 docker compose exec campas alembic upgrade head
 
 # Sprawdź health
@@ -86,7 +104,7 @@ curl http://localhost:8001/health
 
 ---
 
-## 5. Cloudflare Tunnel (publiczny dostęp bez stałego IP)
+## 6. Cloudflare Tunnel (publiczny dostęp bez stałego IP)
 
 ```bash
 # Zainstaluj cloudflared
@@ -122,7 +140,7 @@ systemctl start cloudflared
 
 ---
 
-## 6. Deploy (aktualizacja)
+## 7. Deploy (aktualizacja)
 
 ```bash
 cd /home/user/app/campas-api
@@ -132,33 +150,24 @@ chmod +x deploy.sh
 
 ---
 
-## 7. Współdzielenie bazy z swi.campas.pl
+## 8. Współdzielenie bazy z swi.campas.pl
 
-Oba serwisy (campas.pl i swi.campas.pl) czytają z TEGO SAMEGO pliku `obozlog.db`.
-
-```yaml
-# docker-compose.yml campas.pl:
-volumes:
-  - /home/user/app/obozlog/backend:/data/db   # ← ten sam katalog co swi.campas.pl
-
-# docker-compose.yml swi.campas.pl:
-volumes:
-  - /home/user/app/obozlog/backend:/home/user/app/obozlog/backend
-```
+Oba serwisy (campas.pl i swi.campas.pl) korzystają z tej samej bazy PostgreSQL `campas` na localhost.
 
 > **Ważne:** Każdy serwis ma swój prefix dla tabel Alembic:
 > - campas.pl: `alembic_version_api`
 > - swi.campas.pl: `alembic_version` (domyślny)
 >
-> Tabele `app_*` należą wyłącznie do campas.pl.
+> Tabele `API_*` należą wyłącznie do campas.pl.
+> Tabele bez prefixu (`users`, `camps`, ...) są współdzielone.
 
 ---
 
-## 8. Backup
+## 9. Backup
 
 ```bash
-# Backup bazy co noc (dodaj do crontab)
-0 3 * * * cp /home/user/app/obozlog/backend/obozlog.db /home/user/backup/obozlog_$(date +%Y%m%d).db
+# Backup bazy PostgreSQL co noc (dodaj do crontab)
+0 3 * * * pg_dump -U campas -h localhost campas > /home/user/backup/campas_$(date +%Y%m%d).sql
 
 # Backup plików użytkowników
 0 4 * * * tar -czf /home/user/backup/uploads_$(date +%Y%m%d).tar.gz /home/user/app/campas-api/data/uploads/
@@ -166,7 +175,7 @@ volumes:
 
 ---
 
-## 9. Przydatne komendy
+## 10. Przydatne komendy
 
 ```bash
 # Logi na żywo
@@ -190,5 +199,5 @@ docker stats campas --no-stream
 ## RAM usage (estymacja)
 - FastAPI + Python: ~150-200 MB
 - 2 workery uvicorn: ~2× 100 MB
-- SQLite: < 10 MB
+- PostgreSQL: zarządzany zewnętrznie
 - **Razem: ~300-400 MB** (bezpieczne na 4 GB RAM)

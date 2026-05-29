@@ -1,5 +1,5 @@
 """
-models/calendar.py — kalendarz obozowy z prefiksem app_
+models/calendar.py — kalendarz obozowy z prefiksem API_
 """
 from datetime import datetime, date, timezone
 from typing import Optional
@@ -14,7 +14,7 @@ _now  = lambda: datetime.now(timezone.utc)
 
 
 class AppCalendarEvent(Base):
-    __tablename__ = "app_calendar_events"
+    __tablename__ = "API_calendar_events"
 
     id:          Mapped[str]            = mapped_column(String(36), primary_key=True, default=_uuid)
     camp_id:     Mapped[str]            = mapped_column(String(36), nullable=False, index=True)
@@ -26,6 +26,6 @@ class AppCalendarEvent(Base):
     time_end:    Mapped[Optional[str]]  = mapped_column(String(5), nullable=True)
     color:       Mapped[str]            = mapped_column(String(20), default="#2d6a2d")
     created_by:  Mapped[Optional[str]]  = mapped_column(String(36), nullable=True)
-    task_id:     Mapped[Optional[str]]  = mapped_column(String(36), nullable=True)  # FK → app_tasks.id
+    task_id:     Mapped[Optional[str]]  = mapped_column(String(36), nullable=True)  # FK → API_tasks.id
     created_at:  Mapped[datetime]       = mapped_column(DateTime(timezone=True), default=_now)
     updated_at:  Mapped[datetime]       = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)

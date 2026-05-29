@@ -1,5 +1,5 @@
 """
-routers/planning.py — harmonogram / plan obozu (tabele app_plan_items).
+routers/planning.py — harmonogram / plan obozu (tabele API_plan_items).
 """
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select

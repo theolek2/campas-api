@@ -1,5 +1,5 @@
 """
-models/tasks.py — tablice zadań (Kanban) z prefiksem app_
+models/tasks.py — tablice zadań (Kanban) z prefiksem API_
 """
 from datetime import datetime, timezone
 from typing import Optional
@@ -14,25 +14,25 @@ _now  = lambda: datetime.now(timezone.utc)
 
 
 class AppTask(Base):
-    __tablename__ = "app_tasks"
+    __tablename__ = "API_tasks"
 
     id:          Mapped[str]            = mapped_column(String(36), primary_key=True, default=_uuid)
     camp_id:     Mapped[str]            = mapped_column(String(36), nullable=False, index=True)
     title:       Mapped[str]            = mapped_column(String(255), nullable=False)
     description: Mapped[Optional[str]]  = mapped_column(Text, nullable=True)
-    column:      Mapped[str]            = mapped_column(String(20), default="todo")       # todo|in_progress|done|archived
-    priority:    Mapped[str]            = mapped_column(String(20), default="medium")     # urgent|high|medium|low
+    column:      Mapped[str]            = mapped_column(String(20), default="todo")
+    priority:    Mapped[str]            = mapped_column(String(20), default="medium")
     deadline:    Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
-    assigned_to: Mapped[Optional[str]]  = mapped_column(String(36), nullable=True)       # FK → app_external_users.id
-    created_by:  Mapped[Optional[str]]  = mapped_column(String(36), nullable=True)       # FK → users.id
-    notes:       Mapped[Optional[str]]  = mapped_column(Text, nullable=True)             # np. "instrukcja:PR.1"
+    assigned_to: Mapped[Optional[str]]  = mapped_column(String(36), nullable=True)
+    created_by:  Mapped[Optional[str]]  = mapped_column(String(36), nullable=True)
+    notes:       Mapped[Optional[str]]  = mapped_column(Text, nullable=True)
     order:       Mapped[int]            = mapped_column(Integer, default=0)
     created_at:  Mapped[datetime]       = mapped_column(DateTime(timezone=True), default=_now)
     updated_at:  Mapped[datetime]       = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
 
 
 class AppTaskChecklist(Base):
-    __tablename__ = "app_task_checklists"
+    __tablename__ = "API_task_checklists"
 
     id:       Mapped[str]            = mapped_column(String(36), primary_key=True, default=_uuid)
     task_id:  Mapped[str]            = mapped_column(String(36), nullable=False, index=True)
@@ -45,18 +45,18 @@ class AppTaskChecklist(Base):
 
 
 class AppTaskComment(Base):
-    __tablename__ = "app_task_comments"
+    __tablename__ = "API_task_comments"
 
     id:         Mapped[str]           = mapped_column(String(36), primary_key=True, default=_uuid)
     task_id:    Mapped[str]           = mapped_column(String(36), nullable=False, index=True)
-    user_type:  Mapped[str]           = mapped_column(String(20), default="internal")   # internal|external
+    user_type:  Mapped[str]           = mapped_column(String(20), default="internal")
     user_id:    Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
     content:    Mapped[str]           = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime]      = mapped_column(DateTime(timezone=True), default=_now)
 
 
 class AppTaskAttachment(Base):
-    __tablename__ = "app_task_attachments"
+    __tablename__ = "API_task_attachments"
 
     id:          Mapped[str]           = mapped_column(String(36), primary_key=True, default=_uuid)
     task_id:     Mapped[str]           = mapped_column(String(36), nullable=False, index=True)
@@ -68,7 +68,7 @@ class AppTaskAttachment(Base):
 
 
 class AppTaskDependency(Base):
-    __tablename__ = "app_task_dependencies"
+    __tablename__ = "API_task_dependencies"
     __table_args__ = (UniqueConstraint("task_id", "depends_on"),)
 
     id:         Mapped[str]      = mapped_column(String(36), primary_key=True, default=_uuid)
@@ -78,11 +78,11 @@ class AppTaskDependency(Base):
 
 
 class AppTaskTemplate(Base):
-    __tablename__ = "app_task_templates"
+    __tablename__ = "API_task_templates"
 
     id:         Mapped[str]            = mapped_column(String(36), primary_key=True, default=_uuid)
     name:       Mapped[str]            = mapped_column(String(255), unique=True, nullable=False)
     created_by: Mapped[Optional[str]]  = mapped_column(String(36), nullable=True)
-    tasks:      Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)   # [{title, priority, notes}]
+    tasks:      Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     is_default: Mapped[bool]           = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime]       = mapped_column(DateTime(timezone=True), default=_now)
