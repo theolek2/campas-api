@@ -519,7 +519,7 @@ function PaginatedEditor({ initialHtml, activeTab, meta, attachments }) {
             overflow: 'hidden',
           }}
         >
-          <img src="/naglowek.jpg" alt=""
+          <img src="/naglowek.jpg?v=2" alt=""
             className="shrink-0"
             style={{ width: 'calc(100% - 10mm)', height: 'auto', objectFit: 'contain', display: 'block', margin: '5mm 5mm 0 5mm' }}
             onError={e => { e.currentTarget.style.display = 'none' }} />
@@ -544,7 +544,7 @@ function PaginatedEditor({ initialHtml, activeTab, meta, attachments }) {
               color: '#111',
             }}
           />
-          <img src="/stopka.jpg" alt=""
+          <img src="/stopka.jpg?v=2" alt=""
             className="shrink-0"
             style={{ width: 'calc(100% - 10mm)', height: 'auto', objectFit: 'contain', display: 'block', margin: '0 5mm 5mm 5mm' }}
             onError={e => { e.currentTarget.style.display = 'none' }} />
