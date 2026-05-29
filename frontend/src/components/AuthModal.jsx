@@ -23,6 +23,9 @@ export default function AuthModal({ onClose, onAuth, resetToken: initResetToken 
       try {
         if (password.length < 10) throw new Error('Hasło musi mieć co najmniej 10 znaków')
         if (!/[!@#$%^&*()_+\-=\[\]{}|;:',.<>?/`~]/.test(password)) throw new Error('Hasło musi zawierać znak specjalny')
+        if (!/[A-Z]/.test(password)) throw new Error('Hasło musi zawierać wielką literę')
+        if (!/[a-z]/.test(password)) throw new Error('Hasło musi zawierać małą literę')
+        if (!/\d/.test(password)) throw new Error('Hasło musi zawierać cyfrę')
         const res = await fetch('/api/auth/reset-password', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -160,7 +163,7 @@ export default function AuthModal({ onClose, onAuth, resetToken: initResetToken 
           {mode === 'register' && <>
             <div>
               <label className="block text-xs font-semibold text-gray-600 mb-1">Imię i nazwisko *</label>
-              <input required value={name} onChange={e => setName(e.target.value)}
+              <input required value={name} onChange={e => setName(e.target.value)} maxLength={100}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-green-500"
                 placeholder="Jan Kowalski" />
             </div>

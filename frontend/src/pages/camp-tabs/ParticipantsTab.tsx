@@ -38,19 +38,19 @@ export default function ParticipantsTab({ campId }: Props) {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="label">Imię *</label>
-                <input className="input" required value={form.first_name ?? ""}
+                <input className="input" required maxLength={100} value={form.first_name ?? ""}
                   onChange={e => setForm(f => ({...f, first_name: e.target.value}))} />
               </div>
               <div>
                 <label className="label">Nazwisko *</label>
-                <input className="input" required value={form.last_name ?? ""}
+                <input className="input" required maxLength={100} value={form.last_name ?? ""}
                   onChange={e => setForm(f => ({...f, last_name: e.target.value}))} />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="label">Data urodzenia</label>
-                <input className="input" type="date" value={form.birth_date as string ?? ""}
+                <input className="input" type="date" max={new Date().toISOString().split('T')[0]} value={form.birth_date as string ?? ""}
                   onChange={e => setForm(f => ({...f, birth_date: e.target.value}))} />
               </div>
               <div>
@@ -62,7 +62,7 @@ export default function ParticipantsTab({ campId }: Props) {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="label">Rodzic / opiekun</label>
-                <input className="input" value={form.parent_name ?? ""}
+                <input className="input" maxLength={200} value={form.parent_name ?? ""}
                   onChange={e => setForm(f => ({...f, parent_name: e.target.value}))} />
               </div>
               <div>

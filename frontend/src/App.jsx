@@ -708,6 +708,9 @@ export default function App() {
         const handle = async () => {
           if (pwd.length < 10) return setMsg('Minimum 10 znaków')
           if (!/[!@#$%^&*()_+\-=\[\]{}|;:',.<>?/`~]/.test(pwd)) return setMsg('Wymagany znak specjalny')
+          if (!/[A-Z]/.test(pwd)) return setMsg('Wymagana wielka litera')
+          if (!/[a-z]/.test(pwd)) return setMsg('Wymagana mała litera')
+          if (!/\d/.test(pwd)) return setMsg('Wymagana cyfra')
           setLoading(true)
           try {
             const sess = JSON.parse(localStorage.getItem('skauting_external_session'))

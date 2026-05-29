@@ -1,4 +1,4 @@
-from pydantic import BaseModel, field_validator, model_validator
+from pydantic import BaseModel, EmailStr, field_validator, model_validator
 from typing import Optional, Literal
 from datetime import date, datetime
 
@@ -85,9 +85,7 @@ class InviteCreate(BaseModel):
 
     @field_validator("email")
     @classmethod
-    def email_valid(cls, v: Optional[str], info) -> Optional[str]:
+    def email_valid(cls, v: Optional[str], info) -> Optional[EmailStr]:
         if info.data.get("type") == "single" and not v:
             raise ValueError("Zaproszenie jednorazowe wymaga podania emaila")
-        if v and "@" not in v:
-            raise ValueError("Nieprawidłowy format email")
-        return v.lower().strip() if v else v
+        return v

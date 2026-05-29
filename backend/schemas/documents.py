@@ -102,9 +102,9 @@ class ParticipantCreate(BaseModel):
 
     @field_validator("parent_name")
     @classmethod
-    def parent_name_len(cls, v: Optional[str]) -> Optional[str]:
-        if v is not None and len(v) > 200:
-            raise ValueError("Imię i nazwisko opiekuna może mieć maksymalnie 200 znaków")
+    def parent_name_valid(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None:
+            return validate_pl_name(v, "Imię i nazwisko opiekuna")
         return v
 
     @field_validator("parent_phone")
@@ -166,9 +166,9 @@ class ParticipantUpdate(BaseModel):
 
     @field_validator("parent_name")
     @classmethod
-    def parent_name_len(cls, v: Optional[str]) -> Optional[str]:
-        if v is not None and len(v) > 200:
-            raise ValueError("Imię i nazwisko opiekuna może mieć maksymalnie 200 znaków")
+    def parent_name_valid(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None:
+            return validate_pl_name(v, "Imię i nazwisko opiekuna")
         return v
 
     @field_validator("parent_phone")

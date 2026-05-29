@@ -113,8 +113,8 @@ export default function LoginPage() {
           {(mode === "login" || mode === "register" || mode === "reset") && (
             <div>
               <label className="label">{mode === "reset" ? "Nowe hasło" : "Hasło"}</label>
-              <input className="input" type="password" value={password} required minLength={6}
-                onChange={e => setPassword(e.target.value)} placeholder="••••••••" />
+              <input className="input" type="password" value={password} required minLength={10}
+                onChange={e => setPassword(e.target.value)} placeholder="min. 10 znaków, znak spec., cyfra, wielka litera" />
             </div>
           )}
 

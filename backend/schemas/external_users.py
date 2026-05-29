@@ -7,19 +7,10 @@ from services.validators import validate_pl_phone, validate_pl_name
 
 
 class InviteMember(BaseModel):
-    email: str
+    email: EmailStr
     name: Optional[str] = None
     phone: Optional[str] = None
     role: Optional[str] = None
-
-    @field_validator("email")
-    @classmethod
-    def email_clean(cls, v: str) -> str:
-        if not v.strip():
-            raise ValueError("Email jest wymagany")
-        if "@" not in v:
-            raise ValueError("Nieprawidłowy format email")
-        return v.strip().lower()
 
     @field_validator("name")
     @classmethod
@@ -42,46 +33,35 @@ class InviteMember(BaseModel):
 
 
 class CreateGuest(BaseModel):
-    email: str
+    email: EmailStr
     name: Optional[str] = None
-
-    @field_validator("email")
-    @classmethod
-    def email_clean(cls, v: str) -> str:
-        if not v.strip():
-            raise ValueError("Email jest wymagany")
-        if "@" not in v:
-            raise ValueError("Nieprawidłowy format email")
-        return v.strip().lower()
 
     @field_validator("name")
     @classmethod
     def name_valid(cls, v: Optional[str]) -> Optional[str]:
         if v is None:
             return v
-        if len(v) > 200:
-            raise ValueError("Imię/nazwisko może mieć maksymalnie 200 znaków")
-        return v
+        return validate_pl_name(v, "Imię i nazwisko")
 
 
 class GuestLogin(BaseModel):
-    email: str
+    email: EmailStr
     password: str
-
-    @field_validator("email")
-    @classmethod
-    def email_clean(cls, v: str) -> str:
-        if not v.strip():
-            raise ValueError("Email jest wymagany")
-        if "@" not in v:
-            raise ValueError("Nieprawidłowy format email")
-        return v.strip().lower()
 
 
 class ChangePassword(BaseModel):
     sessionToken: str = ""
     oldPassword: str = ""
     newPassword: str = ""
+
+    @field_validator("newPassword")
+    @classmethod
+    def password_policy(cls, v: str) -> str:
+        from services.auth import validate_password
+        err = validate_password(v)
+        if err:
+            raise ValueError(err)
+        return v
 
 
 class UpdateMember(BaseModel):
@@ -91,17 +71,12 @@ class UpdateMember(BaseModel):
     phone: Optional[str] = None
     role: Optional[str] = None
 
-    @field_validator("phone")
-    @classmethod
-    def phone_valid(cls, v: Optional[str]) -> Optional[str]:
-        return validate_pl_phone(v)
-
     @field_validator("display_name")
     @classmethod
-    def name_len(cls, v: Optional[str]) -> Optional[str]:
-        if v is not None and (not v.strip() or len(v) > 200):
-            raise ValueError("Imię/nazwisko musi mieć 1-200 znaków")
-        return v.strip() if v else v
+    def name_valid(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None:
+            return validate_pl_name(v, "Imię i nazwisko")
+        return v
 
     @field_validator("role")
     @classmethod

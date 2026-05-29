@@ -161,11 +161,11 @@ export default function CampRegistrationModal({ onClose, onSaved, userId, prefil
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1">Właściciel / zarządca terenu</label>
-                  <input className={inp} placeholder="Imię i nazwisko / firma" value={tOwner} onChange={e=>setTOwner(e.target.value)} />
+                  <input className={inp} placeholder="Imię i nazwisko / firma" value={tOwner} onChange={e=>setTOwner(e.target.value)} maxLength={100} />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1">Kontakt do właściciela</label>
-                  <input className={inp} placeholder="+48 000 000 000" value={tOwnerTel} onChange={e=>setTOwnerTel(e.target.value)} />
+                  <input className={inp} placeholder="+48 000 000 000" value={tOwnerTel} onChange={e=>setTOwnerTel(e.target.value)} type="tel" maxLength={15} />
                 </div>
                 <div className="col-span-2">
                   <label className="block text-xs font-semibold text-gray-600 mb-1">Uwagi o terenie</label>
@@ -231,11 +231,11 @@ export default function CampRegistrationModal({ onClose, onSaved, userId, prefil
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1">Osoba kontaktowa</label>
-                  <input className={inp} placeholder="Imię i nazwisko" value={contact} onChange={e=>setContact(e.target.value)} />
+                  <input className={inp} placeholder="Imię i nazwisko" value={contact} onChange={e=>setContact(e.target.value)} maxLength={100} />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1">Telefon</label>
-                  <input className={inp} placeholder="+48 000 000 000" value={phone} onChange={e=>setPhone(e.target.value)} />
+                  <input className={inp} placeholder="+48 000 000 000" value={phone} onChange={e=>setPhone(e.target.value)} type="tel" maxLength={15} />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1">Data od *</label>

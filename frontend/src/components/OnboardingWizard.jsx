@@ -163,7 +163,7 @@ export default function OnboardingWizard({ onDone, updateMeta, meta, userId }) {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1">Kierownik obozu *</label>
-                <input className={inp} placeholder="Imię i nazwisko" value={kierownik} onChange={e=>setKierownik(e.target.value)} />
+                <input className={inp} placeholder="Imię i nazwisko" value={kierownik} onChange={e=>setKierownik(e.target.value)} maxLength={100} />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1">Telefon kierownika *</label>
@@ -177,7 +177,7 @@ export default function OnboardingWizard({ onDone, updateMeta, meta, userId }) {
               {wychowawcy.map((w, i) => (
                 <div key={i} className="grid grid-cols-2 gap-2 mb-2">
                   <input className={inp} placeholder="Imię i nazwisko" value={w.name}
-                    onChange={e => updateWychowawca(i, 'name', e.target.value)} />
+                    onChange={e => updateWychowawca(i, 'name', e.target.value)} maxLength={100} />
                   <input type="tel" className={inp} placeholder="+48 000 000 000" value={w.phone}
                     onChange={e => updateWychowawca(i, 'phone', e.target.value)} maxLength={15} />
                 </div>
