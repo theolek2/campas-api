@@ -18,7 +18,7 @@ _uuid = lambda: str(uuid.uuid4())
 class User(Base):
     __tablename__ = "users"
 
-    id:                     Mapped[str]                = mapped_column(String(36), primary_key=True, default=_uuid)
+    id:                     Mapped[str]                = mapped_column(PG_UUID(as_uuid=False), primary_key=True, default=_uuid)
     email:                  Mapped[str]                = mapped_column(String(255), unique=True, nullable=False)
     password_hash:          Mapped[str]                = mapped_column(String(255), nullable=False)
     display_name:           Mapped[Optional[str]]      = mapped_column(String(255))
