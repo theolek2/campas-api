@@ -447,7 +447,7 @@ function PaginatedEditor({ initialHtml, activeTab, meta, attachments }) {
     if (!rect) return
 
     if (e.key === 'ArrowUp') {
-      if (rect.top <= el.getBoundingClientRect().top + 4) {
+      if (rect.top <= el.getBoundingClientRect().top + 10) {
         if (pageIdx > 0) {
           e.preventDefault()
           const prev = pagesRef.current[pageIdx - 1]
@@ -538,6 +538,7 @@ function PaginatedEditor({ initialHtml, activeTab, meta, attachments }) {
               minHeight: 0,
               padding: '0 20mm',
               boxSizing: 'border-box',
+              overflow: 'hidden',
               fontFamily: "'Segoe UI', Arial, sans-serif",
               fontSize: '10.5pt',
               lineHeight: '1.55',
