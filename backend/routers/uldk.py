@@ -1,7 +1,6 @@
 """
-routers/uldk.py — proxy ULDK (GUGIK) do identyfikacji działek.
+routers/uldk.py — proxy ULDK (GUGIK) + BDL (nadleśnictwa/leśnictwa).
 Prefix: /api/uldk
-Port z api/uldk.js
 """
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -11,6 +10,27 @@ from dependencies import get_current_user
 router = APIRouter(prefix="/api/uldk", tags=["uldk"])
 
 ULDK_BASE = "https://uldk.gugik.gov.pl/"
+
+
+# ── Proxy BDL API ──────────────────────────────────────────────────────────
+@router.get("/forest-district")
+async def forest_district(lat: float = Query(...), lng: float = Query(...)):
+    d = 0.0001
+    bbox = f"{lng - d},{lat - d},{lng + d},{lat + d}"
+    result = {"nadlesnictwo": None, "lesnictwo": None}
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.get("https://ogcapi.bdl.lasy.gov.pl/collections/nadlesnictwa/items", params={"bbox": bbox, "limit": 1, "f": "json"})
+            if r.status_code == 200:
+                feat = r.json().get("features", [None])[0]
+                if feat: result["nadlesnictwo"] = feat["properties"].get("inspectorate_name")
+            r2 = await client.get("https://ogcapi.bdl.lasy.gov.pl/collections/lesnictwa/items", params={"bbox": bbox, "limit": 1, "f": "json"})
+            if r2.status_code == 200:
+                feat2 = r2.json().get("features", [None])[0]
+                if feat2: result["lesnictwo"] = feat2["properties"].get("forest_range_name")
+    except Exception:
+        pass
+    return result
 
 
 @router.get("")

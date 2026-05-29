@@ -136,32 +136,30 @@ async function addOsrmRoutes(points, originLat, originLng) {
   return results
 }
 
-// ── BDL OGC API — Nadleśnictwo ──────────────────────────────────────────────
+// ── Backend proxy BDL API — Nadleśnictwo ────────────────────────────────────
 async function getForestDistrict(lat, lng) {
   try {
-    const d = 0.0001
-    const bbox = `${lng - d},${lat - d},${lng + d},${lat + d}`
-    const url = `https://ogcapi.bdl.lasy.gov.pl/collections/nadlesnictwa/items?bbox=${bbox}&limit=1&f=json`
-    const res = await fetch(url)
+    const token = localStorage.getItem('campas_token') || ''
+    const res = await fetch(`/api/uldk/forest-district?lat=${lat}&lng=${lng}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
     if (!res.ok) return null
-    const json = await res.json()
-    const feature = json?.features?.[0]
-    if (feature) return { name: feature.properties?.inspectorate_name || '' }
+    const data = await res.json()
+    return data.nadlesnictwo ? { name: data.nadlesnictwo } : null
   } catch {}
   return null
 }
 
-// ── BDL OGC API — Leśnictwo ─────────────────────────────────────────────────
+// ── Backend proxy BDL API — Leśnictwo ───────────────────────────────────────
 async function getForestRange(lat, lng) {
   try {
-    const d = 0.0001
-    const bbox = `${lng - d},${lat - d},${lng + d},${lat + d}`
-    const url = `https://ogcapi.bdl.lasy.gov.pl/collections/lesnictwa/items?bbox=${bbox}&limit=1&f=json`
-    const res = await fetch(url)
+    const token = localStorage.getItem('campas_token') || ''
+    const res = await fetch(`/api/uldk/forest-district?lat=${lat}&lng=${lng}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
     if (!res.ok) return null
-    const json = await res.json()
-    const feature = json?.features?.[0]
-    if (feature) return { name: feature.properties?.forest_range_name || '' }
+    const data = await res.json()
+    return data.lesnictwo ? { name: data.lesnictwo } : null
   } catch {}
   return null
 }

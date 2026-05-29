@@ -10,6 +10,7 @@ import httpx
 from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
+import httpx
 
 from dependencies import get_current_user
 from schemas.robert import RobertAsk, RobertSuggestMeal, CategorizeShopping
@@ -196,6 +197,44 @@ async def render_document(file: str = Query(...), page: int = Query(1), scale: i
         return FileResponse(str(cache_path), media_type="image/png")
 
     raise HTTPException(status_code=500, detail="Render failed")
+
+
+# ── Proxy BDL API (nadleśnictwa + leśnictwa) ──────────────────────────────
+
+@router.get("/forest-district")
+async def forest_district(lat: float = Query(...), lng: float = Query(...)):
+    """Pobiera nadleśnictwo i leśnictwo z BDL API (proxy — omija CORS)."""
+    d = 0.0001
+    bbox = f"{lng - d},{lat - d},{lng + d},{lat + d}"
+    result = {"nadlesnictwo": None, "lesnictwo": None}
+
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            # Nadleśnictwo
+            r = await client.get(
+                "https://ogcapi.bdl.lasy.gov.pl/collections/nadlesnictwa/items",
+                params={"bbox": bbox, "limit": 1, "f": "json"}
+            )
+            if r.status_code == 200:
+                data = r.json()
+                feat = data.get("features", [None])[0]
+                if feat:
+                    result["nadlesnictwo"] = feat["properties"].get("inspectorate_name")
+
+            # Leśnictwo
+            r2 = await client.get(
+                "https://ogcapi.bdl.lasy.gov.pl/collections/lesnictwa/items",
+                params={"bbox": bbox, "limit": 1, "f": "json"}
+            )
+            if r2.status_code == 200:
+                data2 = r2.json()
+                feat2 = data2.get("features", [None])[0]
+                if feat2:
+                    result["lesnictwo"] = feat2["properties"].get("forest_range_name")
+    except Exception:
+        pass
+
+    return result
 
 
 @router.post("/suggest-meal")

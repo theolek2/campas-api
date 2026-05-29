@@ -54,6 +54,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 # ── Routery core ──────────────────────────────────────────────────────────────
 app.include_router(auth.router)
 app.include_router(camps.router)
