@@ -177,7 +177,7 @@ export default function AuthModal({ onClose, onAuth, resetToken: initResetToken 
               <label className="block text-xs font-semibold text-gray-600 mb-1">Telefon kontaktowy</label>
               <input type="tel" value={phone} onChange={e => setPhone(e.target.value)}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-green-500"
-                placeholder="+48 000 000 000" maxLength={15} pattern="^(\+?48)?[\s-]?\d{3}[\s-]?\d{3}[\s-]?\d{3}$" />
+                placeholder="+48 000 000 000" maxLength={15} />
             </div>
           </>}
 

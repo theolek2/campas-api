@@ -84,6 +84,8 @@ export async function signOut() {
   localStorage.removeItem('campas_token')
   localStorage.removeItem('campas_user')
   localStorage.removeItem('campas_camp_id')
+  localStorage.removeItem('skauting_external_session')
+  window.location.href = '/'
   return { error: null }
 }
 
