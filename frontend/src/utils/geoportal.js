@@ -136,43 +136,42 @@ async function addOsrmRoutes(points, originLat, originLng) {
   return results
 }
 
-// ── Backend proxy BDL API — Nadleśnictwo ────────────────────────────────────
-async function getForestDistrict(lat, lng) {
+// ── Backend proxy BDL API — Nadleśnictwo + Leśnictwo (jeden request) ────────
+async function getForestData(lat, lng) {
   try {
     const token = localStorage.getItem('campas_token') || ''
     const res = await fetch(`/api/uldk/forest-district?lat=${lat}&lng=${lng}`, {
       headers: { Authorization: `Bearer ${token}` }
     })
     if (!res.ok) return null
-    const data = await res.json()
-    return data.nadlesnictwo ? { name: data.nadlesnictwo } : null
+    return await res.json()   // { nadlesnictwo, lesnictwo }
   } catch {}
   return null
 }
 
-// ── Backend proxy BDL API — Leśnictwo ───────────────────────────────────────
-async function getForestRange(lat, lng) {
-  try {
-    const token = localStorage.getItem('campas_token') || ''
-    const res = await fetch(`/api/uldk/forest-district?lat=${lat}&lng=${lng}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    })
-    if (!res.ok) return null
-    const data = await res.json()
-    return data.lesnictwo ? { name: data.lesnictwo } : null
-  } catch {}
-  return null
-}
-
-// ── ULDK — numer działki przez Vercel proxy ─────────────────────────────────
+// ── ULDK — numer i dane działki ewidencyjnej ─────────────────────────────────
 export async function getParcelNumber(lat, lng) {
   try {
-    const res = await fetch(`/api/uldk?lat=${lat}&lng=${lng}`)
+    const { x, y } = toEpsg2180(lat, lng)
+    const token = localStorage.getItem('campas_token') || ''
+    const res = await fetch(
+      `/api/uldk?request=GetParcelByXY&xy=${x},${y}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    )
     if (!res.ok) return null
-    const json = await res.json()
-    if (json?.raw) {
-      const lines = json.raw.trim().split('\n')
-      if (lines[0] === '0') return { wkbHex: lines[1] }
+    const text = await res.text()
+    const lines = text.trim().split('\n')
+    // Pierwsza linia: 0 = sukces, 1 = brak wyników / błąd
+    if (lines[0] !== '0' || !lines[1]) return null
+    const parts = lines[1].split('|')
+    // Kolejność: dzialka|geom_wkt|powiat|gmina|obreb|numer|teryt
+    return {
+      dzialka:     parts[0] || null,
+      powiat:      parts[2] || null,
+      gmina:       parts[3] || null,
+      obreb:       parts[4] || null,
+      numer:       parts[5] || null,
+      teryt:       parts[6] || null,
     }
   } catch {}
   return null
@@ -233,15 +232,14 @@ export async function findNfzClinic(lat, lng) {
 
 // ── Główna funkcja — pobierz wszystko z filtrami jurysdykcyjnymi ────────────
 export async function fetchAllGeoData(lat, lng) {
-  const [geo, hospitalList, policeList, fireList, clinicList, nfz, forest, forestRange, parcel] = await Promise.allSettled([
+  const [geo, hospitalList, policeList, fireList, clinicList, nfz, forestData, parcel] = await Promise.allSettled([
     reverseGeocode(lat, lng),
     findWithRoute(lat, lng, 'hospital'),
     findWithRoute(lat, lng, 'police'),
     findWithRoute(lat, lng, 'fire_station'),
     findWithRoute(lat, lng, 'clinic'),
     findNfzClinic(lat, lng),
-    getForestDistrict(lat, lng),
-    getForestRange(lat, lng),
+    getForestData(lat, lng),   // jeden request zamiast dwóch
     getParcelNumber(lat, lng),
   ])
 
@@ -285,6 +283,7 @@ export async function fetchAllGeoData(lat, lng) {
     return !n.includes('prywatn') && !n.includes('niepubliczn')
   })
 
+  const fd = forestData.value || {}
   return {
     geocode,
     hospitals,
@@ -292,8 +291,8 @@ export async function fetchAllGeoData(lat, lng) {
     fire,
     clinics: clinicList.value || [],
     nfz: nfz.value,
-    forest: forest.value,
-    forestRange: forestRange.value,
+    forest:      fd.nadlesnictwo ? { name: fd.nadlesnictwo } : null,
+    forestRange: fd.lesnictwo    ? { name: fd.lesnictwo }    : null,
     parcel: parcel.value,
   }
 }

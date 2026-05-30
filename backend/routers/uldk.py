@@ -35,10 +35,10 @@ async def forest_district(lat: float = Query(...), lng: float = Query(...)):
 
 @router.get("")
 async def uldk_proxy(
-    request: str = Query(..., description="Zapytanie ULDK (np. GetParcelByXY)"),
+    request: str = Query("GetParcelByXY", description="Zapytanie ULDK"),
     lat: float | None = Query(None),
     lng: float | None = Query(None),
-    xy: str | None = Query(None, description="Alternatywnie: '21.123456,50.654321'"),
+    xy: str | None = Query(None, description="Koordynaty EPSG:2180: 'X,Y'"),
     user_id: str = Depends(get_current_user),
 ):
     """
