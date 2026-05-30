@@ -23,7 +23,11 @@ function _headers(json = true) {
 async function _json(res) {
   if (!res.ok) {
     let msg = `HTTP ${res.status}`
-    try { const d = await res.json(); msg = d.detail || JSON.stringify(d) } catch {}
+    try {
+      const d = await res.json()
+      if (Array.isArray(d.detail)) msg = d.detail.map(e => e.msg || JSON.stringify(e)).join('. ')
+      else msg = d.detail || JSON.stringify(d)
+    } catch {}
     throw new Error(msg)
   }
   if (res.status === 204) return null
