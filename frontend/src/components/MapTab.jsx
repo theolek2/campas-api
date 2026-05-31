@@ -140,8 +140,12 @@ function CropBorder({ ratio }) {
 }
 
 export default function MapTab({ user, meta }) {
-  const [step, setStep] = useState('coords')   // 'coords' | 'navigate' | 'edit'
-  const [coords, setCoords] = useState({ lat: '', lng: '' })
+  const hasMetaCoords = !!(meta?.coords?.lat && meta?.coords?.lng)
+  const [step, setStep] = useState(hasMetaCoords ? 'navigate' : 'coords')
+  const [coords, setCoords] = useState({
+    lat: meta?.coords?.lat?.toString() || '',
+    lng: meta?.coords?.lng?.toString() || ''
+  })
   const [locationName, setLocationName] = useState('')
   const [mapRef, setMapRef] = useState(null)
   const [mapImageUrl, setMapImageUrl] = useState(null)
@@ -359,6 +363,11 @@ export default function MapTab({ user, meta }) {
             <p className="text-xs text-gray-400">
               💡 Współrzędne znajdziesz w Google Maps — kliknij prawym na wybranym miejscu → skopiuj
             </p>
+            {!hasMetaCoords && (
+              <p className="text-xs text-orange-600 mt-2">
+                ⚠️ Wprowadź najpierw lokalizację obozu w zakładce <b>Dane obozu → Teren</b>
+              </p>
+            )}
             <button
               onClick={handleStart}
               disabled={!coordsOk}

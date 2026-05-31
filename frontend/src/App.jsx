@@ -35,7 +35,6 @@ const DEFAULT_STATE = {
 
 export default function App() {
   const [state, setState] = useState(() => loadState() || DEFAULT_STATE)
-  const [daysCount, setDaysCount] = useState('')
   // Główne sekcje: 'before' | 'during' | 'tasks' | 'settings'
   const [mainSection, setMainSection] = useState('dashboard')
   // Pod-zakładki w sekcji "Przed obozem"
@@ -332,7 +331,6 @@ export default function App() {
     })
     update({ days: newDays })
     logActivity(`Ustawiono plan na ${count} ${count === 1 ? 'dzień' : 'dni'}`, '📋')
-    setDaysCount('')
   }
   const updateDay = (id, updated) =>
     update({ days: days.map(d => d.id === id ? updated : d) })
@@ -625,26 +623,27 @@ export default function App() {
                   </button>
                 </div>
                 <div className="flex items-center gap-3 mb-5 bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-                  <span className="text-sm font-semibold text-gray-700">Liczba dni obozu:</span>
-                  <input type="number" min={1} max={30}
-                    className="w-20 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-green-500"
-                    placeholder="np. 10" value={daysCount}
-                    onChange={e => setDaysCount(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && setDays(daysCount)} />
-                  <button onClick={() => setDays(daysCount)}
-                    className="bg-green-700 text-white px-4 py-1.5 rounded-lg text-sm font-semibold hover:bg-green-800">
-                    Ustaw
-                  </button>
-                  {days.length > 0 && <span className="text-sm text-gray-500">Zaplanowane: <b>{days.length}</b> dni</span>}
-                  <button onClick={addDay}
-                    className="ml-auto text-sm text-green-700 border border-green-400 px-3 py-1.5 rounded-lg hover:bg-green-50">
-                    + Dodaj dzień
-                  </button>
+                  {meta.date_start && meta.date_end ? (
+                    <>
+                      <span className="text-sm font-semibold text-gray-700">Dni obozu:</span>
+                      <span className="text-sm text-gray-500">od {meta.date_start} do {meta.date_end} — <b>{days.length}</b> dni</span>
+                    </>
+                  ) : (
+                    <span className="text-sm text-orange-600">⚠️ Ustaw daty obozu w zakładce „Dane obozu"</span>
+                  )}
+                  {days.length > 0 && (
+                    <button onClick={addDay}
+                      className="ml-auto text-sm text-green-700 border border-green-400 px-3 py-1.5 rounded-lg hover:bg-green-50">
+                      + Dodaj dzień
+                    </button>
+                  )}
                 </div>
                 {days.length === 0 && (
                   <div className="text-center py-24 text-gray-400">
                     <div className="text-5xl mb-4">⛺</div>
-                    <p className="text-lg font-semibold">Wpisz liczbę dni i kliknij „Ustaw"</p>
+                    <p className="text-lg font-semibold">
+                      {meta.date_start && meta.date_end ? 'Kliknij + Dodaj dzień, aby rozpocząć' : 'Ustaw daty obozu w zakładce „Dane obozu"'}
+                    </p>
                   </div>
                 )}
                 {days.map((day, i) => (

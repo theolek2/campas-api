@@ -52,6 +52,20 @@ export default function CampDataTab({ meta, onUpdateMeta, userId, progress, onTo
     if (typeof v === 'string' && v) return v.split(',').map(s => s.trim()).filter(s => s && s !== 'Pobrano' && s !== '0')
     return []
   }
+  const validatePhone = (v) => {
+    const d = v.replace(/[\s-]/g, '')
+    if (d.startsWith('+') && d.length === 12) return true
+    if (d.length === 9 && /^\d{9}$/.test(d)) return true
+    return false
+  }
+  const validateName = (v) => {
+    const parts = v.trim().split(/\s+/)
+    if (parts.length < 2) return false
+    if (/\d/.test(v)) return false
+    return true
+  }
+  const validateInt = (v) => /^\d+$/.test(String(v).trim())
+
   const [parcels, setParcels] = useState(() => normalizeDzialki(meta.nr_dzialka))
   const parcelsRef = useRef(parcels)
   useEffect(() => { parcelsRef.current = parcels }, [parcels])
@@ -160,7 +174,6 @@ export default function CampDataTab({ meta, onUpdateMeta, userId, progress, onTo
     { id: 'oboz',  icon: '🏕️', label: 'Obóz' },
     { id: 'kadra', icon: '👥', label: 'Kadra' },
     { id: 'teren', icon: '📍', label: 'Teren' },
-    { id: 'org',   icon: '🏛️', label: 'Org.' },
   ]
 
   return (
@@ -210,10 +223,9 @@ export default function CampDataTab({ meta, onUpdateMeta, userId, progress, onTo
               <label className="block text-xs font-semibold text-gray-600 mb-2">Typ obozu <span className="text-red-500">*</span></label>
               <div className="flex gap-3 flex-wrap">
                 {[
-                  { val: 'wilczkowy', label: '🐺 Obóz wilczkowy', sub: 'Zuchy 6–10 lat' },
-                  { val: 'harcerski', label: '⚜️ Drużyna harcerska', sub: 'Harcerze 10–16 lat' },
-                  { val: 'starszoharcerski', label: '🏔️ Starszoharcerski', sub: '16+ lat' },
-                  { val: 'wędrowniczy', label: '🎒 Wędrowniczy', sub: 'Wędrownicy 18+ lat' },
+                  { val: 'wilczkowy', label: '🐺 Obóz wilczkowy', sub: '9–12 lat' },
+                  { val: 'harcerski', label: '⚜️ Obóz harcerski', sub: '12–17 lat' },
+                  { val: 'wedrowniczy', label: '🎒 Wędrówka', sub: '17+ lat' },
                 ].map(opt => (
                   <button key={opt.val} type="button"
                     onClick={() => onUpdateMeta({ typ_obozu: opt.val })}
@@ -229,9 +241,9 @@ export default function CampDataTab({ meta, onUpdateMeta, userId, progress, onTo
               </div>
             </div>
 
-            <Field label="Jednostka / nazwa szczepu" required>
+            <Field label="Jednostka" required>
               <input className={inputCls}
-                placeholder={'np. 1 DH „Leśny Wicher"'}
+                placeholder={'np. 1 Drużyna Józefowska'}
                 value={meta.jednostka}
                 onChange={e => onUpdateMeta({ jednostka: e.target.value })}
               />
@@ -241,13 +253,7 @@ export default function CampDataTab({ meta, onUpdateMeta, userId, progress, onTo
                 placeholder="Imię i nazwisko"
                 value={meta.kierownik}
                 onChange={e => onUpdateMeta({ kierownik: e.target.value })}
-              />
-            </Field>
-            <Field label="Miejsce obozu" required>
-              <input className={inputCls}
-                placeholder="np. Leśniczówka Pisary, gmina Olesno"
-                value={meta.miejsce}
-                onChange={e => onUpdateMeta({ miejsce: e.target.value })}
+                onBlur={e => { const v = e.target.value; if (v && !validateName(v)) alert('Wpisz imię i nazwisko (dwa słowa, bez cyfr)', 'warning') }}
               />
             </Field>
             <Field label="Data rozpoczęcia">
@@ -273,17 +279,66 @@ export default function CampDataTab({ meta, onUpdateMeta, userId, progress, onTo
                 placeholder="np. 32"
                 value={meta.uczestnicy || ''}
                 onChange={e => onUpdateMeta({ uczestnicy: e.target.value })}
-              />
-            </Field>
-            <Field label="Kategoria wiekowa">
-              <input className={inputCls}
-                placeholder="np. Zuchy 7-10 lat"
-                value={meta.wiek || ''}
-                onChange={e => onUpdateMeta({ wiek: e.target.value })}
+                onBlur={e => { const v = e.target.value; if (v && !validateInt(v)) alert('Liczba uczestników musi być całkowita', 'warning') }}
               />
             </Field>
           </div>
         </Module>
+
+        <Module icon="🏛️" title="Informacje organizacyjne" defaultOpen={true}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field label="Hufiec">
+              <input className={inputCls}
+                placeholder="np. 5 Hufiec Warszawski"
+                value={meta.hufiec || ''}
+                onChange={e => onUpdateMeta({ hufiec: e.target.value })}
+              />
+            </Field>
+            <Field label="Hufcowy/asystent ds. wypoczynku (tel)">
+              <input className={inputCls} type="tel" maxLength={15}
+                placeholder="+48 000 000 000"
+                value={meta.komendant_tel || ''}
+                onChange={e => onUpdateMeta({ komendant_tel: e.target.value })}
+                onBlur={e => { const v = e.target.value; if (v && !validatePhone(v)) alert('Nieprawidłowy numer telefonu', 'warning') }}
+              />
+            </Field>
+            <Field label="Numer zgłoszenia / decyzji">
+              <input className={inputCls}
+                placeholder="np. KH-123/2025"
+                value={meta.nr_zgloszenia || ''}
+                onChange={e => onUpdateMeta({ nr_zgloszenia: e.target.value })}
+              />
+            </Field>
+            <Field label="Data zgłoszenia do kuratorium">
+              <input className={inputCls} type="date"
+                value={meta.data_zgloszenia || ''}
+                onChange={e => onUpdateMeta({ data_zgloszenia: e.target.value })}
+              />
+            </Field>
+          </div>
+          <div className="mt-4">
+            <Field label="Uwagi / dodatkowe informacje">
+              <textarea className={inputCls + ' resize-none'} rows={3}
+                placeholder="Dodatkowe informacje..."
+                value={meta.uwagi || ''}
+                onChange={e => onUpdateMeta({ uwagi: e.target.value })}
+              />
+            </Field>
+          </div>
+        </Module>
+
+        <div className="bg-gradient-to-r from-green-700 to-green-600 rounded-2xl p-5 text-white mt-2">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-bold">🌍 Mapa obozów Skautów Europy</h3>
+              <p className="text-green-200 text-xs mt-0.5">Opublikuj obóz — inni drużynowi zobaczą gdzie jesteś</p>
+            </div>
+            <button onClick={() => setShowCampModal(true)}
+              className="bg-white text-green-800 font-bold px-4 py-2 rounded-xl hover:bg-green-50 transition text-sm shrink-0">
+              + Dodaj na mapę
+            </button>
+          </div>
+        </div>
 
         </> /* koniec zakładki Obóz */}
 
@@ -301,6 +356,7 @@ export default function CampDataTab({ meta, onUpdateMeta, userId, progress, onTo
                 placeholder="Imię i nazwisko"
                 value={meta.kierownik || ''}
                 onChange={e => onUpdateMeta({ kierownik: e.target.value })}
+                onBlur={e => { const v = e.target.value; if (v && !validateName(v)) alert('Wpisz imię i nazwisko (dwa słowa, bez cyfr)', 'warning') }}
               />
             </Field>
             <Field label="Telefon kierownika" required>
@@ -308,6 +364,7 @@ export default function CampDataTab({ meta, onUpdateMeta, userId, progress, onTo
                 placeholder="+48 000 000 000"
                 value={meta.tel_kierownik || ''}
                 onChange={e => onUpdateMeta({ tel_kierownik: e.target.value })}
+                onBlur={e => { const v = e.target.value; if (v && !validatePhone(v)) alert('Nieprawidłowy numer telefonu', 'warning') }}
               />
             </Field>
           </div>
@@ -343,14 +400,16 @@ export default function CampDataTab({ meta, onUpdateMeta, userId, progress, onTo
                         arr[i] = { ...arr[i], name: e.target.value }
                         onUpdateMeta({ wychowawcy: arr })
                       }}
+                      onBlur={e => { const v = e.target.value; if (v && !validateName(v)) alert('Wpisz imię i nazwisko (dwa słowa, bez cyfr)', 'warning') }}
                     />
-                    <input className={inputCls} type="tel" maxLength={15} placeholder="+48 000 000 000"
+                    <input className={inputCls} placeholder="Telefon" type="tel" maxLength={15}
                       value={w.phone || ''}
                       onChange={e => {
                         const arr = [...(meta.wychowawcy || [])]
                         arr[i] = { ...arr[i], phone: e.target.value }
                         onUpdateMeta({ wychowawcy: arr })
                       }}
+                      onBlur={e => { const v = e.target.value; if (v && !validatePhone(v)) alert('Nieprawidłowy numer telefonu', 'warning') }}
                     />
                   </div>
                   <button type="button"
@@ -373,6 +432,7 @@ export default function CampDataTab({ meta, onUpdateMeta, userId, progress, onTo
                 placeholder="+48 000 000 000"
                 value={meta.tel_zastepca || ''}
                 onChange={e => onUpdateMeta({ tel_zastepca: e.target.value })}
+                onBlur={e => { const v = e.target.value; if (v && !validatePhone(v)) alert('Nieprawidłowy numer telefonu', 'warning') }}
               />
             </Field>
             <Field label="Najbliższy szpital / SOR">
@@ -387,6 +447,7 @@ export default function CampDataTab({ meta, onUpdateMeta, userId, progress, onTo
                 placeholder="+48 000 000 000"
                 value={meta.tel_szpital || ''}
                 onChange={e => onUpdateMeta({ tel_szpital: e.target.value })}
+                onBlur={e => { const v = e.target.value; if (v && !validatePhone(v)) alert('Nieprawidłowy numer telefonu', 'warning') }}
               />
             </Field>
             <Field label="Pogotowie / Straż / Policja (lokalny)">
@@ -407,64 +468,6 @@ export default function CampDataTab({ meta, onUpdateMeta, userId, progress, onTo
         </Module>
 
         </> /* koniec zakładki Kadra */}
-
-        {/* ── ZAKŁADKA: ORG (Informacje + Hufiec) ── */}
-        {activeSubTab === 'org' && <>
-        <Module icon="🏛️" title="Informacje organizacyjne" defaultOpen={true}>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Field label="Organ prowadzący / hufiec">
-              <input className={inputCls}
-                placeholder="np. Hufiec ZHP Kraków-Podgórze"
-                value={meta.hufiec || ''}
-                onChange={e => onUpdateMeta({ hufiec: e.target.value })}
-              />
-            </Field>
-            <Field label="Komendant hufca (tel.)">
-              <input className={inputCls} type="tel" maxLength={15}
-                placeholder="+48 000 000 000"
-                value={meta.komendant_tel || ''}
-                onChange={e => onUpdateMeta({ komendant_tel: e.target.value })}
-              />
-            </Field>
-            <Field label="Numer zgłoszenia / decyzji">
-              <input className={inputCls}
-                placeholder="np. KH-123/2025"
-                value={meta.nr_zgloszenia || ''}
-                onChange={e => onUpdateMeta({ nr_zgloszenia: e.target.value })}
-              />
-            </Field>
-            <Field label="Data zgłoszenia do kuratorium">
-              <input className={inputCls} type="date"
-                value={meta.data_zgloszenia || ''}
-                onChange={e => onUpdateMeta({ data_zgloszenia: e.target.value })}
-              />
-            </Field>
-          </div>
-          <div className="mt-4">
-            <Field label="Uwagi / dodatkowe informacje">
-              <textarea className={inputCls + ' resize-none'} rows={3}
-                placeholder="Dodatkowe informacje dla inspektorów..."
-                value={meta.uwagi || ''}
-                onChange={e => onUpdateMeta({ uwagi: e.target.value })}
-              />
-            </Field>
-          </div>
-        </Module>
-
-        {/* Opublikuj na mapie — na dole zakładki Org */}
-        <div className="bg-gradient-to-r from-green-700 to-green-600 rounded-2xl p-5 text-white mt-2">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="font-bold">🌍 Mapa obozów Skautów Europy</h3>
-              <p className="text-green-200 text-xs mt-0.5">Opublikuj obóz — inni drużynowi zobaczą gdzie jesteś</p>
-            </div>
-            <button onClick={() => setShowCampModal(true)}
-              className="bg-white text-green-800 font-bold px-4 py-2 rounded-xl hover:bg-green-50 transition text-sm shrink-0">
-              + Dodaj na mapę
-            </button>
-          </div>
-        </div>
-        </> /* koniec zakładki Org */}
 
         {/* ── ZAKŁADKA: TEREN (GPS + Mapa + Działka + Schronienie) ── */}
         {activeSubTab === 'teren' && <>

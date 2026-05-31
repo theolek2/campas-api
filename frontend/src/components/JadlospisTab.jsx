@@ -3,34 +3,18 @@ import MealTemplatePanel, { makeMealSlot } from './MealTemplatePanel'
 import MealDayCard from './MealDayCard'
 
 export default function JadlospisTab({ meta, days, mealTemplate, mealActivities, onUpdate, onAddMealActivity, onEditMealActivity, onDeleteMealActivity, progress, onToggleProgress }) {
-  const [daysCount, setDaysCount] = useState('')
-  const [peopleCount, setPeopleCount] = useState('')
   const [newName, setNewName] = useState('')
   const [newDesc, setNewDesc] = useState('')
   const [aiAllLoading, setAiAllLoading] = useState(false)
   const [aiAllStatus, setAiAllStatus] = useState('')
 
   const inp = 'w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500'
-  const ppl = parseInt(peopleCount) || 0
+  const ppl = parseInt(meta.uczestnicy) || 0
 
   // Fix crash: guardy
   const safeMealTemplate = mealTemplate || []
   const safeMealActivities = mealActivities || []
   const safeDays = days || []
-
-  const setMeanDays = (n) => {
-    const count = Math.max(1, Math.min(30, parseInt(n) || 0))
-    if (!count) return
-    const newDays = Array.from({ length: count }, (_, i) => {
-      const existing = safeDays[i]
-      if (existing) return existing
-      const day = { id: `day_${Date.now()}_${i}`, label: '', slots: existing?.slots || [], mealSlots: [] }
-      day.mealSlots = safeMealTemplate.map(s => ({ ...s, id: `ms_${Date.now()}_${Math.random()}` }))
-      return day
-    })
-    onUpdate({ days: newDays })
-    setDaysCount('')
-  }
 
   const updateDay = (id, updated) =>
     onUpdate({ days: safeDays.map(d => d.id === id ? updated : d) })
@@ -54,7 +38,7 @@ export default function JadlospisTab({ meta, days, mealTemplate, mealActivities,
   const fillAllAI = async () => {
     if (safeDays.length === 0) return alert('Najpierw ustaw liczbę dni')
     const tok = localStorage.getItem('campas_token') || ''
-    const people = parseInt(peopleCount) || 10
+    const people = parseInt(meta.uczestnicy) || 10
 
     // Zbierz wszystkie sloty z nazwą i bez składników
     const toFill = []
@@ -165,22 +149,15 @@ export default function JadlospisTab({ meta, days, mealTemplate, mealActivities,
         </div>
 
         <div className="flex items-center gap-3 mb-5 bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-          <span className="text-sm font-semibold text-gray-700">📅 Dni:</span>
-          <input type="number" min={1} max={30}
-            className="w-16 border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-blue-500"
-            placeholder="np. 10" value={daysCount}
-            onChange={e => setDaysCount(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && setMeanDays(daysCount)} />
-          <button onClick={() => setMeanDays(daysCount)}
-            className="bg-blue-600 text-white px-4 py-1.5 rounded-lg text-sm font-semibold hover:bg-blue-700">
-            Ustaw
-          </button>
-          <span className="text-sm font-semibold text-gray-700 ml-4">👥 Osób:</span>
-          <input type="number" min={1} max={999}
-            className="w-16 border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-blue-500"
-            placeholder="32" value={peopleCount}
-            onChange={e => setPeopleCount(e.target.value)} />
-          {safeDays.length > 0 && <span className="text-sm text-gray-500 ml-4">Zaplanowane: <b>{safeDays.length}</b> dni</span>}
+          {meta.date_start && meta.date_end ? (
+            <>
+              <span className="text-sm text-gray-500">📅 od {meta.date_start} do {meta.date_end} — <b>{safeDays.length}</b> dni</span>
+              {ppl > 0 && <span className="text-sm text-gray-500">👥 <b>{ppl}</b> osób</span>}
+            </>
+          ) : (
+            <span className="text-sm text-orange-600">⚠️ Ustaw daty obozu w zakładce Dane obozu</span>
+          )}
+          {!ppl && meta.date_start && <span className="text-sm text-orange-600 ml-4">⚠️ Ustaw liczbę uczestników w zakładce „Dane obozu"</span>}
           <button onClick={addDay}
             className="ml-auto text-sm text-blue-700 border border-blue-400 px-3 py-1.5 rounded-lg hover:bg-blue-50">
             + Dodaj dzień
@@ -190,7 +167,9 @@ export default function JadlospisTab({ meta, days, mealTemplate, mealActivities,
         {safeDays.length === 0 && (
           <div className="text-center py-24 text-gray-400">
             <div className="text-5xl mb-4">🍲</div>
-            <p className="text-lg font-semibold">Wpisz liczbę dni i kliknij „Ustaw"</p>
+            <p className="text-lg font-semibold">
+              {meta.date_start && meta.date_end ? 'Kliknij + Dodaj dzień, aby rozpocząć' : 'Ustaw daty obozu w zakładce „Dane obozu"'}
+            </p>
           </div>
         )}
         {safeDays.map((day, i) => (
