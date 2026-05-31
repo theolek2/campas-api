@@ -67,4 +67,19 @@ async def uldk_proxy(
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"ULDK niedostępny: {str(e)}")
 
-    return r.text
+    # Parsuj odpowiedź ULDK i zwróć JSON zamiast plain-textu
+    # Format: linia 0 = status (0=OK, 1=błąd), linia 1 = pola rozdzielone |
+    lines = r.text.strip().split("\n")
+    if not lines or lines[0] != "0" or len(lines) < 2:
+        return {"ok": False}
+    parts = lines[1].split("|")
+    # Kolejność pól: dzialka|geom_wkt|powiat|gmina|obreb|numer|teryt
+    return {
+        "ok":      True,
+        "dzialka": parts[0] or None,
+        "powiat":  parts[2] or None,
+        "gmina":   parts[3] or None,
+        "obreb":   parts[4] or None,
+        "numer":   parts[5] or None,
+        "teryt":   parts[6] or None,
+    }

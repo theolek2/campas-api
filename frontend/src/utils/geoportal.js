@@ -159,19 +159,15 @@ export async function getParcelNumber(lat, lng) {
       { headers: { Authorization: `Bearer ${token}` } }
     )
     if (!res.ok) return null
-    const text = await res.text()
-    const lines = text.trim().split('\n')
-    // Pierwsza linia: 0 = sukces, 1 = brak wyników / błąd
-    if (lines[0] !== '0' || !lines[1]) return null
-    const parts = lines[1].split('|')
-    // Kolejność: dzialka|geom_wkt|powiat|gmina|obreb|numer|teryt
+    const data = await res.json()
+    if (!data?.ok) return null
     return {
-      dzialka:     parts[0] || null,
-      powiat:      parts[2] || null,
-      gmina:       parts[3] || null,
-      obreb:       parts[4] || null,
-      numer:       parts[5] || null,
-      teryt:       parts[6] || null,
+      dzialka: data.dzialka,
+      powiat:  data.powiat,
+      gmina:   data.gmina,
+      obreb:   data.obreb,
+      numer:   data.numer,
+      teryt:   data.teryt,
     }
   } catch {}
   return null
