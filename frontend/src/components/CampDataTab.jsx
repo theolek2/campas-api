@@ -61,8 +61,10 @@ export default function CampDataTab({ meta, onUpdateMeta, userId, progress, onTo
       setGeoResults(data)
       try { localStorage.setItem('skauting_geo_results', JSON.stringify({ lat: geoLat, lng: geoLng, data })) } catch {}
       const patch = { coords: { lat, lng } }
-      if (data.geocode) { patch.gmina = data.geocode.gmina; patch.powiat = data.geocode.powiat; patch.wojewodztwo = data.geocode.wojewodztwo }
-      if (data.parcel) patch.nr_dzialki = 'Pobrano'
+      if (data.geocode) { patch.gmina = data.geocode.gmina; patch.powiat = data.geocode.powiat; patch.wojewodztwo = data.geocode.wojewodztwo; patch.miejscowosc = data.geocode.miejscowosc }
+      if (data.parcel?.numer) patch.nr_dzialki = data.parcel.teryt ? `${data.parcel.obreb} ${data.parcel.numer} (${data.parcel.teryt})` : data.parcel.numer
+      if (data.forest?.name)      patch.nadlesnictwo = data.forest.name
+      if (data.forestRange?.name) patch.lesnictwo    = data.forestRange.name
       if (data.nfz) { patch.przychodnia = data.nfz.name; patch.tel_przychodnia = data.nfz.phone }
       if (data.hospitals?.[0]) patch.szpital = data.hospitals[0].name
       if (data.police?.[0]) patch.policja = data.police[0].name
