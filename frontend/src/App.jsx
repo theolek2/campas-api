@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { AlertProvider } from './components/AlertContext'
 import ActivityPanel from './components/ActivityPanel'
 import DayCard from './components/DayCard'
 import TemplatePanel from './components/TemplatePanel'
@@ -295,13 +296,12 @@ export default function App() {
   }
 
   const updateMeta = (patch) => {
-    const newMeta = { ...meta, ...patch }
-    update({ meta: newMeta })
-    // Zapisz do Supabase jeśli zalogowany
-    if (user?.id) {
-      saveCampMeta(user.id, newMeta).catch(() => {})
-    }
+    setState(s => ({ ...s, meta: { ...s.meta, ...patch } }))
   }
+
+  useEffect(() => {
+    if (user?.id) saveCampMeta(user.id, meta).catch(() => {})
+  }, [meta])
 
   // ── Zajęcia ──
   const addActivity = (name, description) =>
@@ -416,6 +416,7 @@ export default function App() {
   ]
 
   return (
+    <AlertProvider>
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Onboarding wizard */}
       {showOnboarding && (
@@ -746,5 +747,6 @@ export default function App() {
         )
       })()}
     </div>
+    </AlertProvider>
   )
 }

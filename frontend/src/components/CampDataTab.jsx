@@ -1,5 +1,7 @@
-﻿import { useState } from 'react'
+﻿import { useState, useEffect, useRef } from 'react'
 import CampRegistrationModal from './CampRegistrationModal'
+import LeafletLocationPicker from './LeafletLocationPicker'
+import { useAlert } from './AlertContext'
 import { fetchAllGeoData } from '../utils/geoportal.js'
 
 // ── Moduł bazowy: karta z tytułem i możliwością zwijania ─────────────────────
@@ -35,11 +37,29 @@ const inputCls = "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm foc
 
 // ── Główna zakładka ──────────────────────────────────────────────────────────
 export default function CampDataTab({ meta, onUpdateMeta, userId, progress, onToggleProgress }) {
+  const alert = useAlert()
   const [showCampModal, setShowCampModal] = useState(false)
   const [activeSubTab, setActiveSubTab] = useState('oboz')
   const [geoLat, setGeoLat] = useState(meta.coords?.lat?.toString() || '')
   const [geoLng, setGeoLng] = useState(meta.coords?.lng?.toString() || '')
   const [gpsLoading, setGpsLoading] = useState(false)
+  const [locationMode, setLocationMode] = useState('gps')
+  const [parcelId, setParcelId] = useState('')
+  const [parcelAddVal, setParcelAddVal] = useState('')
+  const [parcelLoading, setParcelLoading] = useState(false)
+  const normalizeDzialki = (v) => {
+    if (Array.isArray(v)) return v.map(String).filter(s => s && s !== 'Pobrano' && s !== '0')
+    if (typeof v === 'string' && v) return v.split(',').map(s => s.trim()).filter(s => s && s !== 'Pobrano' && s !== '0')
+    return []
+  }
+  const [parcels, setParcels] = useState(() => normalizeDzialki(meta.nr_dzialka))
+  const parcelsRef = useRef(parcels)
+  useEffect(() => { parcelsRef.current = parcels }, [parcels])
+  const updateParcels = (newParcels) => {
+    setParcels(newParcels)
+    parcelsRef.current = newParcels
+    onUpdateMeta({ nr_dzialki: newParcels })
+  }
   const [geoResults, setGeoResults] = useState(() => {
     try {
       const raw = localStorage.getItem('skauting_geo_results')
@@ -50,29 +70,90 @@ export default function CampDataTab({ meta, onUpdateMeta, userId, progress, onTo
     } catch {}
     return null
   })
+  const hasCoords = !!(meta.coords?.lat && meta.coords?.lng)
+  // editMode: 'location' (form), 'edit' (geo results + selections), 'view' (summary)
+  const [editMode, setEditMode] = useState(hasCoords ? 'view' : 'location')
   const metaOk = meta.jednostka && meta.kierownik
 
-  const handleGeoFetch = async () => {
-    const lat = parseFloat(geoLat), lng = parseFloat(geoLng)
-    if (!lat || !lng) { alert('Wpisz poprawne współrzędne'); return }
+  const runGeoFetch = async (lat, lng) => {
     setGpsLoading(true)
     try {
       const data = await fetchAllGeoData(lat, lng)
       setGeoResults(data)
-      try { localStorage.setItem('skauting_geo_results', JSON.stringify({ lat: geoLat, lng: geoLng, data })) } catch {}
-      const patch = { coords: { lat, lng } }
-      if (data.geocode) { patch.gmina = data.geocode.gmina; patch.powiat = data.geocode.powiat; patch.wojewodztwo = data.geocode.wojewodztwo; patch.miejscowosc = data.geocode.miejscowosc }
-      if (data.parcel?.numer) patch.nr_dzialki = data.parcel.teryt ? `${data.parcel.obreb} ${data.parcel.numer} (${data.parcel.teryt})` : data.parcel.numer
+      try { localStorage.setItem('skauting_geo_results', JSON.stringify({ lat: String(lat), lng: String(lng), data })) } catch {}
+      const patch = { coords: { lat: parseFloat(lat.toFixed(6)), lng: parseFloat(lng.toFixed(6)) } }
+      if (data.geocode) {
+        patch.gmina = data.geocode.gmina?.replace(/^(gmina\s+|miasto\s+)/i, '') || data.geocode.gmina
+        patch.powiat = data.geocode.powiat?.replace(/^(powiat\s+)/i, '') || data.geocode.powiat
+        patch.wojewodztwo = data.geocode.wojewodztwo?.replace(/^(województwo\s+)/i, '') || data.geocode.wojewodztwo
+        if (data.geocode.miejscowosc) patch.miejscowosc = data.geocode.miejscowosc
+      }
       if (data.forest?.name)      patch.nadlesnictwo = data.forest.name
       if (data.forestRange?.name) patch.lesnictwo    = data.forestRange.name
+      if (data.parcel) {
+        if (data.parcel.dzialka && data.parcel.dzialka !== 'Pobrano' && data.parcel.dzialka !== '0') {
+          const merged = [data.parcel.dzialka, ...parcelsRef.current.filter(x => x !== data.parcel.dzialka)]
+          patch.nr_dzialki = merged
+          setParcels(merged)
+        } else if (data.parcel.wkbHex) {
+          try {
+            const token = localStorage.getItem('campas_token')
+            const r = await fetch(`/api/uldk?request=GetParcelByXY&lat=${lat}&lng=${lng}`, { headers: { Authorization: `Bearer ${token}` } })
+            const parsed = await r.json()
+            if (parsed.fields?.dzialka && parsed.fields.dzialka !== '0') {
+              const merged = [parsed.fields.dzialka, ...parcels.filter(x => x !== parsed.fields.dzialka)]
+              patch.nr_dzialki = merged
+              setParcels(merged)
+              setParcelId(parsed.fields.dzialka)
+            }
+          } catch {}
+        }
+      }
       if (data.nfz) { patch.przychodnia = data.nfz.name; patch.tel_przychodnia = data.nfz.phone }
       if (data.hospitals?.[0]) patch.szpital = data.hospitals[0].name
       if (data.police?.[0]) patch.policja = data.police[0].name
       if (data.fire?.[0]) patch.psp = data.fire[0].name
       if (data.clinics?.[0] && !patch.przychodnia) patch.przychodnia = data.clinics[0].name
       onUpdateMeta(patch)
-    } catch { alert('Błąd pobierania') }
+      setEditMode('edit')
+    } catch { alert('Błąd pobierania danych', 'error') }
     finally { setGpsLoading(false) }
+  }
+
+  const handleCoordsChange = (lat, lng) => {
+    setGeoLat(lat.toFixed(6))
+    setGeoLng(lng.toFixed(6))
+    runGeoFetch(lat, lng)
+  }
+
+  const handleParcelLookup = async () => {
+    const id = parcelId.trim()
+    if (!id) { alert('Wpisz numer działki', 'warning'); return }
+    if (!/^\d{6}_\d{1,4}\.[\dA-Za-z_./]+$/.test(id)) { alert('Nieprawidłowy format działki. Przykład: 146501_1.0001.12', 'warning'); return }
+    setParcelLoading(true)
+    try {
+      const token = localStorage.getItem('campas_token')
+      const r = await fetch(`/api/uldk?request=GetParcelById&id=${id}`, { headers: { Authorization: `Bearer ${token}` } })
+      if (!r.ok) { const err = await r.json(); alert(err.detail || 'Nie znaleziono działki', 'error'); return }
+      const parsed = await r.json()
+      if (parsed.centroid) {
+        const { lat, lng } = parsed.centroid
+        console.log('📋 ULDK GetParcelById OK', { parcelId: id, centroid: { lat, lng }, raw: parsed.raw })
+        setGeoLat(lat.toString())
+        setGeoLng(lng.toString())
+        const newParcels = [id, ...parcelsRef.current.filter(x => x !== id)]
+        updateParcels(newParcels)
+        onUpdateMeta({ coords: { lat, lng } })
+        await runGeoFetch(lat, lng)
+      } else {
+        console.error('📋 ULDK GetParcelById - brak centroid', { raw: parsed.raw, fields: parsed.fields })
+        alert('Nie udało się odczytać współrzędnych działki', 'error')
+      }
+    } catch (e) {
+      console.error('📋 ULDK GetParcelById FAIL', e)
+      alert('Błąd wyszukiwania działki', 'error')
+    }
+    finally { setParcelLoading(false) }
   }
 
   const SUB_TABS = [
@@ -195,21 +276,11 @@ export default function CampDataTab({ meta, onUpdateMeta, userId, progress, onTo
               />
             </Field>
             <Field label="Kategoria wiekowa">
-              <div className="flex items-center gap-2">
-                <input className={inputCls} type="number" min={0} max={120}
-                  placeholder="Min"
-                  value={meta.wiek_min || ''}
-                  onChange={e => onUpdateMeta({ wiek_min: e.target.value })}
-                  style={{ width: '48%' }}
-                />
-                <span className="text-gray-400 text-sm">–</span>
-                <input className={inputCls} type="number" min={0} max={120}
-                  placeholder="Max"
-                  value={meta.wiek_max || ''}
-                  onChange={e => onUpdateMeta({ wiek_max: e.target.value })}
-                  style={{ width: '48%' }}
-                />
-              </div>
+              <input className={inputCls}
+                placeholder="np. Zuchy 7-10 lat"
+                value={meta.wiek || ''}
+                onChange={e => onUpdateMeta({ wiek: e.target.value })}
+              />
             </Field>
           </div>
         </Module>
@@ -306,7 +377,7 @@ export default function CampDataTab({ meta, onUpdateMeta, userId, progress, onTo
             </Field>
             <Field label="Najbliższy szpital / SOR">
               <input className={inputCls}
-                placeholder="np. Szpital Miejski w Nowym Sączu" maxLength={200}
+                placeholder="np. Szpital Miejski w Nowym Sączu"
                 value={meta.szpital || ''}
                 onChange={e => onUpdateMeta({ szpital: e.target.value })}
               />
@@ -326,15 +397,10 @@ export default function CampDataTab({ meta, onUpdateMeta, userId, progress, onTo
               />
             </Field>
             <Field label="Lekarz obozowy / pielęgniarka">
-              <input className={inputCls} placeholder="Imię i nazwisko" maxLength={100}
-                value={meta.lekarz_imie || ''}
-                onChange={e => onUpdateMeta({ lekarz_imie: e.target.value })}
-              />
-            </Field>
-            <Field label="Telefon lekarza">
-              <input className={inputCls} type="tel" maxLength={15} placeholder="+48 000 000 000"
-                value={meta.lekarz_tel || ''}
-                onChange={e => onUpdateMeta({ lekarz_tel: e.target.value })}
+              <input className={inputCls}
+                placeholder="Imię i telefon"
+                value={meta.lekarz || ''}
+                onChange={e => onUpdateMeta({ lekarz: e.target.value })}
               />
             </Field>
           </div>
@@ -400,28 +466,188 @@ export default function CampDataTab({ meta, onUpdateMeta, userId, progress, onTo
         </div>
         </> /* koniec zakładki Org */}
 
-        {/* ── ZAKŁADKA: TEREN (GPS + Schronienie) ── */}
+        {/* ── ZAKŁADKA: TEREN (GPS + Mapa + Działka + Schronienie) ── */}
         {activeSubTab === 'teren' && <>
-        <Module icon="📍" title="Dane lokalne — GPS" defaultOpen={true}>
-          <p className="text-xs text-gray-400 mb-3">Wpisz współrzędne i pobierz dane o służbach, nadleśnictwie i administracji.</p>
-          <div className="flex items-end gap-2 mb-4">
-            <div className="flex-1">
-              <label className="block text-xs font-semibold text-gray-600 mb-1">Szerokość (lat)</label>
-              <input type="number" step="any" className={inputCls} placeholder="50.7658" value={geoLat} onChange={e => setGeoLat(e.target.value)} />
+        <Module icon="📍" title="Lokalizacja obozu" defaultOpen={true}>
+
+          {editMode === 'view' && hasCoords && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-3">
+              <div className="text-xs text-green-600 mb-3">
+                📍 <span className="font-mono">{meta.coords.lat.toFixed(4)}, {meta.coords.lng.toFixed(4)}</span>
+              </div>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                {parcels.length > 0 && (
+                  <div className="col-span-2"><span className="text-gray-500">Działki:</span> <span className="text-gray-800 font-mono">{parcels.join(', ')}</span></div>
+                )}
+                {meta.szpital && <div><span className="text-gray-500">🏥 Szpital:</span> <span className="text-gray-800">{meta.szpital}</span></div>}
+                {meta.psp && <div><span className="text-gray-500">🚒 PSP:</span> <span className="text-gray-800">{meta.psp}</span></div>}
+                {meta.policja && <div><span className="text-gray-500">🚔 Policja:</span> <span className="text-gray-800">{meta.policja}</span></div>}
+                {meta.przychodnia && <div><span className="text-gray-500">🩺 Przychodnia:</span> <span className="text-gray-800">{meta.przychodnia}</span></div>}
+                {meta.nadlesnictwo && <div><span className="text-gray-500">🌲 Nadleśnictwo:</span> <span className="text-gray-800">{meta.nadlesnictwo}</span></div>}
+                {meta.lesnictwo && <div><span className="text-gray-500">🌳 Leśnictwo:</span> <span className="text-gray-800">{meta.lesnictwo}{meta.oddzial_lesny ? ` / oddz. ${meta.oddzial_lesny}` : ''}</span></div>}
+                {meta.gmina && <div><span className="text-gray-500">🏘️ Gmina:</span> <span className="text-gray-800">{meta.gmina}</span></div>}
+                {meta.powiat && <div><span className="text-gray-500">📋 Powiat:</span> <span className="text-gray-800">{meta.powiat}</span></div>}
+                {meta.wojewodztwo && <div><span className="text-gray-500">🗺️ Województwo:</span> <span className="text-gray-800">{meta.wojewodztwo}</span></div>}
+              </div>
+              <div className="flex items-center justify-between mt-4 pt-3 border-t border-green-200">
+                {!geoResults && (
+                  <button onClick={() => runGeoFetch(meta.coords.lat, meta.coords.lng)} disabled={gpsLoading}
+                    className="text-xs bg-green-700 text-white px-4 py-2 rounded-lg hover:bg-green-800 transition">
+                    {gpsLoading ? '⏳ Ładowanie...' : '📡 Wczytaj dane terenu'}
+                  </button>
+                )}
+                <div className="flex-1" />
+                <button onClick={() => setEditMode('edit')}
+                  className="text-sm bg-white border border-green-300 text-green-700 px-6 py-2 rounded-lg hover:bg-green-100 transition font-medium">
+                  ✏️ Edytuj dane
+                </button>
+              </div>
             </div>
-            <div className="flex-1">
-              <label className="block text-xs font-semibold text-gray-600 mb-1">Długość (lng)</label>
-              <input type="number" step="any" className={inputCls} placeholder="22.5287" value={geoLng} onChange={e => setGeoLng(e.target.value)} />
-            </div>
-            <button onClick={handleGeoFetch} disabled={gpsLoading}
-              className="shrink-0 bg-green-700 text-white text-sm font-bold px-5 py-2 rounded-lg hover:bg-green-800 disabled:opacity-50">
-              {gpsLoading ? '⏳' : '📍'} Pobierz
-            </button>
+          )}
+
+          {editMode === 'location' && <>
+            <p className="text-sm font-semibold text-gray-700 mb-3">Podaj lokalizację na jeden z trzech sposobów — dane zostaną zsynchronizowane.</p>
+
+            {/* Segmented control */}
+            <div className="flex rounded-lg bg-gray-100 p-1 mb-4">
+            {[
+              { id: 'gps', icon: '🌐', label: 'GPS' },
+              { id: 'map', icon: '🗺️', label: 'Mapa' },
+              { id: 'parcel', icon: '📋', label: 'Działka' },
+            ].map(m => (
+              <button key={m.id}
+                onClick={() => setLocationMode(m.id)}
+                className={`flex-1 text-xs font-semibold py-2 px-2 rounded-md transition ${locationMode === m.id ? 'bg-white shadow text-green-800' : 'text-gray-500 hover:text-gray-700'}`}>
+                {m.icon} {m.label}
+              </button>
+            ))}
           </div>
+
+          {/* ── Tryb GPS ── */}
+          {locationMode === 'gps' && (
+            <div className="flex items-end gap-2 mb-4">
+              <div className="flex-1">
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Szerokość (lat)</label>
+                <input type="number" step="any" className={inputCls} placeholder="52.2297" value={geoLat} onChange={e => setGeoLat(e.target.value)} />
+              </div>
+              <div className="flex-1">
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Długość (lng)</label>
+                <input type="number" step="any" className={inputCls} placeholder="21.0122" value={geoLng} onChange={e => setGeoLng(e.target.value)} />
+              </div>
+              <button onClick={() => { const lat=parseFloat(geoLat); const lng=parseFloat(geoLng); if(lat&&lng) handleCoordsChange(lat,lng); else alert('Wpisz poprawne współrzędne','warning') }} disabled={gpsLoading}
+                className="shrink-0 bg-green-700 text-white text-sm font-bold px-5 py-2 rounded-lg hover:bg-green-800 disabled:opacity-50">
+                {gpsLoading ? '⏳' : '📍'} Pobierz
+              </button>
+            </div>
+          )}
+
+          {/* ── Tryb Mapa ── */}
+          {locationMode === 'map' && (
+            <div className="mb-4">
+              <p className="text-xs text-gray-400 mb-2">Kliknij na mapie, aby wskazać lokalizację obozu.</p>
+              <LeafletLocationPicker
+                lat={parseFloat(geoLat) || null}
+                lng={parseFloat(geoLng) || null}
+                onCoordsChange={handleCoordsChange}
+                height="320px"
+              />
+              {(geoLat && geoLng) && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Wybrano: {parseFloat(geoLat).toFixed(6)}, {parseFloat(geoLng).toFixed(6)}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* ── Tryb Działka ── */}
+          {locationMode === 'parcel' && (
+            <div className="mb-4">
+              <p className="text-xs text-gray-400 mb-2">Wyszukaj działkę po numerze — współrzędne zostaną pobrane automatycznie.</p>
+              <div className="flex items-end gap-2 mb-3">
+                <div className="flex-1">
+                  <input type="text" className={inputCls} placeholder="146501_1.0001.12" value={parcelId}
+                    onChange={e => setParcelId(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleParcelLookup()} />
+                </div>
+                <button onClick={handleParcelLookup} disabled={parcelLoading}
+                  className="shrink-0 bg-green-700 text-white text-sm font-bold px-5 py-2 rounded-lg hover:bg-green-800 disabled:opacity-50">
+                  {parcelLoading ? '⏳' : '🔍'} Szukaj
+                </button>
+              </div>
+            </div>
+          )}
+
           {gpsLoading && <p className="text-xs text-gray-400 py-3 text-center">Pobieranie danych...</p>}
 
-          {geoResults && !gpsLoading && (
+          {editMode !== 'view' && hasCoords && (
+              <div className="flex justify-between pt-2 border-t border-gray-100">
+                <span className="text-xs text-gray-400">lub</span>
+                <button onClick={() => setEditMode(geoResults ? 'edit' : 'view')}
+                  className="text-xs bg-gray-100 text-gray-600 px-4 py-1.5 rounded-lg hover:bg-gray-200 transition">
+                  Anuluj
+                </button>
+            </div>
+          )}
+          </>}
+
+          {editMode === 'edit' && hasCoords && (
+            <div>
+              {editMode === 'edit' && (
+                <button onClick={() => setEditMode('location')}
+                  className="text-xs bg-white border border-gray-300 text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition mb-3">
+                  ✏️ Zmień lokalizację
+                </button>
+              )}
+            <div className="grid grid-cols-2 gap-3 mb-4 pt-4 border-t border-gray-100">
+              <div className="col-span-2">
+              <label className="block text-xs font-semibold text-gray-600 mb-1">Nr działek</label>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {parcels.map((dz, i) => (
+                  <span key={i} className="inline-flex items-center gap-1 bg-green-50 border border-green-200 text-green-800 text-xs rounded-full pl-2.5 pr-1.5 py-1">
+                    <span className="font-mono">{dz}</span>
+                    <button onClick={() => updateParcels(parcels.filter((_, j) => j !== i))}
+                      className="text-green-400 hover:text-red-500 leading-none text-sm">&times;</button>
+                  </span>
+                ))}
+                {parcels.length === 0 && <span className="text-xs text-gray-400 py-1">Brak</span>}
+                <span className="inline-flex items-center gap-1 bg-white border border-dashed border-gray-300 rounded-full px-2 py-1">
+                  <input className="text-xs border-none outline-none bg-transparent w-32" placeholder="dodaj działkę"
+                    value={parcelAddVal} onChange={e => setParcelAddVal(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') {
+                        const v = e.target.value.trim()
+                        if (v && /^\d{6}_\d{1,4}\.[\dA-Za-z_./]+$/.test(v)) {
+                          if (!parcels.includes(v)) { updateParcels([...parcels, v]); setParcelAddVal('') }
+                        } else if (v) { alert('Nieprawidłowy format działki', 'warning') }
+                      }
+                    }} />
+                  <button onClick={() => {
+                    const v = parcelAddVal.trim()
+                    if (!v) return
+                    if (!/^\d{6}_\d{1,4}\.[\dA-Za-z_./]+$/.test(v)) { alert('Nieprawidłowy format działki', 'warning'); return }
+                    if (!parcels.includes(v)) { updateParcels([...parcels, v]); setParcelAddVal('') }
+                  }} className="text-green-600 hover:text-green-800 text-sm font-bold leading-none">+</button>
+                </span>
+              </div>
+            </div>
+              <div><label className="block text-xs font-semibold text-gray-600 mb-1">Nadleśnictwo</label>
+                <input className={inputCls} value={meta.nadlesnictwo||''} onChange={e=>onUpdateMeta({nadlesnictwo:e.target.value})}/></div>
+              <div><label className="block text-xs font-semibold text-gray-600 mb-1">Leśnictwo</label>
+                <input className={inputCls} value={meta.lesnictwo||''} onChange={e=>onUpdateMeta({lesnictwo:e.target.value})}/></div>
+            </div>
+            </div>
+          )}
+
+          {editMode === 'edit' && geoResults && !gpsLoading && (
             <div className="space-y-4">
+              <div className="grid grid-cols-3 gap-3 pt-2 border-t border-gray-100">
+                <div><label className="block text-xs font-semibold text-gray-600 mb-1">Gmina</label>
+                  <input className={inputCls} value={meta.gmina||''} onChange={e=>onUpdateMeta({gmina:e.target.value})}/></div>
+                <div><label className="block text-xs font-semibold text-gray-600 mb-1">Powiat</label>
+                  <input className={inputCls} value={meta.powiat||''} onChange={e=>onUpdateMeta({powiat:e.target.value})}/></div>
+                <div><label className="block text-xs font-semibold text-gray-600 mb-1">Województwo</label>
+                  <input className={inputCls} value={meta.wojewodztwo||''} onChange={e=>onUpdateMeta({wojewodztwo:e.target.value})}/></div>
+              </div>
               {geoResults.hospitals?.length > 0 && (
                 <div><p className="text-xs font-semibold text-gray-600 mb-1">🏥 Szpitale</p>
                   {geoResults.hospitals.map((h,i) => (
@@ -432,12 +658,12 @@ export default function CampDataTab({ meta, onUpdateMeta, userId, progress, onTo
                     </label>))}
                 </div>)}
               {geoResults.fire?.length > 0 && (
-                <div><p className="text-xs font-semibold text-gray-600 mb-1">🚒 PSP ({meta.wojewodztwo||'województwo'})</p>
+                <div><p className="text-xs font-semibold text-gray-600 mb-1">🚒 PSP</p>
                   {geoResults.fire.map((f,i) => (
                     <label key={i} className={`flex items-center gap-2 text-xs cursor-pointer px-3 py-1.5 rounded border transition ${meta.psp===f.name?'border-green-400 bg-green-50':'border-gray-100 hover:bg-gray-50'}`}>
                       <input type="radio" name="psp" checked={meta.psp===f.name||(i===0&&!meta.psp)} onChange={()=>onUpdateMeta({psp:f.name,psp_tel:f.phone})} className="accent-green-600"/>
                       <span className="font-medium flex-1 text-gray-700">{f.name}</span>
-                      <span className="text-xs text-gray-400">{f.duration_min} min &middot; {f.distance_km} km</span>
+                      {f.distance_km !== '-' && <span className="text-xs text-gray-400">{f.duration_min} min &middot; {f.distance_km} km</span>}
                     </label>))}
                 </div>)}
               {geoResults.police?.length > 0 && (
@@ -457,31 +683,21 @@ export default function CampDataTab({ meta, onUpdateMeta, userId, progress, onTo
                       <span className="font-medium flex-1 text-gray-700">{geoResults.nfz.name}</span>
                       {geoResults.nfz.phone&&<span className="text-xs text-gray-400">{geoResults.nfz.phone}</span>}
                     </label>)}
-                  {(geoResults.clinics||[]).slice(0,3).map((c,i)=>(
+                  {(geoResults.clinics||[]).filter(c => c && typeof c.name === 'string' && c.name.trim()).slice(0,3).map((c,i)=>(
                     <label key={i} className={`flex items-center gap-2 text-xs cursor-pointer px-3 py-1.5 rounded border transition ${meta.przychodnia===c.name?'border-green-400 bg-green-50':'border-gray-100 hover:bg-gray-50'}`}>
                       <input type="radio" name="przychodnia" checked={meta.przychodnia===c.name} onChange={()=>onUpdateMeta({przychodnia:c.name})} className="accent-green-600"/>
                       <span className="font-medium flex-1 text-gray-700">{c.name}</span>
                       <span className="text-xs text-gray-400">{c.duration_min} min &middot; {c.distance_km} km</span>
                     </label>))}
                 </div>)}
-              <div className="grid grid-cols-2 gap-3">
-                <div><label className="block text-xs font-semibold text-gray-600 mb-1">Nadleśnictwo</label>
-                  <input className={inputCls} value={meta.nadlesnictwo||''} onChange={e=>onUpdateMeta({nadlesnictwo:e.target.value})}/></div>
-                <div><label className="block text-xs font-semibold text-gray-600 mb-1">Nr działki</label>
-                  <input className={inputCls} value={meta.nr_dzialki||''} onChange={e=>onUpdateMeta({nr_dzialki:e.target.value})}/></div>
-                <div><label className="block text-xs font-semibold text-gray-600 mb-1">Leśnictwo</label>
-                  <input className={inputCls} value={meta.lesnictwo||''} onChange={e=>onUpdateMeta({lesnictwo:e.target.value})}/></div>
-                <div><label className="block text-xs font-semibold text-gray-600 mb-1">Oddział leśny</label>
-                  <input className={inputCls} value={meta.oddzial_lesny||''} onChange={e=>onUpdateMeta({oddzial_lesny:e.target.value})}/></div>
-              </div>
-              <div className="grid grid-cols-3 gap-3 pt-2 border-t border-gray-100">
-                <div><label className="block text-xs font-semibold text-gray-600 mb-1">Gmina</label>
-                  <input className={inputCls} value={meta.gmina||''} onChange={e=>onUpdateMeta({gmina:e.target.value})}/></div>
-                <div><label className="block text-xs font-semibold text-gray-600 mb-1">Powiat</label>
-                  <input className={inputCls} value={meta.powiat||''} onChange={e=>onUpdateMeta({powiat:e.target.value})}/></div>
-                <div><label className="block text-xs font-semibold text-gray-600 mb-1">Województwo</label>
-                  <input className={inputCls} value={meta.wojewodztwo||''} onChange={e=>onUpdateMeta({wojewodztwo:e.target.value})}/></div>
-              </div>
+              {editMode === 'edit' && (
+                <div className="flex justify-end pt-3 border-t border-gray-100">
+                  <button onClick={() => setEditMode('view')}
+                    className="text-sm bg-green-700 text-white px-6 py-2 rounded-lg hover:bg-green-800 transition font-medium">
+                    ✅ Zapisz
+                  </button>
+                </div>
+              )}
             </div>)}
         </Module>
 
