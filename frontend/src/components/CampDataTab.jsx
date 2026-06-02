@@ -104,29 +104,18 @@ export default function CampDataTab({ meta, onUpdateMeta, userId, progress, onTo
       }
       if (data.forest?.name)      patch.nadlesnictwo = data.forest.name
       if (data.forestRange?.name) patch.lesnictwo    = data.forestRange.name
-      if (data.parcel) {
-        if (data.parcel.dzialka && data.parcel.dzialka !== 'Pobrano' && data.parcel.dzialka !== '0') {
-          const merged = [data.parcel.dzialka, ...parcelsRef.current.filter(x => x !== data.parcel.dzialka)]
+      if (data.parcel?.numer && data.parcel.numer !== '0') {
+        const dz = data.parcel.dzialka || data.parcel.numer
+        if (dz) {
+          const merged = [dz, ...parcelsRef.current.filter(x => x !== dz)]
           patch.nr_dzialki = merged
           setParcels(merged)
-        } else if (data.parcel.wkbHex) {
-          try {
-            const token = localStorage.getItem('campas_token')
-            const r = await fetch(`/api/uldk?request=GetParcelByXY&lat=${lat}&lng=${lng}`, { headers: { Authorization: `Bearer ${token}` } })
-            const parsed = await r.json()
-            if (parsed.fields?.dzialka && parsed.fields.dzialka !== '0') {
-              const merged = [parsed.fields.dzialka, ...parcels.filter(x => x !== parsed.fields.dzialka)]
-              patch.nr_dzialki = merged
-              setParcels(merged)
-              setParcelId(parsed.fields.dzialka)
-            }
-          } catch {}
         }
       }
-      if (data.nfz) { patch.przychodnia = data.nfz.name; patch.tel_przychodnia = data.nfz.phone }
-      if (data.hospitals?.[0]) patch.szpital = data.hospitals[0].name
-      if (data.police?.[0]) patch.policja = data.police[0].name
-      if (data.fire?.[0]) patch.psp = data.fire[0].name
+      if (data.nfzPoz?.length) { patch.przychodnia = data.nfzPoz[0].name; patch.tel_przychodnia = data.nfzPoz[0].phone }
+      if (data.hospitals?.[0]) { patch.szpital = data.hospitals[0].name; patch.tel_szpital = data.hospitals[0].phone }
+      if (data.police?.[0])   { patch.policja = data.police[0].name;   patch.policja_tel = data.police[0].phone }
+      if (data.fire?.[0])     { patch.psp = data.fire[0].name;         patch.psp_tel = data.fire[0].phone }
       if (data.clinics?.[0] && !patch.przychodnia) patch.przychodnia = data.clinics[0].name
       onUpdateMeta(patch)
       setEditMode('edit')
@@ -425,7 +414,10 @@ export default function CampDataTab({ meta, onUpdateMeta, userId, progress, onTo
         </Module>
 
         {/* Moduł 4: Kontakty alarmowe */}
-        <Module icon="📞" title="Kontakty alarmowe" defaultOpen={false}>
+        <Module icon="📞" title="Kontakty alarmowe" defaultOpen={true}>
+          <p className="text-xs text-gray-400 mb-4">
+            Dane automatycznie z GPS (zakładka <strong>Teren</strong> → Pobierz) lub wprowadź ręcznie.
+          </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label="Telefon zastępcy kierownika">
               <input className={inputCls} type="tel" maxLength={15}
@@ -450,11 +442,30 @@ export default function CampDataTab({ meta, onUpdateMeta, userId, progress, onTo
                 onBlur={e => { const v = e.target.value; if (v && !validatePhone(v)) alert('Nieprawidłowy numer telefonu', 'warning') }}
               />
             </Field>
-            <Field label="Pogotowie / Straż / Policja (lokalny)">
+            <Field label="Policja (najbliższa)">
               <input className={inputCls}
-                placeholder="np. Policja Olesno: +48 18 123 456"
-                value={meta.tel_alarmowy || ''}
-                onChange={e => onUpdateMeta({ tel_alarmowy: e.target.value })}
+                placeholder="np. Komenda Policji Olesno" maxLength={200}
+                value={meta.policja || ''}
+                onChange={e => onUpdateMeta({ policja: e.target.value })}
+              />
+            </Field>
+            <Field label="Telefon policji">
+              <input className={inputCls} type="tel" maxLength={15}
+                placeholder="+48 000 000 000"
+                value={meta.policja_tel || ''}
+                onChange={e => onUpdateMeta({ policja_tel: e.target.value })}
+              />
+            </Field>
+            <Field label="Przychodnia NFZ (POZ)">
+              <input className={inputCls} placeholder="Najbliższa przychodnia POZ" maxLength={200}
+                value={meta.przychodnia || ''}
+                onChange={e => onUpdateMeta({ przychodnia: e.target.value })}
+              />
+            </Field>
+            <Field label="Telefon przychodni">
+              <input className={inputCls} type="tel" maxLength={15} placeholder="+48 000 000 000"
+                value={meta.tel_przychodnia || ''}
+                onChange={e => onUpdateMeta({ tel_przychodnia: e.target.value })}
               />
             </Field>
             <Field label="Lekarz obozowy / pielęgniarka">
@@ -657,6 +668,7 @@ export default function CampDataTab({ meta, onUpdateMeta, userId, progress, onTo
                     <label key={i} className={`flex items-center gap-2 text-xs cursor-pointer px-3 py-1.5 rounded border transition ${meta.szpital===h.name?'border-green-400 bg-green-50':'border-gray-100 hover:bg-gray-50'}`}>
                       <input type="radio" name="szpital" checked={meta.szpital===h.name||(i===0&&!meta.szpital)} onChange={()=>onUpdateMeta({szpital:h.name,szpital_tel:h.phone})} className="accent-green-600"/>
                       <span className="font-medium flex-1 text-gray-700">{h.name}</span>
+                      {h.phone&&<span className="text-xs text-green-600">📞 {h.phone}</span>}
                       <span className="text-xs text-gray-400">{h.duration_min} min &middot; {h.distance_km} km</span>
                     </label>))}
                 </div>)}
@@ -666,6 +678,7 @@ export default function CampDataTab({ meta, onUpdateMeta, userId, progress, onTo
                     <label key={i} className={`flex items-center gap-2 text-xs cursor-pointer px-3 py-1.5 rounded border transition ${meta.psp===f.name?'border-green-400 bg-green-50':'border-gray-100 hover:bg-gray-50'}`}>
                       <input type="radio" name="psp" checked={meta.psp===f.name||(i===0&&!meta.psp)} onChange={()=>onUpdateMeta({psp:f.name,psp_tel:f.phone})} className="accent-green-600"/>
                       <span className="font-medium flex-1 text-gray-700">{f.name}</span>
+                      {f.phone&&<span className="text-xs text-green-600">📞 {f.phone}</span>}
                       {f.distance_km !== '-' && <span className="text-xs text-gray-400">{f.duration_min} min &middot; {f.distance_km} km</span>}
                     </label>))}
                 </div>)}
@@ -675,19 +688,21 @@ export default function CampDataTab({ meta, onUpdateMeta, userId, progress, onTo
                     <label key={i} className={`flex items-center gap-2 text-xs cursor-pointer px-3 py-1.5 rounded border transition ${meta.policja===p.name?'border-green-400 bg-green-50':'border-gray-100 hover:bg-gray-50'}`}>
                       <input type="radio" name="policja" checked={meta.policja===p.name||(i===0&&!meta.policja)} onChange={()=>onUpdateMeta({policja:p.name,policja_tel:p.phone})} className="accent-green-600"/>
                       <span className="font-medium flex-1 text-gray-700">{p.name}</span>
+                      {p.phone&&<span className="text-xs text-green-600">📞 {p.phone}</span>}
                       <span className="text-xs text-gray-400">{p.duration_min} min &middot; {p.distance_km} km</span>
                     </label>))}
                 </div>)}
-              {((geoResults.clinics?.length>0)||geoResults.nfz) && (
-                <div><p className="text-xs font-semibold text-gray-600 mb-1">🩺 Przychodnie</p>
-                  {geoResults.nfz&&(
-                    <label className={`flex items-center gap-2 text-xs cursor-pointer px-3 py-1.5 rounded border transition ${meta.przychodnia===geoResults.nfz.name?'border-green-400 bg-green-50':'border-gray-100 hover:bg-gray-50'}`}>
-                      <input type="radio" name="przychodnia" checked={meta.przychodnia===geoResults.nfz.name||!meta.przychodnia} onChange={()=>onUpdateMeta({przychodnia:geoResults.nfz.name,tel_przychodnia:geoResults.nfz.phone})} className="accent-green-600"/>
-                      <span className="font-medium flex-1 text-gray-700">{geoResults.nfz.name}</span>
-                      {geoResults.nfz.phone&&<span className="text-xs text-gray-400">{geoResults.nfz.phone}</span>}
-                    </label>)}
+              {((geoResults.clinics?.length>0)||geoResults.nfzPoz?.length>0) && (
+                <div><p className="text-xs font-semibold text-gray-600 mb-1">🩺 Przychodnie POZ (NFZ)</p>
+                  {(geoResults.nfzPoz||[]).slice(0,3).map((p,i)=>(
+                    <label key={`nfz-${i}`} className={`flex items-center gap-2 text-xs cursor-pointer px-3 py-1.5 rounded border transition ${meta.przychodnia===p.name?'border-green-400 bg-green-50':'border-gray-100 hover:bg-gray-50'}`}>
+                      <input type="radio" name="przychodnia" checked={meta.przychodnia===p.name||(i===0&&!meta.przychodnia)} onChange={()=>onUpdateMeta({przychodnia:p.name,tel_przychodnia:p.phone})} className="accent-green-600"/>
+                      <span className="font-medium flex-1 text-gray-700">{p.name}</span>
+                      {p.phone&&<span className="text-xs text-gray-400">{p.phone}</span>}
+                      <span className="text-xs text-gray-400">{p.distance_km} km</span>
+                    </label>))}
                   {(geoResults.clinics||[]).filter(c => c && typeof c.name === 'string' && c.name.trim()).slice(0,3).map((c,i)=>(
-                    <label key={i} className={`flex items-center gap-2 text-xs cursor-pointer px-3 py-1.5 rounded border transition ${meta.przychodnia===c.name?'border-green-400 bg-green-50':'border-gray-100 hover:bg-gray-50'}`}>
+                    <label key={`cl-${i}`} className={`flex items-center gap-2 text-xs cursor-pointer px-3 py-1.5 rounded border transition ${meta.przychodnia===c.name?'border-green-400 bg-green-50':'border-gray-100 hover:bg-gray-50'}`}>
                       <input type="radio" name="przychodnia" checked={meta.przychodnia===c.name} onChange={()=>onUpdateMeta({przychodnia:c.name})} className="accent-green-600"/>
                       <span className="font-medium flex-1 text-gray-700">{c.name}</span>
                       <span className="text-xs text-gray-400">{c.duration_min} min &middot; {c.distance_km} km</span>
