@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CampAs — Asystent Obozowy Skautów Europy</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: linear-gradient(135deg, #166534 0%, #14532d 50%, #052e16 100%);
+      color: #fff;
+      min-height: 100vh;
+      display: flex; flex-direction: column;
+    }
+    nav {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 1.5rem 2rem;
+    }
+    nav a { color: #86efac; text-decoration: none; font-weight: 600; }
+    nav a:hover { color: #fff; }
+    .hero {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      text-align: center; padding: 2rem;
+    }
+    .hero h1 { font-size: 3rem; font-weight: 800; margin-bottom: 0.5rem; }
+    .hero h2 { font-size: 1.25rem; font-weight: 400; color: #86efac; margin-bottom: 2rem; }
+    .hero p { max-width: 500px; color: #a7f3d0; line-height: 1.6; margin-bottom: 2.5rem; }
+    .btn {
+      display: inline-block; padding: 1rem 2.5rem;
+      background: #fff; color: #166534;
+      font-weight: 700; border-radius: 1rem;
+      text-decoration: none; font-size: 1.1rem;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .btn:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
+    .features {
+      display: flex; gap: 2rem; flex-wrap: wrap;
+      justify-content: center; margin-top: 3rem;
+    }
+    .feature {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 1rem; padding: 1.5rem;
+      width: 260px; text-align: left;
+    }
+    .feature h3 { font-size: 1rem; margin-bottom: 0.5rem; }
+    .feature p { font-size: 0.85rem; color: #a7f3d0; margin: 0; }
+    .emoji { font-size: 1.5rem; margin-bottom: 0.5rem; }
+    footer {
+      text-align: center; padding: 1.5rem;
+      color: #6b7280; font-size: 0.8rem;
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <span style="font-weight:800;font-size:1.2rem;">⛺ CampAs</span>
+    <a href="https://api.campas.pl">Zaloguj się →</a>
+  </nav>
+  <div class="hero">
+    <h1>CampAs</h1>
+    <h2>Asystent Obozowy Skautów Europy</h2>
+    <p>
+      Planuj obóz harcerski od A do Z. Generuj dokumenty, twórz harmonogram,
+      zarządzaj kadrą, znajdź szpitale i służby — wszystko w jednym miejscu.
+    </p>
+    <a class="btn" href="https://api.campas.pl">🚀 Zacznij planować</a>
+    <div class="features">
+      <div class="feature">
+        <div class="emoji">📋</div>
+        <h3>Dokumenty</h3>
+        <p>Automatyczne generowanie zawiadomień, wniosków i pism z szablonów</p>
+      </div>
+      <div class="feature">
+        <div class="emoji">🗺️</div>
+        <h3>Mapa terenu</h3>
+        <p>Wskaż lokalizację, pobierz dane o służbach, zaznacz działki</p>
+      </div>
+      <div class="feature">
+        <div class="emoji">📅</div>
+        <h3>Harmonogram</h3>
+        <p>Plan zajęć i jadłospis na każdy dzień obozu</p>
+      </div>
+    </div>
+  </div>
+  <footer>
+    Skauci Europy · Stowarzyszenie Harcerstwa Katolickiego „Zawisza"<br>
+    kontakt: wypoczynek@skauci-europy.pl
+  </footer>
+</body>
+</html>
