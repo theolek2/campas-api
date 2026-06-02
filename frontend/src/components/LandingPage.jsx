@@ -53,7 +53,7 @@ export default function LandingPage({ onEnterApp, onJoinCamp }) {
 
           {/* SWI */}
           <a
-            href="https://swi.campas.pl"
+            href="/swi"
             className="group bg-white rounded-2xl shadow-xl p-6 text-left hover:shadow-2xl hover:-translate-y-1 transition-all duration-200 flex flex-col gap-3 no-underline"
           >
             <div className="text-4xl">🛒</div>

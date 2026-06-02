@@ -190,10 +190,9 @@ export default function App() {
       }
 
       if (savedMeta && Object.keys(savedMeta).length > 0) {
-        // Przywróć pełne zapisane dane obozu
         update({ meta: { ...savedMeta, email: savedMeta.email || u.email || '' } })
+        // Już ma dane obozu — onboarding niepotrzebny
       } else if (profile) {
-        // Pierwsze logowanie — uzupełnij z profilu rejestracji
         update({
           meta: {
             ...state.meta,
@@ -203,6 +202,10 @@ export default function App() {
             tel_kierownik: state.meta.tel_kierownik || profile.phone        || '',
           }
         })
+        // Pierwsze logowanie, brak danych — pokaż onboarding (tylko raz)
+        if (!localStorage.getItem(`campas_onboarding_${u.id}`)) {
+          setShowOnboarding(true)
+        }
       }
     } catch {}
   }
@@ -397,7 +400,6 @@ export default function App() {
               setUser(u)
               setShowAuth(false)
               applyProfile(u)
-              if (!state.meta.miejsce) setShowOnboarding(true)
               if (pendingJoinCode) setShowJoinFlow(true)
             }}
           />
@@ -440,7 +442,12 @@ export default function App() {
           <OnboardingWizard
             meta={meta} userId={user?.id}
             updateMeta={(newMeta) => update({ meta: newMeta })}
-            onDone={() => { setShowOnboarding(false); setMainSection('dashboard'); logActivity('Ukończono konfigurację obozu', '✅') }}
+            onDone={() => {
+              setShowOnboarding(false)
+              setMainSection('dashboard')
+              logActivity('Ukończono konfigurację obozu', '✅')
+              if (user?.id) localStorage.setItem(`campas_onboarding_${user.id}`, '1')
+            }}
           />
         </div>
       )}
@@ -550,7 +557,7 @@ export default function App() {
                 </div>
               </button>
               <hr />
-              <a href="https://swi.campas.pl" target="_blank" rel="noopener noreferrer"
+              <a href="/swi" target="_blank" rel="noopener noreferrer"
                 className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-blue-50 transition text-left no-underline"
                 onClick={() => setShowMenu(false)}>
                 <span className="text-2xl">🛒</span>
