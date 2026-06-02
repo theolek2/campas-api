@@ -214,13 +214,13 @@ function PhaseCard({ phase, checklist, onToggle, onCreateTask, onNavigate, fileM
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
-export default function DashboardTab({ meta, days, user, onNavigate, checklist = {}, onChecklistUpdate }) {
+export default function DashboardTab({ meta, days, user, onNavigate, checklist = {}, onChecklistUpdate, campId: propCampId }) {
   const [fileMap, setFileMap] = useState({})
   const [tasks, setTasks] = useState([])
   const [selectedTask, setSelectedTask] = useState(null)
+  const campId = propCampId || localStorage.getItem('campas_camp_id') || ''
   useEffect(() => {
     import('../data/file-map.json').then(m => setFileMap(m.default || {})).catch(() => {})
-    const campId = localStorage.getItem('campas_camp_id') || ''
     getTasks({ campId }).then(async (existing) => {
       setTasks(existing)
       // Auto-twórz taski dla itemów które nie istnieją
@@ -245,7 +245,7 @@ export default function DashboardTab({ meta, days, user, onNavigate, checklist =
         setTasks(all)
       }
     }).catch(() => {})
-  }, [])
+  }, [campId])
   const daysToStart = daysUntil(meta.date_start)
   const daysToKuratorium = meta.date_start ? daysUntil(
     new Date(new Date(meta.date_start).getTime() - 21 * 86400000).toISOString().split('T')[0]

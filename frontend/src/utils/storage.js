@@ -1,12 +1,16 @@
-const KEY = 'skauting_v1'
+const BASE_KEY = 'skauting_v1'
 
-export function saveState(state) {
-  try { localStorage.setItem(KEY, JSON.stringify(state)) } catch {}
+function storageKey(campId) {
+  return campId ? `${BASE_KEY}_${campId}` : BASE_KEY
 }
 
-export function loadState() {
+export function saveState(state, campId) {
+  try { localStorage.setItem(storageKey(campId), JSON.stringify(state)) } catch {}
+}
+
+export function loadState(campId) {
   try {
-    const raw = localStorage.getItem(KEY)
+    const raw = localStorage.getItem(storageKey(campId))
     return raw ? JSON.parse(raw) : null
   } catch { return null }
 }

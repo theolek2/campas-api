@@ -37,11 +37,14 @@ const DEFAULT_STATE = {
 }
 
 export default function App() {
-  const [state, setState] = useState(() => loadState() || DEFAULT_STATE)
+  const [state, setState] = useState(() => {
+    const savedCampId = localStorage.getItem('campas_camp_id')
+    return loadState(savedCampId) || DEFAULT_STATE
+  })
   // Główne sekcje: 'before' | 'during' | 'tasks' | 'settings'
-  const [mainSection, setMainSection] = useState('dashboard')
+  const [mainSection, setMainSection] = useState(() => localStorage.getItem('campas_mainSection') || 'dashboard')
   // Pod-zakładki w sekcji "Przed obozem"
-  const [activeTab, setActiveTabMain] = useState('dashboard')
+  const [activeTab, setActiveTabMain] = useState(() => localStorage.getItem('campas_activeTab') || 'dashboard')
   const [user, setUser]               = useState(null)
   const [showAuth, setShowAuth]       = useState(false)
   const [showOnboarding, setShowOnboarding] = useState(false)
@@ -182,7 +185,7 @@ export default function App() {
       } catch {}
 
       const profile = await getProfile(u.id)
-      const savedMeta = await loadCampMeta(u.id)
+      const savedMeta = await loadCampMeta(u.id, campId)
 
       // Wczytaj checklistę z Supabase
       const savedChecklist = savedMeta?.checklist
@@ -279,7 +282,9 @@ export default function App() {
 
   const { meta, activities, days, template, activityLog = [], mealTemplate = [], mealActivities = [] } = state
 
-  useEffect(() => { saveState(state) }, [state])
+  useEffect(() => { saveState(state, campId) }, [state, campId])
+  useEffect(() => { localStorage.setItem('campas_mainSection', mainSection) }, [mainSection])
+  useEffect(() => { localStorage.setItem('campas_activeTab', activeTab) }, [activeTab])
 
   // ── Auto-generowanie dni gdy zmienią się daty obozu ───────────────────────
   useEffect(() => {
@@ -326,7 +331,7 @@ export default function App() {
   }
 
   useEffect(() => {
-    if (user?.id) saveCampMeta(user.id, meta).catch(() => {})
+    if (user?.id) saveCampMeta(user.id, meta, campId).catch(() => {})
   }, [meta])
 
   // ── Zajęcia ──
@@ -507,10 +512,23 @@ export default function App() {
               <CampSwitcher
                 camps={campsList}
                 currentCampId={campId}
-                onSwitch={(newId) => {
+                onSwitch={async (newId) => {
+                  if (campId) saveState(state, campId)
                   localStorage.setItem('campas_camp_id', newId)
                   setCampId(newId)
-                  setState(DEFAULT_STATE)
+                  const saved = loadState(newId)
+                  if (saved && Object.keys(saved.meta || {}).some(k => saved.meta[k])) {
+                    setState(saved)
+                  } else {
+                    try {
+                      const savedMeta = await loadCampMeta(user?.id, newId)
+                      if (savedMeta && Object.keys(savedMeta).length > 0) {
+                        setState(prev => ({ ...DEFAULT_STATE, meta: { ...prev.meta, ...savedMeta } }))
+                      } else {
+                        setState(DEFAULT_STATE)
+                      }
+                    } catch { setState(DEFAULT_STATE) }
+                  }
                 }}
                 onCreateNew={() => { setMainSection('settings') }}
                 onJoinCamp={() => setShowJoinFlow(true)}
@@ -640,7 +658,7 @@ export default function App() {
 
       {/* PULPIT */}
       {mainSection === 'dashboard' && (
-        <DashboardTab meta={meta} days={days} user={user} onNavigate={navigateToSection} activityLog={activityLog} checklist={checklist} onChecklistUpdate={updateChecklist} />
+        <DashboardTab meta={meta} days={days} user={user} onNavigate={navigateToSection} activityLog={activityLog} checklist={checklist} onChecklistUpdate={updateChecklist} campId={campId} />
       )}
 
       {/* PRZED OBOZEM */}
