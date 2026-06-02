@@ -71,6 +71,8 @@ export default function App() {
   // Flow dołączenia przez kod
   const [showJoinFlow, setShowJoinFlow] = useState(() => window.location.pathname === '/dolacz')
   const [pendingJoinCode, setPendingJoinCode] = useState(null)
+  // Portal landing — pokazuj raz na sesję (sessionStorage resetuje się po zamknięciu karty)
+  const [showPortal, setShowPortal] = useState(() => !sessionStorage.getItem('campas_portal_shown'))
 
   // Reset lokalnego stanu gdy zmieni się zalogowany użytkownik (ochrona przed wyciekiem danych)
   const prevUserIdRef = useRef(null)
@@ -376,25 +378,22 @@ export default function App() {
 
   const metaOk = meta.jednostka && meta.kierownik
 
-  // ── Bramka logowania — landing page lub auth ──────────────────────────────
-  if (!user && !externalUser) {
-    const handleAuth = (u) => {
-      setUser(u)
-      setShowAuth(false)
-      applyProfile(u)
-      if (!state.meta.miejsce) setShowOnboarding(true)
-      // Jeśli był pending join code — od razu dołącz
-      if (pendingJoinCode) {
-        setShowJoinFlow(true)
-      }
+  // ── Portal landing — pokazuj raz na sesję ────────────────────────────────
+  if (showPortal && !externalUser) {
+    const handleEnterApp = () => {
+      sessionStorage.setItem('campas_portal_shown', '1')
+      setShowPortal(false)
+      if (!user) setShowAuth(true)
     }
-
+    const handleJoinCamp = () => {
+      sessionStorage.setItem('campas_portal_shown', '1')
+      setShowPortal(false)
+      setShowJoinFlow(true)
+      if (!user) setShowAuth(true)
+    }
     return (
       <>
-        <LandingPage
-          onEnterApp={() => setShowAuth(true)}
-          onJoinCamp={() => setShowJoinFlow(true)}
-        />
+        <LandingPage onEnterApp={handleEnterApp} onJoinCamp={handleJoinCamp} />
         {resetError && (
           <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-white rounded-xl shadow-lg px-6 py-3">
             <p className="text-red-600 text-sm text-center">{resetError}</p>
@@ -404,15 +403,47 @@ export default function App() {
           <AuthModal
             resetToken={resetToken}
             onClose={() => { setShowAuth(false); setResetToken(null) }}
-            onAuth={handleAuth}
+            onAuth={u => {
+              setUser(u)
+              setShowAuth(false)
+              applyProfile(u)
+              if (!state.meta.miejsce) setShowOnboarding(true)
+              if (pendingJoinCode) setShowJoinFlow(true)
+            }}
           />
         )}
-        {showJoinFlow && (
+        {showJoinFlow && !user && (
           <JoinCampFlow
             user={null}
             onClose={() => setShowJoinFlow(false)}
             onJoined={() => {}}
             onNeedAuth={(code) => { setPendingJoinCode(code); setShowAuth(true); setShowJoinFlow(false) }}
+          />
+        )}
+      </>
+    )
+  }
+
+  // ── Bramka logowania (bez portalu — np. magic link) ───────────────────────
+  if (!user && !externalUser) {
+    return (
+      <>
+        {showAuth && (
+          <AuthModal
+            resetToken={resetToken}
+            onClose={() => { setShowAuth(false); setResetToken(null); setShowPortal(true) }}
+            onAuth={u => {
+              setUser(u)
+              setShowAuth(false)
+              applyProfile(u)
+              if (!state.meta.miejsce) setShowOnboarding(true)
+            }}
+          />
+        )}
+        {!showAuth && (
+          <LandingPage
+            onEnterApp={() => setShowAuth(true)}
+            onJoinCamp={() => { setShowJoinFlow(true); setShowAuth(true) }}
           />
         )}
       </>
