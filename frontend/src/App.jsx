@@ -71,8 +71,6 @@ export default function App() {
   // Flow dołączenia przez kod
   const [showJoinFlow, setShowJoinFlow] = useState(() => window.location.pathname === '/dolacz')
   const [pendingJoinCode, setPendingJoinCode] = useState(null)
-  // Portal landing — pokazuj raz na sesję (sessionStorage resetuje się po zamknięciu karty)
-  const [showPortal, setShowPortal] = useState(() => !sessionStorage.getItem('campas_portal_shown'))
 
   // Reset lokalnego stanu gdy zmieni się zalogowany użytkownik (ochrona przed wyciekiem danych)
   const prevUserIdRef = useRef(null)
@@ -378,22 +376,14 @@ export default function App() {
 
   const metaOk = meta.jednostka && meta.kierownik
 
-  // ── Portal landing — pokazuj raz na sesję ────────────────────────────────
-  if (showPortal && !externalUser) {
-    const handleEnterApp = () => {
-      sessionStorage.setItem('campas_portal_shown', '1')
-      setShowPortal(false)
-      if (!user) setShowAuth(true)
-    }
-    const handleJoinCamp = () => {
-      sessionStorage.setItem('campas_portal_shown', '1')
-      setShowPortal(false)
-      setShowJoinFlow(true)
-      if (!user) setShowAuth(true)
-    }
+  // ── Bramka logowania — landing page dla niezalogowanych ─────────────────
+  if (!user && !externalUser) {
     return (
       <>
-        <LandingPage onEnterApp={handleEnterApp} onJoinCamp={handleJoinCamp} />
+        <LandingPage
+          onEnterApp={() => setShowAuth(true)}
+          onJoinCamp={() => setShowJoinFlow(true)}
+        />
         {resetError && (
           <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-white rounded-xl shadow-lg px-6 py-3">
             <p className="text-red-600 text-sm text-center">{resetError}</p>
@@ -412,38 +402,12 @@ export default function App() {
             }}
           />
         )}
-        {showJoinFlow && !user && (
+        {showJoinFlow && (
           <JoinCampFlow
             user={null}
             onClose={() => setShowJoinFlow(false)}
             onJoined={() => {}}
             onNeedAuth={(code) => { setPendingJoinCode(code); setShowAuth(true); setShowJoinFlow(false) }}
-          />
-        )}
-      </>
-    )
-  }
-
-  // ── Bramka logowania (bez portalu — np. magic link) ───────────────────────
-  if (!user && !externalUser) {
-    return (
-      <>
-        {showAuth && (
-          <AuthModal
-            resetToken={resetToken}
-            onClose={() => { setShowAuth(false); setResetToken(null); setShowPortal(true) }}
-            onAuth={u => {
-              setUser(u)
-              setShowAuth(false)
-              applyProfile(u)
-              if (!state.meta.miejsce) setShowOnboarding(true)
-            }}
-          />
-        )}
-        {!showAuth && (
-          <LandingPage
-            onEnterApp={() => setShowAuth(true)}
-            onJoinCamp={() => { setShowJoinFlow(true); setShowAuth(true) }}
           />
         )}
       </>
@@ -585,6 +549,16 @@ export default function App() {
                   <div className="text-xs text-gray-400">Asystent skautowy</div>
                 </div>
               </button>
+              <hr />
+              <a href="https://swi.campas.pl" target="_blank" rel="noopener noreferrer"
+                className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-blue-50 transition text-left no-underline"
+                onClick={() => setShowMenu(false)}>
+                <span className="text-2xl">🛒</span>
+                <div>
+                  <div className="font-semibold text-sm text-blue-700">SWI</div>
+                  <div className="text-xs text-gray-400">System Wspomagania Intendentów</div>
+                </div>
+              </a>
               <hr />
               <button onClick={() => { setMainSection('settings'); setShowMenu(false) }}
                 className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition text-left">
