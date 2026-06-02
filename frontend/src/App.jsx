@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import { AlertProvider } from './components/AlertContext'
-import PortalChoice from './components/PortalChoice'
 import CampSwitcher from './components/CampSwitcher'
 import JoinCampFlow from './components/JoinCampFlow'
 import ActivityPanel from './components/ActivityPanel'
@@ -41,10 +41,6 @@ export default function App() {
     const savedCampId = localStorage.getItem('campas_camp_id')
     return loadState(savedCampId) || DEFAULT_STATE
   })
-  // Główne sekcje: 'before' | 'during' | 'tasks' | 'settings'
-  const [mainSection, setMainSection] = useState(() => localStorage.getItem('campas_mainSection') || 'dashboard')
-  // Pod-zakładki w sekcji "Przed obozem"
-  const [activeTab, setActiveTabMain] = useState(() => localStorage.getItem('campas_activeTab') || 'dashboard')
   const [user, setUser]               = useState(null)
   const [showAuth, setShowAuth]       = useState(false)
   const [showOnboarding, setShowOnboarding] = useState(false)
@@ -53,7 +49,6 @@ export default function App() {
   })
   const [showConfetti, setShowConfetti] = useState(false)
   const [confettiOrigin, setConfettiOrigin] = useState(null)
-  // Checklista Instrukcji — stan { 'UP.1': true, 'PR.1': false, ... }
   const [checklist, setChecklist] = useState(() => {
     try { return JSON.parse(localStorage.getItem('skauting_checklist') || '{}') } catch { return {} }
   })
@@ -67,20 +62,13 @@ export default function App() {
     } catch { return null }
   })
   const [showChangePwd, setShowChangePwd] = useState(false)
-  // campId — aktywny obóz (z localStorage, ładowany po logowaniu)
   const [campId, setCampId] = useState(() => localStorage.getItem('campas_camp_id') || null)
-  // Lista obozów usera (do switchera)
   const [campsList, setCampsList] = useState([])
-  // Flow dołączenia przez kod
   const [showJoinFlow, setShowJoinFlow] = useState(() => window.location.pathname === '/dolacz')
   const [pendingJoinCode, setPendingJoinCode] = useState(null)
-  // Wybór SWI/Obóz po logowaniu (raz na sesję)
-  const [showPortalChoice, setShowPortalChoice] = useState(false)
 
-  // Guard: nie zapisuj stanu na serwer dopóki nie załadowano danych z serwera
   const serverDataReadyRef = useRef(false)
 
-  // Reset lokalnego stanu gdy zmieni się zalogowany użytkownik (ochrona przed wyciekiem danych)
   const prevUserIdRef = useRef(null)
   useEffect(() => {
     const uid = user?.id || null
@@ -92,11 +80,9 @@ export default function App() {
     prevUserIdRef.current = uid
   }, [user?.id])
 
-  // Stan dla linków z emaila
   const [resetToken, setResetToken] = useState(null)
   const [resetError, setResetError] = useState('')
 
-  // Weryfikuj sesję przybocznego przy starcie (odśwież permisje)
   useEffect(() => {
     try {
       const raw = localStorage.getItem('skauting_external_session')
@@ -139,42 +125,12 @@ export default function App() {
     })
   }
 
-  // Nawigacja z DashboardTab
-  const navigateToSection = (tab) => {
-    // Akceptuje bezpośrednie ID zakładek
-    const tabs = ['camp','instructions','plan','jadlospis','diary','docs','map','tasks','calendar','files']
-    if (tabs.includes(tab)) {
-      setActiveTabMain(tab)
-      setMainSection('before')
-      return
-    }
-    // Sekcje główne (during, dashboard)
-    if (tab === 'during') { setMainSection('during'); return }
-    if (tab === 'tasks_section') { setMainSection('tasks'); return }
-    if (tab === 'dashboard') { setMainSection('dashboard'); return }
-    // Legacy: nazwy opisowe
-    const map = {
-      'Dane obozu':  'camp',
-      'Plan zajęć':  'plan',
-      'Dokumenty':   'docs',
-      'Mapa terenu': 'map',
-    }
-    if (map[tab]) { setActiveTabMain(map[tab]); setMainSection('before') }
-  }
-
-  const goMainSection = (id) => {
-    setMainSection(id)
-    if (id === 'before') setActiveTabMain('camp')
-  }
-
-  // Po zalogowaniu — załaduj profil + campId + zapisane dane obozu
   const applyProfile = async (u) => {
     if (!u) return
-    serverDataReadyRef.current = false  // blokuj zapis podczas ładowania
+    serverDataReadyRef.current = false
     try {
       await upsertProfile({ id: u.id, display_name: u.email?.split('@')[0] || '' })
 
-      // Załaduj listę obozów i ustaw aktywny campId
       let activeCampId = campId
       try {
         const { camps } = await getCamps()
@@ -189,10 +145,8 @@ export default function App() {
       } catch {}
 
       const profile = await getProfile(u.id)
-      // Wczytaj pełny stan obozu z serwera (camp_meta zawiera { meta, days, activities... })
       const serverState = await loadCampMeta(u.id, activeCampId)
 
-      // Wczytaj checklistę
       const savedChecklist = serverState?.checklist
       if (savedChecklist && Object.keys(savedChecklist).length > 0) {
         setChecklist(savedChecklist)
@@ -200,31 +154,28 @@ export default function App() {
       }
 
       if (serverState?.meta && Object.keys(serverState.meta).length > 0) {
-        // Przywróć pełny stan z serwera
         setState(s => ({ ...s, ...serverState, meta: { ...serverState.meta, email: serverState.meta.email || u.email || '' } }))
       } else if (serverState && !serverState.meta && Object.keys(serverState).length > 0) {
-        // Stary format — samo meta w camp_meta
         update({ meta: { ...serverState, email: serverState.email || u.email || '' } })
       } else if (profile) {
-        // Pierwsze logowanie — uzupełnij z profilu rejestracji
         update({
           meta: {
             ...state.meta,
-            email:         u.email || '',
-            kierownik:     profile.display_name || '',
-            jednostka:     profile.organization || '',
-            tel_kierownik: profile.phone || '',
+            email:         state.meta.email         || u.email || '',
+            kierownik:     state.meta.kierownik     || profile.display_name || '',
+            jednostka:     state.meta.jednostka     || profile.organization || '',
+            tel_kierownik: state.meta.tel_kierownik || profile.phone        || '',
           }
         })
         if (!localStorage.getItem(`campas_onboarding_${u.id}`)) {
           setShowOnboarding(true)
         }
       }
-    } catch {}
-    serverDataReadyRef.current = true  // odblokuj zapis
+    } catch {} finally {
+      serverDataReadyRef.current = true
+    }
   }
 
-  // Supabase auth session
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       const u = data.session?.user || null
@@ -239,7 +190,6 @@ export default function App() {
     return () => subscription.unsubscribe()
   }, [])
 
-  // ── Obsługa linków z emaila (weryfikacja + reset hasła + magic link) ──────
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const verifyToken = params.get('verify')
@@ -256,12 +206,12 @@ export default function App() {
             user: data.user,
           }))
           setExternalUser(data.user)
-          window.history.replaceState({}, '', '/camp/')
+          window.history.replaceState({}, '', '/')
         } else {
-          window.history.replaceState({}, '', '/camp/')
+          window.history.replaceState({}, '', '/login')
         }
       }).catch(() => {
-        window.history.replaceState({}, '', '/camp/')
+        window.history.replaceState({}, '', '/login')
       })
       return
     }
@@ -270,14 +220,14 @@ export default function App() {
       verifyEmail(verifyToken).then(({ data, error }) => {
         if (data?.user) {
           setUser(data.user)
-          window.history.replaceState({}, '', '/camp/')
+          window.history.replaceState({}, '', '/')
         } else {
           setResetError('Nieprawidłowy lub wygasły link weryfikacyjny. Spróbuj zalogować się ponownie.')
-          window.history.replaceState({}, '', '/camp/')
+          window.history.replaceState({}, '', '/login')
         }
       }).catch(() => {
         setResetError('Nie udało się zweryfikować emaila. Spróbuj ponownie później.')
-        window.history.replaceState({}, '', '/camp/')
+        window.history.replaceState({}, '', '/login')
       })
       return
     }
@@ -293,15 +243,11 @@ export default function App() {
 
   useEffect(() => {
     saveState(state, campId)
-    // Zapisz pełny stan na serwer (guard zapobiega nadpisaniu podczas ładowania)
     if (user?.id && serverDataReadyRef.current && campId) {
       saveCampMeta(user.id, state, campId).catch(() => {})
     }
   }, [state, campId])
-  useEffect(() => { localStorage.setItem('campas_mainSection', mainSection) }, [mainSection])
-  useEffect(() => { localStorage.setItem('campas_activeTab', activeTab) }, [activeTab])
 
-  // ── Auto-generowanie dni gdy zmienią się daty obozu ───────────────────────
   useEffect(() => {
     const { date_start, date_end } = state.meta
     if (!date_start || !date_end) return
@@ -318,10 +264,8 @@ export default function App() {
       state.mealTemplate[i] || { day: i + 1, slots: [] }
     )
     setState(s => ({ ...s, days: newDays, mealTemplate: newMeals }))
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.meta.date_start, state.meta.date_end])
 
-  // ── Zapis/sync checklisty ──────────────────────────────────────────────────
   const updateChecklist = (itemId, checked) => {
     const next = { ...checklist, [itemId]: checked }
     setChecklist(next)
@@ -345,8 +289,6 @@ export default function App() {
     setState(s => ({ ...s, meta: { ...s.meta, ...patch } }))
   }
 
-
-  // ── Zajęcia ──
   const addActivity = (name, description) =>
     update({ activities: [...activities, { id: `a_${Date.now()}`, name, description }] })
   const editActivity = (id, name, description) =>
@@ -354,7 +296,6 @@ export default function App() {
   const deleteActivity = (id) =>
     update({ activities: activities.filter(a => a.id !== id) })
 
-  // ── Posiłki (jadłospis) ──
   const addMealActivity = (name, description) =>
     update({ mealActivities: [...mealActivities, { id: `ma_${Date.now()}`, name, description }] })
   const editMealActivity = (id, name, description) =>
@@ -362,13 +303,11 @@ export default function App() {
   const deleteMealActivity = (id) =>
     update({ mealActivities: mealActivities.filter(a => a.id !== id) })
 
-  // ── Dni ──
   const setDays = (n) => {
     const count = Math.max(1, Math.min(30, parseInt(n) || 0))
     if (!count) return
     const newDays = Array.from({ length: count }, (_, i) => {
       if (days[i]) return days[i]
-      // Nowy dzień: skopiuj sloty szablonu jako własne sloty (edytowalne)
       const day = makeDay(i)
       day.slots = template.map(s => ({ ...s, id: `slot_${Date.now()}_${Math.random()}` }))
       return day
@@ -398,7 +337,6 @@ export default function App() {
 
   const metaOk = meta.jednostka && meta.kierownik
 
-  // ── Bramka logowania — pokazuj tylko na /camp/* ───────────────────────────
   if (!user && !externalUser) {
     return (
       <>
@@ -427,7 +365,7 @@ export default function App() {
           <AuthModal
             resetToken={resetToken}
             onClose={() => { setShowAuth(false); setResetToken(null) }}
-            onAuth={u => {
+              onAuth={u => {
               setUser(u)
               setShowAuth(false)
               applyProfile(u)
@@ -445,6 +383,100 @@ export default function App() {
         )}
       </>
     )
+  }
+
+  return (
+    <AlertProvider>
+      <BrowserRouter basename="/camp">
+        <AppRoutes
+          user={user}
+          externalUser={externalUser}
+          state={state}
+          update={update}
+          updateMeta={updateMeta}
+          progress={progress}
+          toggleProgress={toggleProgress}
+          checklist={checklist}
+          updateChecklist={updateChecklist}
+          logActivity={logActivity}
+          campId={campId}
+          setCampId={setCampId}
+          campsList={campsList}
+          setCampsList={setCampsList}
+          showMenu={showMenu}
+          setShowMenu={setShowMenu}
+          showOnboarding={showOnboarding}
+          setShowOnboarding={setShowOnboarding}
+          showConfetti={showConfetti}
+          setShowConfetti={setShowConfetti}
+          confettiOrigin={confettiOrigin}
+          showChangePwd={showChangePwd}
+          setShowChangePwd={setShowChangePwd}
+          showJoinFlow={showJoinFlow}
+          setShowJoinFlow={setShowJoinFlow}
+          pendingJoinCode={pendingJoinCode}
+          setPendingJoinCode={setPendingJoinCode}
+          handleExport={handleExport}
+          setState={setState}
+          addActivity={addActivity}
+          editActivity={editActivity}
+          deleteActivity={deleteActivity}
+          addMealActivity={addMealActivity}
+          editMealActivity={editMealActivity}
+          deleteMealActivity={deleteMealActivity}
+          setDays={setDays}
+          updateDay={updateDay}
+          deleteDay={deleteDay}
+          addDay={addDay}
+          logoutExternal={logoutExternal}
+        />
+      </BrowserRouter>
+    </AlertProvider>
+  )
+}
+
+function AppRoutes({
+  user, externalUser, state, update, updateMeta,
+  progress, toggleProgress, checklist, updateChecklist, logActivity,
+  campId, setCampId, campsList, setCampsList,
+  showMenu, setShowMenu, showOnboarding, setShowOnboarding,
+  showConfetti, setShowConfetti, confettiOrigin,
+  showChangePwd, setShowChangePwd, showJoinFlow, setShowJoinFlow,
+  pendingJoinCode, setPendingJoinCode, handleExport, setState,
+  addActivity, editActivity, deleteActivity,
+  addMealActivity, editMealActivity, deleteMealActivity,
+  setDays, updateDay, deleteDay, addDay,
+  logoutExternal,
+}) {
+  const navigate = useNavigate()
+  const location = useLocation()
+
+  const path = location.pathname
+  const isBefore = path.startsWith('/before')
+  const currentMain = (() => {
+    const seg = path.split('/')[1]
+    if (seg === 'before' || seg === 'during' || seg === 'tasks' || seg === 'dashboard') return seg
+    return ''
+  })()
+  const currentTab = isBefore ? path.split('/')[2] || 'camp' : null
+
+  const { meta, activities, days, template, activityLog, mealTemplate, mealActivities } = state
+
+  const metaOk = meta.jednostka && meta.kierownik
+
+  const navigateToSection = (tab) => {
+    const beforeTabs = ['camp','instructions','plan','jadlospis','diary','docs','map']
+    if (beforeTabs.includes(tab)) { navigate('/before/' + tab); return }
+    if (tab === 'during') { navigate('/during'); return }
+    if (tab === 'tasks_section') { navigate('/tasks'); return }
+    if (tab === 'dashboard') { navigate('/dashboard'); return }
+    const map = {
+      'Dane obozu':  'camp',
+      'Plan zajęć':  'plan',
+      'Dokumenty':   'docs',
+      'Mapa terenu': 'map',
+    }
+    if (map[tab]) navigate('/before/' + map[tab])
   }
 
   const MAIN_SECTIONS = [
@@ -465,9 +497,7 @@ export default function App() {
   ]
 
   return (
-    <AlertProvider>
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Onboarding wizard */}
       {showOnboarding && (
         <div className="fixed inset-0 overflow-y-auto" style={{zIndex:2000}}>
           <OnboardingWizard
@@ -475,7 +505,7 @@ export default function App() {
             updateMeta={(newMeta) => update({ meta: newMeta })}
             onDone={() => {
               setShowOnboarding(false)
-              setMainSection('dashboard')
+              navigate('/dashboard')
               logActivity('Ukończono konfigurację obozu', '✅')
               if (user?.id) localStorage.setItem(`campas_onboarding_${user.id}`, '1')
             }}
@@ -483,9 +513,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Header z nawigacją */}
       <header className="bg-green-800 text-white shadow shrink-0">
-        {/* Top row */}
         <div className="px-4 py-2 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div>
@@ -514,7 +542,7 @@ export default function App() {
                     } catch { setState(DEFAULT_STATE) }
                   }
                 }}
-                onCreateNew={() => { setMainSection('settings') }}
+                onCreateNew={() => navigate('/settings')}
                 onJoinCamp={() => setShowJoinFlow(true)}
                 onLeaveCamp={async (leaveId, campName) => {
                   if (!confirm(`Opuścić obóz "${campName}"? Stracisz do niego dostęp.`)) return
@@ -538,7 +566,7 @@ export default function App() {
               : user?.email?.split('@')[0]
             }</span>
             {externalUser && <span className="text-green-400 text-xs hidden md:block">(przyboczny)</span>}
-            {activeTab === 'plan' && mainSection === 'before' && !externalUser && (
+            {path === '/before/plan' && !externalUser && (
               <button onClick={handleExport} disabled={!metaOk}
                 className={`text-xs font-bold px-3 py-1.5 rounded-lg transition ${
                   metaOk ? 'bg-white text-green-800 hover:bg-green-50' : 'bg-green-700 text-green-400 cursor-not-allowed'
@@ -563,12 +591,11 @@ export default function App() {
           </div>
         </div>
 
-        {/* 4 główne sekcje */}
         <div className="flex border-t border-green-700">
           {MAIN_SECTIONS.map(s => (
-            <button key={s.id} onClick={() => goMainSection(s.id)}
+            <button key={s.id} onClick={() => navigate('/' + s.id)}
               className={`flex-1 py-2.5 text-xs font-bold transition flex flex-col items-center gap-0.5 ${
-                mainSection === s.id ? 'bg-white text-green-800' : 'text-green-300 hover:text-white hover:bg-green-700'
+                currentMain === s.id ? 'bg-white text-green-800' : 'text-green-300 hover:text-white hover:bg-green-700'
               }`}>
               <span className="text-base">{s.icon}</span>
               <span className="hidden sm:block">{s.label}</span>
@@ -576,13 +603,12 @@ export default function App() {
           ))}
         </div>
 
-        {/* Sub-nawigacja — widoczna tylko w sekcji "Przed obozem" */}
-        {mainSection === 'before' && (
+        {isBefore && (
           <div className="flex overflow-x-auto border-t border-green-700 bg-green-900">
             {BEFORE_TABS.map(t => (
-              <button key={t.id} onClick={() => setActiveTabMain(t.id)}
+              <button key={t.id} onClick={() => navigate('/before/' + t.id)}
                 className={`px-4 py-1.5 text-xs font-semibold whitespace-nowrap transition ${
-                  activeTab === t.id ? 'bg-green-600 text-white' : 'text-green-400 hover:text-white'
+                  currentTab === t.id ? 'bg-green-600 text-white' : 'text-green-400 hover:text-white'
                 }`}>
                 {t.label}
               </button>
@@ -591,14 +617,13 @@ export default function App() {
         )}
       </header>
 
-      {/* Hamburger menu panel */}
       {showMenu && (
         <div className="fixed inset-0 z-[2500] flex" onClick={() => setShowMenu(false)}>
           <div className="flex-1" onClick={() => setShowMenu(false)} />
           <div className="w-64 bg-white shadow-2xl border-l border-gray-200 overflow-y-auto"
             onClick={e => e.stopPropagation()}>
             <div className="p-4 space-y-3">
-              <button onClick={() => { setActiveTabMain('campsmap'); setMainSection('before'); setShowMenu(false) }}
+              <button onClick={() => { navigate('/campsmap'); setShowMenu(false) }}
                 className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition text-left">
                 <span className="text-2xl">🌍</span>
                 <div>
@@ -606,7 +631,7 @@ export default function App() {
                   <div className="text-xs text-gray-400">Krajowa mapa Skautów Europy</div>
                 </div>
               </button>
-              <button onClick={() => { setActiveTabMain('robert'); setMainSection('before'); setShowMenu(false) }}
+              <button onClick={() => { navigate('/robert'); setShowMenu(false) }}
                 className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition text-left">
                 <span className="text-2xl">🤖</span>
                 <div>
@@ -615,15 +640,6 @@ export default function App() {
                 </div>
               </button>
               <hr />
-              <a href="/"
-                className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition text-left no-underline"
-                onClick={() => setShowMenu(false)}>
-                <span className="text-2xl">🏠</span>
-                <div>
-                  <div className="font-semibold text-sm text-gray-800">Strona główna</div>
-                  <div className="text-xs text-gray-400">campas.pl — portal</div>
-                </div>
-              </a>
               <a href="/swi" target="_blank" rel="noopener noreferrer"
                 className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-blue-50 transition text-left no-underline"
                 onClick={() => setShowMenu(false)}>
@@ -634,7 +650,7 @@ export default function App() {
                 </div>
               </a>
               <hr />
-              <button onClick={() => { setMainSection('settings'); setShowMenu(false) }}
+              <button onClick={() => { navigate('/settings'); setShowMenu(false) }}
                 className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition text-left">
                 <span className="text-2xl">⚙️</span>
                 <div>
@@ -647,170 +663,181 @@ export default function App() {
         </div>
       )}
 
-      {/* ── Treść sekcji ── */}
+      <Routes>
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
-      {/* PULPIT */}
-      {mainSection === 'dashboard' && (
-        <DashboardTab meta={meta} days={days} user={user} onNavigate={navigateToSection} activityLog={activityLog} checklist={checklist} onChecklistUpdate={updateChecklist} campId={campId} />
-      )}
+        <Route path="/dashboard" element={
+          <DashboardTab meta={meta} days={days} user={user}
+            onNavigate={navigateToSection}
+            activityLog={activityLog} checklist={checklist}
+            onChecklistUpdate={updateChecklist} campId={campId} />
+        } />
 
-      {/* PRZED OBOZEM */}
-      {mainSection === 'before' && (
-        <>
-          {activeTab === 'camp' && (
-            <CampDataTab meta={meta} onUpdateMeta={updateMeta} userId={user?.id} progress={progress} onToggleProgress={toggleProgress} />
-          )}
-          {activeTab === 'instructions' && (
-            <InstructionsTab />
-          )}
-          {activeTab === 'jadlospis' && (
-            <div className="flex flex-1 overflow-hidden">
-              <JadlospisTab meta={meta} days={days} mealTemplate={mealTemplate} mealActivities={mealActivities}
-                onUpdate={update}
-                onAddMealActivity={addMealActivity} onEditMealActivity={editMealActivity} onDeleteMealActivity={deleteMealActivity}
-                progress={progress} onToggleProgress={toggleProgress} />
-            </div>
-          )}
-          {activeTab === 'diary' && (
-            <DiaryTab meta={meta} days={days} activities={activities} onNavigate={navigateToSection}
-              onAddActivity={addActivity} onEditActivity={editActivity} onDeleteActivity={deleteActivity}
+        <Route path="/before/camp" element={
+          <CampDataTab meta={meta} onUpdateMeta={updateMeta} userId={user?.id}
+            progress={progress} onToggleProgress={toggleProgress} />
+        } />
+
+        <Route path="/before/instructions" element={<InstructionsTab />} />
+
+        <Route path="/before/jadlospis" element={
+          <div className="flex flex-1 overflow-hidden">
+            <JadlospisTab meta={meta} days={days} mealTemplate={mealTemplate}
+              mealActivities={mealActivities}
+              onUpdate={update}
+              onAddMealActivity={addMealActivity} onEditMealActivity={editMealActivity}
+              onDeleteMealActivity={deleteMealActivity}
               progress={progress} onToggleProgress={toggleProgress} />
-          )}
-          {activeTab === 'docs' && (
-            <DocumentsTab meta={meta} onNavigate={navigateToSection} progress={progress} onToggleProgress={toggleProgress} />
-          )}
-          {activeTab === 'map' && (
-            <div className="flex flex-1 overflow-hidden"><MapTab user={user} meta={meta} /></div>
-          )}
-          {activeTab === 'campsmap' && (
-            <CampsMapTab user={user} meta={meta} />
-          )}
-          {activeTab === 'robert' && (
-            <RobertTab onNavigate={(tab) => {
-              const valid = ['camp','instructions','plan','jadlospis','diary','docs','map']
-              if (valid.includes(tab)) {
-                setActiveTabMain(tab)
-                setMainSection('before')
-              }
-            }} />
-          )}
-          {activeTab === 'plan' && (
-            <div className="flex flex-1 overflow-hidden">
-              <aside className="w-80 shrink-0 bg-white border-r border-gray-200 flex flex-col overflow-y-auto">
-                {!metaOk && (
-                  <div className="p-3 border-b border-gray-100">
-                    <button onClick={() => setActiveTabMain('camp')}
-                      className="w-full text-xs text-orange-600 border border-orange-200 bg-orange-50 rounded-lg py-2 hover:bg-orange-100 transition">
-                      ⚠️ Uzupełnij dane obozu
-                    </button>
-                  </div>
-                )}
-                <div className="p-4 border-b border-gray-100">
-                  <TemplatePanel
-                    slots={template}
-                    onChange={(newSlots) => {
-                      const existingIds = new Set(template.map(s => s.id))
-                      const added = newSlots.filter(s => !existingIds.has(s.id))
-                      if (added.length > 0 && days.length > 0) {
-                        update({ template: newSlots, days: days.map(day => ({
-                          ...day,
-                          slots: [...day.slots, ...added.map(s => ({ ...s, id: `slot_${Date.now()}_${Math.random()}` }))]
-                        })) })
-                      } else { update({ template: newSlots }) }
-                    }}
-                    activities={activities}
-                  />
-                </div>
-                <div className="p-4 flex-1">
-                  <ActivityPanel activities={activities} onAdd={addActivity} onEdit={editActivity} onDelete={deleteActivity} />
-                </div>
-              </aside>
-              <main className="flex-1 overflow-y-auto p-5">
-                <div className="flex items-center gap-3 mb-4">
-                  <h2 className="text-xl font-bold text-gray-800">📋 Plan zajęć</h2>
-                  <button onClick={(e) => toggleProgress('plan', e)}
-                    className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border transition ${
-                      progress?.plan ? 'bg-green-500 text-white border-green-600' : 'bg-white text-gray-500 border-gray-300 hover:border-green-400'
-                    }`}>
-                    {progress?.plan ? '✅' : '⬜'} Zrobione
-                  </button>
-                </div>
-                <div className="flex items-center gap-3 mb-5 bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-                  {meta.date_start && meta.date_end ? (
-                    <>
-                      <span className="text-sm font-semibold text-gray-700">Dni obozu:</span>
-                      <span className="text-sm text-gray-500">od {meta.date_start} do {meta.date_end} — <b>{days.length}</b> dni</span>
-                    </>
-                  ) : (
-                    <span className="text-sm text-orange-600">⚠️ Ustaw daty obozu w zakładce „Dane obozu"</span>
-                  )}
-                  {days.length > 0 && (
-                    <button onClick={addDay}
-                      className="ml-auto text-sm text-green-700 border border-green-400 px-3 py-1.5 rounded-lg hover:bg-green-50">
-                      + Dodaj dzień
-                    </button>
-                  )}
-                </div>
-                {days.length === 0 && (
-                  <div className="text-center py-24 text-gray-400">
-                    <div className="text-5xl mb-4">⛺</div>
-                    <p className="text-lg font-semibold">
-                      {meta.date_start && meta.date_end ? 'Kliknij + Dodaj dzień, aby rozpocząć' : 'Ustaw daty obozu w zakładce „Dane obozu"'}
-                    </p>
-                  </div>
-                )}
-                {days.map((day, i) => (
-                  <DayCard key={day.id} day={day} index={i} activities={activities}
-                    onChange={updated => updateDay(day.id, updated)}
-                    onDelete={() => deleteDay(day.id)} />
-                ))}
-                {days.length > 0 && (
-                  <button onClick={handleExport} disabled={!metaOk}
-                    className={`w-full mt-2 py-3 rounded-xl font-bold text-base transition shadow ${
-                      metaOk ? 'bg-green-700 text-white hover:bg-green-800' : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                    }`}>
-                    📄 Eksportuj PDF — Ramowy Plan Pracy
-                  </button>
-                )}
-              </main>
-            </div>
-          )}
-        </>
-      )}
-
-      {/* W TRAKCIE OBOZU */}
-      {mainSection === 'during' && (
-        <DuringCampTab meta={meta} days={days} />
-      )}
-
-      {/* ZADANIA */}
-      {mainSection === 'tasks' && (
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <ZadaniaTab user={user} meta={meta} campId={campId} />
-        </div>
-      )}
-
-      {/* USTAWIENIA */}
-      {mainSection === 'settings' && (
-        <div className="flex-1 overflow-y-auto p-6 max-w-lg mx-auto w-full">
-          <h2 className="text-xl font-bold text-gray-800 mb-4">Ustawienia</h2>
-          <div className="bg-white rounded-2xl border border-gray-200 p-5 space-y-3">
-            <div>
-              <div className="text-xs text-gray-400 uppercase tracking-wide mb-1">Email</div>
-              <div className="font-medium">{user?.email}</div>
-            </div>
-            <hr />
-            <button onClick={() => signOut()}
-              className="w-full text-left text-red-500 hover:text-red-700 text-sm font-semibold py-2">
-              🚪 Wyloguj się
-            </button>
           </div>
-        </div>
-      )}
+        } />
+
+        <Route path="/before/diary" element={
+          <DiaryTab meta={meta} days={days} activities={activities}
+            onNavigate={navigateToSection}
+            onAddActivity={addActivity} onEditActivity={editActivity}
+            onDeleteActivity={deleteActivity}
+            progress={progress} onToggleProgress={toggleProgress} />
+        } />
+
+        <Route path="/before/docs" element={
+          <DocumentsTab meta={meta} onNavigate={navigateToSection}
+            progress={progress} onToggleProgress={toggleProgress} />
+        } />
+
+        <Route path="/before/map" element={
+          <div className="flex flex-1 overflow-hidden">
+            <MapTab user={user} meta={meta} />
+          </div>
+        } />
+
+        <Route path="/before/plan" element={
+          <div className="flex flex-1 overflow-hidden">
+            <aside className="w-80 shrink-0 bg-white border-r border-gray-200 flex flex-col overflow-y-auto">
+              {!metaOk && (
+                <div className="p-3 border-b border-gray-100">
+                  <button onClick={() => navigate('/before/camp')}
+                    className="w-full text-xs text-orange-600 border border-orange-200 bg-orange-50 rounded-lg py-2 hover:bg-orange-100 transition">
+                    ⚠️ Uzupełnij dane obozu
+                  </button>
+                </div>
+              )}
+              <div className="p-4 border-b border-gray-100">
+                <TemplatePanel
+                  slots={template}
+                  onChange={(newSlots) => {
+                    const existingIds = new Set(template.map(s => s.id))
+                    const added = newSlots.filter(s => !existingIds.has(s.id))
+                    if (added.length > 0 && days.length > 0) {
+                      update({ template: newSlots, days: days.map(day => ({
+                        ...day,
+                        slots: [...day.slots, ...added.map(s => ({ ...s, id: `slot_${Date.now()}_${Math.random()}` }))]
+                      })) })
+                    } else { update({ template: newSlots }) }
+                  }}
+                  activities={activities}
+                />
+              </div>
+              <div className="p-4 flex-1">
+                <ActivityPanel activities={activities} onAdd={addActivity}
+                  onEdit={editActivity} onDelete={deleteActivity} />
+              </div>
+            </aside>
+            <main className="flex-1 overflow-y-auto p-5">
+              <div className="flex items-center gap-3 mb-4">
+                <h2 className="text-xl font-bold text-gray-800">📋 Plan zajęć</h2>
+                <button onClick={(e) => toggleProgress('plan', e)}
+                  className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border transition ${
+                    progress?.plan ? 'bg-green-500 text-white border-green-600' : 'bg-white text-gray-500 border-gray-300 hover:border-green-400'
+                  }`}>
+                  {progress?.plan ? '✅' : '⬜'} Zrobione
+                </button>
+              </div>
+              <div className="flex items-center gap-3 mb-5 bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+                {meta.date_start && meta.date_end ? (
+                  <>
+                    <span className="text-sm font-semibold text-gray-700">Dni obozu:</span>
+                    <span className="text-sm text-gray-500">od {meta.date_start} do {meta.date_end} — <b>{days.length}</b> dni</span>
+                  </>
+                ) : (
+                  <span className="text-sm text-orange-600">⚠️ Ustaw daty obozu w zakładce „Dane obozu"</span>
+                )}
+                {days.length > 0 && (
+                  <button onClick={addDay}
+                    className="ml-auto text-sm text-green-700 border border-green-400 px-3 py-1.5 rounded-lg hover:bg-green-50">
+                    + Dodaj dzień
+                  </button>
+                )}
+              </div>
+              {days.length === 0 && (
+                <div className="text-center py-24 text-gray-400">
+                  <div className="text-5xl mb-4">⛺</div>
+                  <p className="text-lg font-semibold">
+                    {meta.date_start && meta.date_end ? 'Kliknij + Dodaj dzień, aby rozpocząć' : 'Ustaw daty obozu w zakładce „Dane obozu"'}
+                  </p>
+                </div>
+              )}
+              {days.map((day, i) => (
+                <DayCard key={day.id} day={day} index={i} activities={activities}
+                  onChange={updated => updateDay(day.id, updated)}
+                  onDelete={() => deleteDay(day.id)} />
+              ))}
+              {days.length > 0 && (
+                <button onClick={handleExport} disabled={!metaOk}
+                  className={`w-full mt-2 py-3 rounded-xl font-bold text-base transition shadow ${
+                    metaOk ? 'bg-green-700 text-white hover:bg-green-800' : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                  }`}>
+                  📄 Eksportuj PDF — Ramowy Plan Pracy
+                </button>
+              )}
+            </main>
+          </div>
+        } />
+
+        <Route path="/campsmap" element={
+          <CampsMapTab user={user} meta={meta} />
+        } />
+
+        <Route path="/robert" element={
+          <RobertTab onNavigate={(tab) => {
+            const valid = ['camp','instructions','plan','jadlospis','diary','docs','map']
+            if (valid.includes(tab)) navigate('/before/' + tab)
+          }} />
+        } />
+
+        <Route path="/during" element={
+          <DuringCampTab meta={meta} days={days} />
+        } />
+
+        <Route path="/tasks" element={
+          <div className="flex-1 flex flex-col overflow-hidden">
+            <ZadaniaTab user={user} meta={meta} campId={campId} />
+          </div>
+        } />
+
+        <Route path="/settings" element={
+          <div className="flex-1 overflow-y-auto p-6 max-w-lg mx-auto w-full">
+            <h2 className="text-xl font-bold text-gray-800 mb-4">Ustawienia</h2>
+            <div className="bg-white rounded-2xl border border-gray-200 p-5 space-y-3">
+              <div>
+                <div className="text-xs text-gray-400 uppercase tracking-wide mb-1">Email</div>
+                <div className="font-medium">{user?.email}</div>
+              </div>
+              <hr />
+              <button onClick={() => signOut()}
+                className="w-full text-left text-red-500 hover:text-red-700 text-sm font-semibold py-2">
+                🚪 Wyloguj się
+              </button>
+            </div>
+          </div>
+        } />
+
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      </Routes>
+
       <Confetti active={showConfetti} onDone={() => setShowConfetti(false)} origin={confettiOrigin} />
-      <FloatingRobert hidden={(mainSection === 'before' && activeTab === 'robert') || (externalUser && !externalUser.robert_enabled)} onNavigate={(tab) => {
+      <FloatingRobert hidden={(path === '/robert') || (externalUser && !externalUser.robert_enabled)} onNavigate={(tab) => {
         const valid = ['camp','instructions','plan','jadlospis','diary','docs','map']
-        if (valid.includes(tab)) { setActiveTabMain(tab); setMainSection('before') }
+        if (valid.includes(tab)) navigate('/before/' + tab)
       }} />
 
       {showChangePwd && (() => {
@@ -859,7 +886,6 @@ export default function App() {
         )
       })()}
 
-      {/* Dołącz do obozu (dla zalogowanych) */}
       {showJoinFlow && user && (
         <JoinCampFlow
           user={user}
@@ -878,6 +904,5 @@ export default function App() {
         />
       )}
     </div>
-    </AlertProvider>
   )
 }
