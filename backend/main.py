@@ -75,7 +75,7 @@ app.include_router(join.router)
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "app": "campas.pl", "version": "2.0.0"}
+    return {"status": "ok", "app": "app.campas.pl", "version": "2.0.0"}
 
 
 # ── Frontend SPA (produkcja) ──────────────────────────────────────────────────
