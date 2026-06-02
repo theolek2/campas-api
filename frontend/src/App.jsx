@@ -388,7 +388,7 @@ export default function App() {
         <div className="min-h-screen flex flex-col items-center justify-center p-4"
           style={{ background: 'linear-gradient(160deg, #14532d 0%, #166534 40%, #15803d 100%)' }}>
           <div className="mb-8 text-center flex flex-col items-center gap-3">
-            <img src="/logo.png" alt="" className="h-14 w-14 object-contain" onError={e => { e.target.style.display = 'none' }} />
+            <img src="/logo.svg" alt="" className="h-14 w-14 object-contain" onError={e => { e.target.style.display = 'none' }} />
             <div>
               <h1 className="text-3xl font-bold text-white">CampAs</h1>
               <p className="text-green-300 mt-1 text-sm">Skauci Europy · System Obozowy</p>

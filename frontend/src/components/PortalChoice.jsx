@@ -5,7 +5,7 @@ export default function PortalChoice({ user, onEnterApp, onJoinCamp }) {
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4">
         <div className="flex items-center gap-3">
-          <img src="/logo.png" alt="CampAs" className="h-10 w-10 object-contain" onError={e => { e.target.style.display = 'none' }} />
+          <img src="/logo.svg" alt="CampAs" className="h-10 w-10 object-contain" onError={e => { e.target.style.display = 'none' }} />
           <div>
             <div className="text-white font-bold text-xl tracking-wide">CampAs</div>
             <div className="text-green-300 text-xs">Skauci Europy · System Obozowy</div>
