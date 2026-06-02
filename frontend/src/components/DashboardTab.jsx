@@ -221,30 +221,9 @@ export default function DashboardTab({ meta, days, user, onNavigate, checklist =
   const campId = propCampId || localStorage.getItem('campas_camp_id') || ''
   useEffect(() => {
     import('../data/file-map.json').then(m => setFileMap(m.default || {})).catch(() => {})
-    getTasks({ campId }).then(async (existing) => {
-      setTasks(existing)
-      // Auto-twórz taski dla itemów które nie istnieją
-      if (existing.length < 10) {
-        for (const item of ALL_ITEMS.slice(0, 30)) {
-          const found = existing.find(t => (t.title || '').toLowerCase() === item.title.toLowerCase())
-          if (!found) {
-            try {
-              const newT = await createTask(campId, {
-                title: item.title,
-                column: 'todo',
-                priority: item.urgent ? 'urgent' : item.star ? 'high' : 'medium',
-                notes: `instrukcja:${item.id}`,
-                created_by: user?.id || '00000000-0000-0000-0000-000000000000',
-              })
-              if (newT) existing.push(newT)
-            } catch {}
-          }
-        }
-        // Po stworzeniu batchu — załaduj ponownie
-        const all = await getTasks({ campId })
-        setTasks(all)
-      }
-    }).catch(() => {})
+    if (campId) {
+      getTasks({ campId }).then(t => setTasks(t || [])).catch(() => {})
+    }
   }, [campId])
   const daysToStart = daysUntil(meta.date_start)
   const daysToKuratorium = meta.date_start ? daysUntil(

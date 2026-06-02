@@ -77,6 +77,9 @@ export default function App() {
   // Wybór SWI/Obóz po logowaniu (raz na sesję)
   const [showPortalChoice, setShowPortalChoice] = useState(false)
 
+  // Guard: nie zapisuj stanu na serwer dopóki nie załadowano danych z serwera
+  const serverDataReadyRef = useRef(false)
+
   // Reset lokalnego stanu gdy zmieni się zalogowany użytkownik (ochrona przed wyciekiem danych)
   const prevUserIdRef = useRef(null)
   useEffect(() => {
@@ -167,52 +170,58 @@ export default function App() {
   // Po zalogowaniu — załaduj profil + campId + zapisane dane obozu
   const applyProfile = async (u) => {
     if (!u) return
+    serverDataReadyRef.current = false  // blokuj zapis podczas ładowania
     try {
-      // Upewnij się że profil istnieje (FK constraint)
       await upsertProfile({ id: u.id, display_name: u.email?.split('@')[0] || '' })
 
       // Załaduj listę obozów i ustaw aktywny campId
+      let activeCampId = campId
       try {
         const { camps } = await getCamps()
         if (camps?.length) {
           setCampsList(camps)
-          if (!campId || !camps.find(c => c.id === campId)) {
-            const firstCamp = camps[0]
-            localStorage.setItem('campas_camp_id', firstCamp.id)
-            setCampId(firstCamp.id)
+          if (!activeCampId || !camps.find(c => c.id === activeCampId)) {
+            activeCampId = camps[0].id
+            localStorage.setItem('campas_camp_id', activeCampId)
+            setCampId(activeCampId)
           }
         }
       } catch {}
 
       const profile = await getProfile(u.id)
-      const savedMeta = await loadCampMeta(u.id, campId)
+      // Wczytaj pełny stan obozu z serwera (camp_meta zawiera { meta, days, activities... })
+      const serverState = await loadCampMeta(u.id, activeCampId)
 
-      // Wczytaj checklistę z Supabase
-      const savedChecklist = savedMeta?.checklist
+      // Wczytaj checklistę
+      const savedChecklist = serverState?.checklist
       if (savedChecklist && Object.keys(savedChecklist).length > 0) {
         setChecklist(savedChecklist)
         try { localStorage.setItem('skauting_checklist', JSON.stringify(savedChecklist)) } catch {}
       }
 
-      if (savedMeta && Object.keys(savedMeta).length > 0) {
-        update({ meta: { ...savedMeta, email: savedMeta.email || u.email || '' } })
-        // Już ma dane obozu — onboarding niepotrzebny
+      if (serverState?.meta && Object.keys(serverState.meta).length > 0) {
+        // Przywróć pełny stan z serwera
+        setState(s => ({ ...s, ...serverState, meta: { ...serverState.meta, email: serverState.meta.email || u.email || '' } }))
+      } else if (serverState && !serverState.meta && Object.keys(serverState).length > 0) {
+        // Stary format — samo meta w camp_meta
+        update({ meta: { ...serverState, email: serverState.email || u.email || '' } })
       } else if (profile) {
+        // Pierwsze logowanie — uzupełnij z profilu rejestracji
         update({
           meta: {
             ...state.meta,
-            email:         state.meta.email         || u.email || '',
-            kierownik:     state.meta.kierownik     || profile.display_name || '',
-            jednostka:     state.meta.jednostka     || profile.organization || '',
-            tel_kierownik: state.meta.tel_kierownik || profile.phone        || '',
+            email:         u.email || '',
+            kierownik:     profile.display_name || '',
+            jednostka:     profile.organization || '',
+            tel_kierownik: profile.phone || '',
           }
         })
-        // Pierwsze logowanie, brak danych — pokaż onboarding (tylko raz)
         if (!localStorage.getItem(`campas_onboarding_${u.id}`)) {
           setShowOnboarding(true)
         }
       }
     } catch {}
+    serverDataReadyRef.current = true  // odblokuj zapis
   }
 
   // Supabase auth session
@@ -282,7 +291,13 @@ export default function App() {
 
   const { meta, activities, days, template, activityLog = [], mealTemplate = [], mealActivities = [] } = state
 
-  useEffect(() => { saveState(state, campId) }, [state, campId])
+  useEffect(() => {
+    saveState(state, campId)
+    // Zapisz pełny stan na serwer (guard zapobiega nadpisaniu podczas ładowania)
+    if (user?.id && serverDataReadyRef.current && campId) {
+      saveCampMeta(user.id, state, campId).catch(() => {})
+    }
+  }, [state, campId])
   useEffect(() => { localStorage.setItem('campas_mainSection', mainSection) }, [mainSection])
   useEffect(() => { localStorage.setItem('campas_activeTab', activeTab) }, [activeTab])
 
@@ -330,9 +345,6 @@ export default function App() {
     setState(s => ({ ...s, meta: { ...s.meta, ...patch } }))
   }
 
-  useEffect(() => {
-    if (user?.id) saveCampMeta(user.id, meta, campId).catch(() => {})
-  }, [meta])
 
   // ── Zajęcia ──
   const addActivity = (name, description) =>
