@@ -615,6 +615,15 @@ export default function App() {
                 </div>
               </button>
               <hr />
+              <a href="/"
+                className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition text-left no-underline"
+                onClick={() => setShowMenu(false)}>
+                <span className="text-2xl">🏠</span>
+                <div>
+                  <div className="font-semibold text-sm text-gray-800">Strona główna</div>
+                  <div className="text-xs text-gray-400">campas.pl — portal</div>
+                </div>
+              </a>
               <a href="/swi" target="_blank" rel="noopener noreferrer"
                 className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-blue-50 transition text-left no-underline"
                 onClick={() => setShowMenu(false)}>
