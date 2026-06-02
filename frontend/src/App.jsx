@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { AlertProvider } from './components/AlertContext'
 import ActivityPanel from './components/ActivityPanel'
 import DayCard from './components/DayCard'
@@ -63,6 +63,19 @@ export default function App() {
   const [showChangePwd, setShowChangePwd] = useState(false)
   // campId — aktywny obóz (z localStorage, ładowany po logowaniu)
   const [campId, setCampId] = useState(() => localStorage.getItem('campas_camp_id') || null)
+
+  // Reset lokalnego stanu gdy zmieni się zalogowany użytkownik (ochrona przed wyciekiem danych)
+  const prevUserIdRef = useRef(null)
+  useEffect(() => {
+    const uid = user?.id || null
+    if (prevUserIdRef.current !== null && prevUserIdRef.current !== uid) {
+      setState(DEFAULT_STATE)
+      setProgress({})
+      setChecklist({})
+    }
+    prevUserIdRef.current = uid
+  }, [user?.id])
+
   // Stan dla linków z emaila
   const [resetToken, setResetToken] = useState(null)
   const [resetError, setResetError] = useState('')

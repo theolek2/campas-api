@@ -89,6 +89,10 @@ export async function signOut() {
   localStorage.removeItem('campas_user')
   localStorage.removeItem('campas_camp_id')
   localStorage.removeItem('skauting_external_session')
+  localStorage.removeItem('skauting_v1')
+  localStorage.removeItem('skauting_progress')
+  localStorage.removeItem('skauting_checklist')
+  localStorage.removeItem('skauting_geo_results')
   window.location.href = '/'
   return { error: null }
 }
