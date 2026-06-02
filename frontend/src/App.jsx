@@ -247,12 +247,12 @@ export default function App() {
             user: data.user,
           }))
           setExternalUser(data.user)
-          window.history.replaceState({}, '', '/')
+          window.history.replaceState({}, '', '/camp/')
         } else {
-          window.history.replaceState({}, '', '/login')
+          window.history.replaceState({}, '', '/camp/')
         }
       }).catch(() => {
-        window.history.replaceState({}, '', '/login')
+        window.history.replaceState({}, '', '/camp/')
       })
       return
     }
@@ -261,14 +261,14 @@ export default function App() {
       verifyEmail(verifyToken).then(({ data, error }) => {
         if (data?.user) {
           setUser(data.user)
-          window.history.replaceState({}, '', '/')
+          window.history.replaceState({}, '', '/camp/')
         } else {
           setResetError('Nieprawidłowy lub wygasły link weryfikacyjny. Spróbuj zalogować się ponownie.')
-          window.history.replaceState({}, '', '/login')
+          window.history.replaceState({}, '', '/camp/')
         }
       }).catch(() => {
         setResetError('Nie udało się zweryfikować emaila. Spróbuj ponownie później.')
-        window.history.replaceState({}, '', '/login')
+        window.history.replaceState({}, '', '/camp/')
       })
       return
     }
@@ -386,7 +386,7 @@ export default function App() {
 
   const metaOk = meta.jednostka && meta.kierownik
 
-  // ── Bramka logowania ─────────────────────────────────────────────────────
+  // ── Bramka logowania — pokazuj tylko na /camp/* ───────────────────────────
   if (!user && !externalUser) {
     return (
       <>
@@ -419,7 +419,6 @@ export default function App() {
               setUser(u)
               setShowAuth(false)
               applyProfile(u)
-              setShowPortalChoice(true)
               if (pendingJoinCode) setShowJoinFlow(true)
             }}
           />
@@ -430,33 +429,6 @@ export default function App() {
             onClose={() => setShowJoinFlow(false)}
             onJoined={() => {}}
             onNeedAuth={(code) => { setPendingJoinCode(code); setShowAuth(true); setShowJoinFlow(false) }}
-          />
-        )}
-      </>
-    )
-  }
-
-  // ── Wybór po logowaniu — SWI lub Obóz ────────────────────────────────────
-  if (showPortalChoice) {
-    return (
-      <>
-        <PortalChoice
-          user={user}
-          onEnterApp={() => setShowPortalChoice(false)}
-          onJoinCamp={() => setShowJoinFlow(true)}
-        />
-        {showJoinFlow && (
-          <JoinCampFlow
-            user={user}
-            onClose={() => setShowJoinFlow(false)}
-            onJoined={async (newCampId) => {
-              setShowJoinFlow(false)
-              localStorage.setItem('campas_camp_id', newCampId)
-              setCampId(newCampId)
-              try { const { camps } = await getCamps(); if (camps?.length) setCampsList(camps) } catch {}
-              setShowPortalChoice(false)
-            }}
-            onNeedAuth={() => {}}
           />
         )}
       </>
