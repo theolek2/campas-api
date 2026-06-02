@@ -170,6 +170,25 @@ async def update_camp(
     return camp
 
 
+@router.delete("/{camp_id}/leave", status_code=204)
+async def leave_camp(
+    camp_id: str,
+    user_id: str = Depends(require_camp_access),
+    db: AsyncSession = Depends(get_db),
+):
+    """Usuń swój dostęp do obozu (opuść obóz). Owner nie może opuścić — musi najpierw przekazać ownership."""
+    access = await db.execute(
+        select(CampAccess).where(CampAccess.camp_id == camp_id, CampAccess.user_id == user_id)
+    )
+    entry = access.scalar_one_or_none()
+    if not entry:
+        raise HTTPException(status_code=404, detail="Brak dostępu do obozu")
+    if entry.permissions == "owner":
+        raise HTTPException(status_code=400, detail="Właściciel nie może opuścić obozu. Najpierw przekaż obóz innemu użytkownikowi lub usuń obóz.")
+    await db.delete(entry)
+    await db.commit()
+
+
 # ── Zastępy ───────────────────────────────────────────────────────────────────
 
 @router.get("/{camp_id}/patrols", response_model=list[PatrolOut])

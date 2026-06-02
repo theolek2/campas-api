@@ -597,6 +597,15 @@ export async function lookupParcel(lat, lng) {
 
 // ── Kody dołączenia do obozu ──────────────────────────────────────────────────
 
+export async function leaveCamp(campId) {
+  const res = await fetch(`${BASE}/api/camps/${campId}/leave`, {
+    method: 'DELETE',
+    headers: _headers(),
+  })
+  if (res.status === 204) return { success: true }
+  return _json(res)
+}
+
 export async function generateJoinCode(campId) {
   const res = await fetch(`${BASE}/api/camps/${campId}/join-code`, {
     method: 'POST',

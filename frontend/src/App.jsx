@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { AlertProvider } from './components/AlertContext'
-import LandingPage from './components/LandingPage'
+import PortalChoice from './components/PortalChoice'
 import CampSwitcher from './components/CampSwitcher'
 import JoinCampFlow from './components/JoinCampFlow'
 import ActivityPanel from './components/ActivityPanel'
@@ -24,7 +24,7 @@ import Confetti from './components/Confetti'
 import { makeDay, DEFAULT_CAMP_ACTIVITIES } from './utils/defaults'
 import { generatePdf } from './utils/generatePdf'
 import { saveState, loadState } from './utils/storage'
-import { supabase, signOut, getProfile, upsertProfile, saveCampMeta, loadCampMeta, saveChecklist, loadChecklist, getCamps, verifyEmail, magicLogin } from './lib/api'
+import { supabase, signOut, getProfile, upsertProfile, saveCampMeta, loadCampMeta, saveChecklist, loadChecklist, getCamps, leaveCamp, verifyEmail, magicLogin } from './lib/api'
 
 const DEFAULT_STATE = {
   meta: { jednostka: '', kierownik: '', miejsce: '', termin: '', date_start: '', date_end: '' },
@@ -71,6 +71,8 @@ export default function App() {
   // Flow dołączenia przez kod
   const [showJoinFlow, setShowJoinFlow] = useState(() => window.location.pathname === '/dolacz')
   const [pendingJoinCode, setPendingJoinCode] = useState(null)
+  // Wybór SWI/Obóz po logowaniu (raz na sesję)
+  const [showPortalChoice, setShowPortalChoice] = useState(false)
 
   // Reset lokalnego stanu gdy zmieni się zalogowany użytkownik (ochrona przed wyciekiem danych)
   const prevUserIdRef = useRef(null)
@@ -379,19 +381,31 @@ export default function App() {
 
   const metaOk = meta.jednostka && meta.kierownik
 
-  // ── Bramka logowania — landing page dla niezalogowanych ─────────────────
+  // ── Bramka logowania ─────────────────────────────────────────────────────
   if (!user && !externalUser) {
     return (
       <>
-        <LandingPage
-          onEnterApp={() => setShowAuth(true)}
-          onJoinCamp={() => setShowJoinFlow(true)}
-        />
-        {resetError && (
-          <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-white rounded-xl shadow-lg px-6 py-3">
-            <p className="text-red-600 text-sm text-center">{resetError}</p>
+        <div className="min-h-screen flex flex-col items-center justify-center p-4"
+          style={{ background: 'linear-gradient(160deg, #14532d 0%, #166534 40%, #15803d 100%)' }}>
+          <div className="mb-8 text-center flex flex-col items-center gap-3">
+            <img src="/logo.png" alt="" className="h-14 w-14 object-contain" onError={e => { e.target.style.display = 'none' }} />
+            <div>
+              <h1 className="text-3xl font-bold text-white">CampAs</h1>
+              <p className="text-green-300 mt-1 text-sm">Skauci Europy · System Obozowy</p>
+            </div>
           </div>
-        )}
+          {resetError && <div className="bg-white rounded-xl shadow-lg w-full max-w-sm p-4 mb-4"><p className="text-red-600 text-sm text-center">{resetError}</p></div>}
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-8 flex flex-col gap-3">
+            <button onClick={() => setShowAuth(true)}
+              className="w-full bg-green-700 text-white py-3 rounded-xl font-bold text-lg hover:bg-green-800 transition">
+              🔐 Zaloguj się
+            </button>
+            <button onClick={() => setShowJoinFlow(true)}
+              className="w-full border-2 border-orange-300 text-orange-600 py-2.5 rounded-xl font-semibold hover:bg-orange-50 transition text-sm">
+              🔑 Dołącz do obozu (mam kod)
+            </button>
+          </div>
+        </div>
         {showAuth && (
           <AuthModal
             resetToken={resetToken}
@@ -400,6 +414,7 @@ export default function App() {
               setUser(u)
               setShowAuth(false)
               applyProfile(u)
+              setShowPortalChoice(true)
               if (pendingJoinCode) setShowJoinFlow(true)
             }}
           />
@@ -410,6 +425,33 @@ export default function App() {
             onClose={() => setShowJoinFlow(false)}
             onJoined={() => {}}
             onNeedAuth={(code) => { setPendingJoinCode(code); setShowAuth(true); setShowJoinFlow(false) }}
+          />
+        )}
+      </>
+    )
+  }
+
+  // ── Wybór po logowaniu — SWI lub Obóz ────────────────────────────────────
+  if (showPortalChoice) {
+    return (
+      <>
+        <PortalChoice
+          user={user}
+          onEnterApp={() => setShowPortalChoice(false)}
+          onJoinCamp={() => setShowJoinFlow(true)}
+        />
+        {showJoinFlow && (
+          <JoinCampFlow
+            user={user}
+            onClose={() => setShowJoinFlow(false)}
+            onJoined={async (newCampId) => {
+              setShowJoinFlow(false)
+              localStorage.setItem('campas_camp_id', newCampId)
+              setCampId(newCampId)
+              try { const { camps } = await getCamps(); if (camps?.length) setCampsList(camps) } catch {}
+              setShowPortalChoice(false)
+            }}
+            onNeedAuth={() => {}}
           />
         )}
       </>
@@ -471,6 +513,20 @@ export default function App() {
                   setState(DEFAULT_STATE)
                 }}
                 onCreateNew={() => { setMainSection('settings') }}
+                onJoinCamp={() => setShowJoinFlow(true)}
+                onLeaveCamp={async (leaveId, campName) => {
+                  if (!confirm(`Opuścić obóz "${campName}"? Stracisz do niego dostęp.`)) return
+                  try {
+                    await leaveCamp(leaveId)
+                    const updated = campsList.filter(c => c.id !== leaveId)
+                    setCampsList(updated)
+                    if (leaveId === campId && updated.length > 0) {
+                      localStorage.setItem('campas_camp_id', updated[0].id)
+                      setCampId(updated[0].id)
+                      setState(DEFAULT_STATE)
+                    }
+                  } catch (e) { alert(e.message) }
+                }}
               />
             )}
           </div>
