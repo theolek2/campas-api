@@ -61,7 +61,7 @@ export default function FilesTab({ user, campId }) {
       <div className="max-w-2xl mx-auto">
         <h2 className="text-2xl font-bold text-green-900 mb-1">📁 Pliki obozowe</h2>
         <p className="text-sm text-gray-500 mb-6">
-          Dropbox obozowy — pliki przechowywane na serwerze app.campas.pl
+          Dropbox obozowy — pliki przechowywane na serwerze api.campas.pl
         </p>
 
         <div className="mb-4">

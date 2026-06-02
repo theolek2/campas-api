@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     SMTP_PORT: int = 587
     SMTP_USER: str = ""
     SMTP_PASSWORD: str = ""
-    SMTP_FROM: str = "noreply@app.campas.pl"
+    SMTP_FROM: str = "noreply@api.campas.pl"
 
     class Config:
         env_file = ".env"

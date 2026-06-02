@@ -1,4 +1,4 @@
-# Instrukcja wdrożenia app.campas.pl na własnym serwerze
+# Instrukcja wdrożenia api.campas.pl na własnym serwerze
 
 ## Wymagania sprzętowe
 - Debian Linux (lub Ubuntu 22.04+)
@@ -72,8 +72,8 @@ Ustaw:
 ```env
 DATABASE_URL=postgresql+asyncpg://campas:HASLO@localhost/campas
 JWT_SECRET=<openssl rand -hex 64>
-FRONTEND_URL=https://app.campas.pl
-ALLOWED_ORIGINS=https://app.campas.pl,https://swi.campas.pl
+FRONTEND_URL=https://api.campas.pl
+ALLOWED_ORIGINS=https://api.campas.pl,https://swi.campas.pl
 UPLOAD_DIR=/data/uploads
 DEEPSEEK_API_KEY=sk-...
 JINA_API_KEY=jina_...
@@ -81,7 +81,7 @@ SMTP_HOST=smtp.resend.com
 SMTP_PORT=587
 SMTP_USER=resend
 SMTP_PASSWORD=re_...
-SMTP_FROM=noreply@app.campas.pl
+SMTP_FROM=noreply@api.campas.pl
 ```
 
 > ⚠️ **JWT_SECRET** musi być IDENTYCZNY jak w `swi.campas.pl` jeśli chcesz dzielić sesje!
@@ -99,7 +99,7 @@ docker compose exec campas alembic upgrade head
 
 # Sprawdź health
 curl http://localhost:8001/health
-# → {"status":"ok","app":"app.campas.pl","version":"2.0.0"}
+# → {"status":"ok","app":"api.campas.pl","version":"2.0.0"}
 ```
 
 ---
@@ -118,7 +118,7 @@ cloudflared tunnel login
 cloudflared tunnel create campas
 
 # Skonfiguruj routing
-cloudflared tunnel route dns campas app.campas.pl
+cloudflared tunnel route dns campas api.campas.pl
 
 # Utwórz config
 mkdir -p ~/.cloudflared
@@ -127,7 +127,7 @@ tunnel: campas
 credentials-file: /home/user/.cloudflared/<tunnel-id>.json
 
 ingress:
-  - hostname: app.campas.pl
+  - hostname: api.campas.pl
     service: http://localhost:8001
   - service: http_status:404
 EOF

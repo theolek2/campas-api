@@ -90,7 +90,7 @@ export default function TeamPanel({ user, campId }) {
           <div className="flex items-center justify-between mb-3">
             <div>
               <h3 className="font-bold text-gray-800">🔑 Kod dołączenia</h3>
-              <p className="text-xs text-gray-400">Prześlij ten kod nowemu przybocznemu — wpisze go na app.campas.pl</p>
+              <p className="text-xs text-gray-400">Prześlij ten kod nowemu przybocznemu — wpisze go na api.campas.pl</p>
             </div>
           </div>
 
