@@ -1,27 +1,5 @@
 // Pobieranie danych lokalizacyjnych z realnym czasem dojazdu (OSRM)
-// + Overpass API (dokładna lista punktów) + WFS PRG (nadleśnictwa)
-// + filtry jurysdykcyjne (PSP→województwo, Policja→gmina>powiat)
-
-// ── Konwersja EPSG:4326 → EPSG:2180 ─────────────────────────────────────────
-function toEpsg2180(lat, lng) {
-  const latRad = (lat * Math.PI) / 180
-  const lngRad = (lng * Math.PI) / 180
-  const a = 6378137.0, f = 1 / 298.257222101
-  const e2 = 2 * f - f * f
-  const lambda0 = (19 * Math.PI) / 180, phi0 = 0, k0 = 0.9993
-  const FE = 500000, FN = -5300000
-  const N = a / Math.sqrt(1 - e2 * Math.sin(latRad) ** 2)
-  const T = Math.tan(latRad) ** 2
-  const C = (e2 / (1 - e2)) * Math.cos(latRad) ** 2
-  const A = (lngRad - lambda0) * Math.cos(latRad)
-  const M = a * ((1 - e2 / 4 - 3 * e2 ** 2 / 64 - 5 * e2 ** 3 / 256) * latRad
-    - (3 * e2 / 8 + 3 * e2 ** 2 / 32 + 45 * e2 ** 3 / 1024) * Math.sin(2 * latRad)
-    + (15 * e2 ** 2 / 256 + 45 * e2 ** 3 / 1024) * Math.sin(4 * latRad)
-    - (35 * e2 ** 3 / 3072) * Math.sin(6 * latRad))
-  const x = FE + k0 * N * (A + (1 - T + C) * A ** 3 / 6 + (5 - 18 * T + T ** 2 + 72 * C - 58 * e2) * A ** 5 / 120)
-  const y = FN + k0 * (M + N * Math.tan(latRad) * (A ** 2 / 2 + (5 - T + 9 * C + 4 * C ** 2) * A ** 4 / 24 + (61 - 58 * T + T ** 2 + 600 * C - 330 * e2) * A ** 6 / 720))
-  return { x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 }
-}
+// + Overpass API (dokładna lista punktów) + BDL (nadleśnictwa) + NFZ
 
 // ── Nominatim reverse geocode (adres + admin) ────────────────────────────────
 export async function reverseGeocode(lat, lng) {
@@ -123,13 +101,20 @@ function amenityLabel(amenity) {
   return map[amenity] || amenity
 }
 
+// ── Skróć nazwę PSP do czytelnej formy ──────────────────────────────────────
+function formatPSPName(name) {
+  return (name || '')
+    .replace(/Państwow(ej|a)\s+Straż(y|y)\s+Pożarn(ej|a)/gi, 'PSP')
+    .replace(/Komend(a|y)\s+Powiatow(a|ej)\s+PSP\s+w\s+/i, 'Komenda Powiatowa PSP w ')
+    .replace(/Jednostka\s+Ratowniczo-Gaśnicza\s+(KP\s+)?PSP\s+w\s+/i, 'Komenda Powiatowa PSP w ')
+}
+
 // ── Dodaj czasy OSRM do listy punktów ───────────────────────────────────────
 async function addOsrmRoutes(points, originLat, originLng) {
   if (points.length === 0) return points
   const results = await Promise.all(
     points.slice(0, 10).map(async p => {
       const route = await osrmRoute(originLng, originLat, p.lng, p.lat)
-      // Fallback na odległość w linii prostej jeśli OSRM nie odpowiada
       if (route) return { ...p, ...route }
       return { ...p, duration_min: '-', distance_km: haversineKm(originLat, originLng, p.lat, p.lng) }
     })
@@ -137,57 +122,38 @@ async function addOsrmRoutes(points, originLat, originLng) {
   return results
 }
 
-// ── BDL OGC API — Nadleśnictwo ──────────────────────────────────────────────
-async function getForestDistrict(lat, lng) {
+// ── Backend proxy BDL API — Nadleśnictwo + Leśnictwo (jeden request) ────────
+async function getForestData(lat, lng) {
   try {
-    const d = 0.0001
-    const bbox = `${lng - d},${lat - d},${lng + d},${lat + d}`
-    const url = `https://ogcapi.bdl.lasy.gov.pl/collections/nadlesnictwa/items?bbox=${bbox}&f=json`
-    const res = await fetch(url)
+    const token = localStorage.getItem('campas_token') || ''
+    const res = await fetch(`/api/uldk/forest-district?lat=${lat}&lng=${lng}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
     if (!res.ok) return null
-    const json = await res.json()
-    const feature = json?.features?.[0]
-    if (feature) return { name: feature.properties?.inspectorate_name || '' }
+    return await res.json()   // { nadlesnictwo, lesnictwo }
   } catch {}
   return null
 }
 
-// ── BDL OGC API — Leśnictwo ─────────────────────────────────────────────────
-async function getForestRange(lat, lng) {
-  try {
-    const d = 0.0001
-    const bbox = `${lng - d},${lat - d},${lng + d},${lat + d}`
-    const url = `https://ogcapi.bdl.lasy.gov.pl/collections/lesnictwa/items?bbox=${bbox}&f=json`
-    const res = await fetch(url)
-    if (!res.ok) return null
-    const json = await res.json()
-    const feature = json?.features?.[0]
-    if (feature) return { name: feature.properties?.forest_range_name || '' }
-  } catch {}
-  return null
-}
-
-// ── ULDK — numer działki przez Vercel proxy ─────────────────────────────────
+// ── ULDK — numer i dane działki ewidencyjnej ─────────────────────────────────
 export async function getParcelNumber(lat, lng) {
   try {
     const token = localStorage.getItem('campas_token') || ''
-    const res = await fetch(`/api/uldk?request=GetParcelByXY&lat=${lat}&lng=${lng}`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {}
-    })
+    const res = await fetch(
+      `/api/uldk?request=GetParcelByXY&lat=${lat}&lng=${lng}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    )
     if (!res.ok) return null
-    const json = await res.json()
-    if (json?.centroid || json?.fields?.dzialka) return {
-      wkbHex: json.fields?.geom_wkt || null,
-      dzialka: json.fields?.dzialka || null,
-      numer: json.fields?.numer || null,
-      teryt: json.fields?.teryt || null,
-      obreb: json.fields?.obreb || null,
-      gmina: json.fields?.gmina || null,
-      powiat: json.fields?.powiat || null,
-    }
-    if (json?.raw) {
-      const lines = json.raw.trim().split('\n')
-      if (lines[0] === '0') return { wkbHex: lines[1] }
+    const data = await res.json()
+    if (data?.error) return null
+    const f = data.fields || {}
+    return {
+      dzialka: f.dzialka || null,
+      powiat:  f.powiat  || null,
+      gmina:   f.gmina   || null,
+      obreb:   f.obreb   || null,
+      numer:   f.numer   || null,
+      teryt:   f.teryt   || null,
     }
   } catch {}
   return null
@@ -195,15 +161,10 @@ export async function getParcelNumber(lat, lng) {
 
 // ── Pobierz TOP 3 z filtrami jurysdykcyjnymi ────────────────────────────────
 async function findWithRoute(lat, lng, amenity, adminFilter, adminValue) {
-  // 1. Overpass
   let points = await queryOverpass(amenity, lat, lng)
-
-  // 2. Jeśli Overpass pusto → Nominatim fallback
   if (points.length === 0) {
     points = await searchNominatim(lat, lng, amenityLabel(amenity))
   }
-
-  // 3. Dodaj czasy OSRM (z fallbackiem na haversine)
   const withRoute = await addOsrmRoutes(points, lat, lng)
 
   let filtered = withRoute
@@ -233,104 +194,133 @@ async function findWithRoute(lat, lng, amenity, adminFilter, adminValue) {
     }))
 }
 
-// ── NFZ API — przychodnia z telefonem ───────────────────────────────────────
-export async function findNfzClinic(lat, lng) {
+// ── NFZ POZ — najbliższe przychodnie przez backend proxy ────────────────────
+async function findNfzPlaces(lat, lng, kind) {
   try {
-    const url = `https://api.nfz.gov.pl/app-itl-api/queues?page=1&limit=3&format=json&api-version=1.3&sort=geodistance&lat=${lat}&lng=${lng}`
-    const res = await fetch(url)
-    if (!res.ok) return null
+    const token = localStorage.getItem('campas_token') || ''
+    const res = await fetch(`/api/uldk/nfz-places?lat=${lat}&lng=${lng}&kind=${kind}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    if (!res.ok) return []
+    return await res.json()
+  } catch { return [] }
+}
+
+// ── Overpass PSP — tylko Państwowa Straż Pożarna (operator tag) ──────────────
+async function queryOverpassPsp(lat, lng, radius = 40000) {
+  try {
+    const query = `[out:json];(node["amenity"="fire_station"]["operator"="Państwowa Straż Pożarna"](around:${radius},${lat},${lng});way["amenity"="fire_station"]["operator"="Państwowa Straż Pożarna"](around:${radius},${lat},${lng}););out center 10;`
+    const res = await fetch('https://overpass-api.de/api/interpreter', {
+      method: 'POST',
+      body: query,
+      headers: { 'Content-Type': 'text/plain' },
+    })
+    if (!res.ok) return []
     const json = await res.json()
-    const entries = json?.data?.rows || []
-    if (entries.length === 0) return null
-    const e = entries[0]
-    return { name: e.provider_name || '', address: [e.address, e.city].filter(Boolean).join(', '), phone: e.phone || e.provider_phone || '' }
-  } catch { return null }
+    return (json.elements || []).map(el => {
+      const t = el.tags || {}
+      return {
+        name: t['name:pl'] || t.name || t.official_name || '',
+        lat: el.lat || el.center?.lat,
+        lng: el.lon || el.center?.lon,
+        city: t['addr:city'] || t.city || '',
+        state: t['addr:state'] || t.state || t.is_in || '',
+        phone: t.phone || t['contact:phone'] || '',
+        address: [t['addr:street'] || t.street, t['addr:city'] || t.city].filter(Boolean).join(', '),
+      }
+    }).filter(p => p.lat && p.lng)
+  } catch { return [] }
 }
 
 // ── Główna funkcja — pobierz wszystko z filtrami jurysdykcyjnymi ────────────
 export async function fetchAllGeoData(lat, lng) {
-  const [geo, hospitalList, policeList, fireList, clinicList, nfz, forest, forestRange, parcel] = await Promise.allSettled([
+  const [geo, hospitalList, policeList, pspPoints, clinicList, nfzPozList, nfzHospitals, forestData, parcel] = await Promise.allSettled([
     reverseGeocode(lat, lng),
     findWithRoute(lat, lng, 'hospital'),
     findWithRoute(lat, lng, 'police'),
-    findWithRoute(lat, lng, 'fire_station'),
+    queryOverpassPsp(lat, lng),
     findWithRoute(lat, lng, 'clinic'),
-    findNfzClinic(lat, lng),
-    getForestDistrict(lat, lng),
-    getForestRange(lat, lng),
+    findNfzPlaces(lat, lng, 'poz'),
+    findNfzPlaces(lat, lng, 'szpital'),
+    getForestData(lat, lng),
     getParcelNumber(lat, lng),
   ])
 
   const geocode = geo.value || {}
-  const woj = geocode.wojewodztwo?.replace(/^(województwo\s+)/i, '') || ''
-  const gm = geocode.gmina?.replace(/^(gmina\s+|miasto\s+)/i, '') || ''
-  const powiat = geocode.powiat?.replace(/^(powiat\s+)/i, '') || ''
+  const woj = geocode.wojewodztwo || ''
+  const gm = geocode.gmina || ''
+  const powiat = geocode.powiat || ''
 
-  const inRegion = (list, region) => {
-    if (!region || !list.length) return list
-    const r = region.toLowerCase()
-    return list.filter(p => {
-      const a = (p.address || '').toLowerCase()
-      const n = (p.name || '').toLowerCase()
-      return a.includes(r) || n.includes(r)
-    })
+  // PSP — Overpass (pozycje + trasy OSRM), uzupełnij telefon z gov.pl w tle
+  let fire = pspPoints.value || []
+  if (fire.length > 0) {
+    const withRoute = await addOsrmRoutes(fire, lat, lng)
+    fire = withRoute
+      .sort((a, b) => {
+        const aVal = typeof a.duration_min === 'number' ? a.duration_min : 999
+        const bVal = typeof b.duration_min === 'number' ? b.duration_min : 999
+        return aVal - bVal
+      })
+      .slice(0, 3)
+      .map(p => ({
+        name: formatPSPName(p.name),
+        duration_min: typeof p.duration_min === 'number' ? p.duration_min : '-',
+        distance_km: p.distance_km,
+        phone: p.phone,
+        address: p.address,
+      }))
+  } else if (powiat) {
+    // Fallback: gov.pl scraper gdy Overpass nie zwrócił PSP
+    try {
+      const token = localStorage.getItem('campas_token') || ''
+      const cityParam = gm ? `&city=${encodeURIComponent(gm)}` : ''
+      const res = await fetch(`/api/uldk/psp?powiat=${encodeURIComponent(powiat)}${cityParam}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      if (res.ok) {
+        const d = await res.json()
+        fire = [{ name: formatPSPName(d.name), duration_min: '-', distance_km: '-', phone: d.phone, address: d.address }]
+      }
+    } catch {}
   }
 
-  const formatPSPName = (name) => {
-    return name
-      .replace(/Państwow(ej|a)\s+Straż(y|y)\s+Pożarn(ej|a)/gi, 'PSP')
-      .replace(/Komend(a|y)\s+Powiatow(a|ej)\s+PSP\s+w\s+/i, 'Komenda Powiatowa PSP w ')
-      .replace(/Jednostka\s+Ratowniczo-Gaśnicza\s+(KP\s+)?PSP\s+w\s+/i, 'Komenda Powiatowa PSP w ')
+  // Policja — Overpass (najbliższe), filtr po gminie/powiecie
+  let police = (policeList.value || []).slice(0, 3)
+  if (gm || powiat) {
+    const region = (gm || powiat).toLowerCase()
+    const filtered = police.filter(p => (p.address || '').toLowerCase().includes(region))
+    if (filtered.length > 0) police = filtered
   }
 
-  const isPSP = (p) => {
-    const n = (p.name || '').toLowerCase()
-    const o = (p.operator || '').toLowerCase()
-    if (n.includes('psp') || n.includes('państwow') || n.includes('panstwow') || n.includes('komenda')) return true
-    if (o.includes('państwow') || o.includes('panstwow') || o.includes('psp')) return true
-    return false
-  }
-
-  // PSP + Policja — z backendu (gov.pl scraper), równolegle z innymi zapytaniami
-  const pspPromise = powiat
-    ? (async () => {
-        try {
-          const token = localStorage.getItem('campas_token') || ''
-          const cityParam = gm ? `&city=${encodeURIComponent(gm)}` : ''
-          const res = await fetch(`/api/uldk/psp?powiat=${encodeURIComponent(powiat)}${cityParam}`, {
-            headers: { Authorization: `Bearer ${token}` }
-          })
-          if (res.ok) {
-            const d = await res.json()
-            return [{ name: formatPSPName(d.name), duration_min: '-', distance_km: '-', phone: d.phone, address: d.address, email: d.email }]
-          }
-        } catch {}
-        return []
-      })()
-    : Promise.resolve([])
-
-  // Policja — 3 najbliższe z Overpass (bez gov.pl)
-  const police = (policeList.value || []).slice(0, 3)
-
-  // Szpitale — tylko publiczne (odrzuć prywatne)
+  // Szpitale — tylko publiczne, uzupełnij telefony z NFZ
   let hospitals = (hospitalList.value || []).filter(h => {
     const n = (h.name || '').toLowerCase()
     return !n.includes('prywatn') && !n.includes('niepubliczn')
   })
+  const nfzHosp = nfzHospitals.value || []
+  if (nfzHosp.length > 0) {
+    hospitals = hospitals.map(h => {
+      if (h.phone) return h
+      const match = nfzHosp.find(n => {
+        const hn = (h.name || '').toLowerCase()
+        const nn = (n.name || '').toLowerCase()
+        return nn.includes(hn.slice(0, 8)) || hn.includes(nn.slice(0, 8))
+      })
+      return match ? { ...h, phone: match.phone } : h
+    })
+  }
 
-  // Poczekaj na PSP + Policję (gov.pl scraper — może być wolny)
-  const [pspResult] = await Promise.allSettled([pspPromise])
-  const fire = pspResult.value || []
-
+  const fd = forestData.value || {}
+  const nfzPoz = nfzPozList.value || []
   return {
     geocode,
     hospitals,
     police,
     fire,
-    clinics: (clinicList.value || []).filter(c => c && c.name && c.name.trim()),
-    nfz: nfz.value,
-    forest: forest.value,
-    forestRange: forestRange.value,
+    clinics: (clinicList.value || []).filter(c => c?.name?.trim()),
+    nfzPoz,
+    forest:      fd.nadlesnictwo ? { name: fd.nadlesnictwo } : null,
+    forestRange: fd.lesnictwo    ? { name: fd.lesnictwo }    : null,
     parcel: parcel.value,
   }
 }

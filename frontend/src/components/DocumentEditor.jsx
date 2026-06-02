@@ -370,7 +370,7 @@ function PaginatedEditor({ initialHtml, activeTab, meta, attachments }) {
     if (pp.length === 0) return
     pp[0].innerHTML = initialHtml || '<p><br></p>'
     initDone.current = true
-  }, [initialHtml])
+  }, [])
 
   const reflow = useCallback(() => {
     if (!initDone.current || reflowing.current) return
@@ -817,6 +817,7 @@ export default function DocumentEditor({ templateHtml, meta, docLabel, onClose, 
 
         <div className="flex-1 overflow-y-auto" style={{ background: '#6b7280' }}>
           <PaginatedEditor
+            key={activeTab}
             initialHtml={currentContent}
             activeTab={activeTab}
             meta={meta}

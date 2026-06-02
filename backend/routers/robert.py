@@ -120,7 +120,7 @@ def _get_sources(raw_sources: list[str]) -> list[dict]:
     seen = set()
     for src in raw_sources:
         entry = _FILE_MAP.get(src) or _FILE_MAP.get(src + ".txt") or _FILE_MAP.get(src + ".md") or _FILE_MAP.get(src + ".pdf")
-        if not entry or seen.get(entry.get("title")):
+        if not entry or entry.get("title") in seen:
             continue
         seen.add(entry.get("title"))
         results.append({"title": entry.get("title", ""), "file": entry.get("file"), "url": entry.get("url")})

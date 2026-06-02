@@ -1,5 +1,5 @@
 """
-routers/uldk.py — proxy ULDK (GUGIK) do identyfikacji działek.
+routers/uldk.py — proxy ULDK (GUGIK) + BDL (nadleśnictwa/leśnictwa) + NFZ + PSP/Policja.
 Prefix: /api/uldk
 """
 import re
@@ -53,7 +53,6 @@ def epsg2180_to_wgs84(x: float, y: float):
     for _ in range(6):
         sin_lat = math.sin(lat)
         nu = a / math.sqrt(1 - e2 * sin_lat * sin_lat)
-        e2_sin2 = e2 * sin_lat * sin_lat
         M = a * (
             (1 - e2/4 - 3*e2*e2/64 - 5*e2*e2*e2/256) * lat
             - (3*e2/8 + 3*e2*e2/32 + 45*e2*e2*e2/1024) * math.sin(2*lat)
@@ -98,10 +97,8 @@ def parse_uldk_response(text: str):
 
     result: dict = {"raw": text, "fields": {}}
 
-    # Format pipe-separated (GetParcelById)
     if len(lines) == 2 and "|" in lines[1]:
         parts = lines[1].split("|")
-        # Parts: ['', 'SRID=2180;POLYGON((...))', 'powiat...', 'gmina...', 'obreb...', 'numer...', 'teryt...']
         field_map = {0: "geom_wkt", 1: "powiat", 2: "gmina", 3: "obreb", 4: "numer", 5: "teryt"}
         for i, name in field_map.items():
             if i + 1 < len(parts):
@@ -109,7 +106,6 @@ def parse_uldk_response(text: str):
         if len(parts) > 6:
             result["fields"]["dzialka"] = parts[6]
     else:
-        # Format newline-separated (GetParcelByXY)
         field_names = RESULT_FIELDS.split(",")
         for i, name in enumerate(field_names):
             if i + 1 < len(lines):
@@ -124,12 +120,13 @@ def parse_uldk_response(text: str):
     return result
 
 
+# ── ULDK proxy ─────────────────────────────────────────────────────────────────
 @router.get("")
 async def uldk_proxy(
     request: str = Query(..., description="GetParcelByXY | GetParcelById"),
     lat: float | None = Query(None),
     lng: float | None = Query(None),
-    xy: str | None = Query(None, description="'lng,lat'"),
+    xy: str | None = Query(None, description="'lng,lat' w WGS84 lub 'x,y' w EPSG:2180"),
     id: str | None = Query(None, description="Identyfikator działki np. 146501_1.0001.12"),
     user_id: str = Depends(get_current_user),
 ):
@@ -137,12 +134,17 @@ async def uldk_proxy(
 
     if request == "GetParcelByXY":
         if xy:
-            x, y = xy.split(",")
-            x, y = wgs84_to_epsg2180(float(y), float(x))
-            params["xy"] = f"{x},{y}"
+            parts = xy.split(",")
+            fx, fy = float(parts[0]), float(parts[1])
+            # Jeśli wartości wyglądają jak WGS84 (małe liczby), konwertuj
+            if abs(fx) <= 180 and abs(fy) <= 90:
+                cx, cy = wgs84_to_epsg2180(fy, fx)
+            else:
+                cx, cy = fx, fy
+            params["xy"] = f"{cx},{cy}"
         elif lat is not None and lng is not None:
-            x, y = wgs84_to_epsg2180(lat, lng)
-            params["xy"] = f"{x},{y}"
+            cx, cy = wgs84_to_epsg2180(lat, lng)
+            params["xy"] = f"{cx},{cy}"
         else:
             raise HTTPException(status_code=400, detail="Podaj xy lub lat+lng")
 
@@ -169,10 +171,33 @@ async def uldk_proxy(
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"ULDK niedostępny: {str(e)}")
 
-    parsed = parse_uldk_response(r.text)
-    return parsed
+    return parse_uldk_response(r.text)
 
 
+# ── BDL — Nadleśnictwo + Leśnictwo ────────────────────────────────────────────
+@router.get("/forest-district")
+async def forest_district(lat: float = Query(...), lng: float = Query(...)):
+    d = 0.0001
+    bbox = f"{lng - d},{lat - d},{lng + d},{lat + d}"
+    result = {"nadlesnictwo": None, "lesnictwo": None}
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.get("https://ogcapi.bdl.lasy.gov.pl/collections/nadlesnictwa/items", params={"bbox": bbox, "limit": 1, "f": "json"})
+            if r.status_code == 200:
+                feat = r.json().get("features", [None])[0]
+                if feat:
+                    result["nadlesnictwo"] = feat["properties"].get("inspectorate_name")
+            r2 = await client.get("https://ogcapi.bdl.lasy.gov.pl/collections/lesnictwa/items", params={"bbox": bbox, "limit": 1, "f": "json"})
+            if r2.status_code == 200:
+                feat2 = r2.json().get("features", [None])[0]
+                if feat2:
+                    result["lesnictwo"] = feat2["properties"].get("forest_range_name")
+    except Exception:
+        pass
+    return result
+
+
+# ── PSP — dane kontaktowe z gov.pl ────────────────────────────────────────────
 @router.get("/psp")
 async def get_psp_info(
     powiat: str = Query(..., description="Nazwa powiatu (np. białobrzeski)"),
@@ -180,17 +205,17 @@ async def get_psp_info(
 ):
     """Scrapuje dane kontaktowe PSP z gov.pl dla danego powiatu."""
     import re as _re
-    
+
     def to_slug(s):
         return s.lower().strip().translate(str.maketrans("ąćęłńóśźż ", "acelnoszz-"))
-    
+
     candidates = []
     if city:
         candidates.append(to_slug(city))
-    
+
     powiat_slug = to_slug(powiat.replace("powiat ", ""))
     candidates.append(powiat_slug)
-    
+
     base = _re.sub(r"(ski|cki|dzki|owski)$", "", powiat_slug)
     if base != powiat_slug:
         for ending in ["gi", "i", "o", "a", ""]:
@@ -205,15 +230,15 @@ async def get_psp_info(
 
     for city_slug in unique:
         url = f"https://www.gov.pl/web/kppsp-{city_slug}/dane-kontaktowe"
-        print(f"[PSP] Trying: {url}")
         result = await _scrape_gov(url)
         if result:
             return result
 
     raise HTTPException(status_code=404, detail=f"Nie znaleziono strony PSP dla powiatu: {powiat}")
 
+
 async def _scrape_gov(url: str):
-    """Wspólny scraper dla stron gov.pl — zwraca {name, address, phone, email} lub None."""
+    """Scraper stron gov.pl — zwraca {name, address, phone, email} lub None."""
     import re as _re
     try:
         async with httpx.AsyncClient(timeout=5, follow_redirects=True, headers={
@@ -228,8 +253,7 @@ async def _scrape_gov(url: str):
         title_match = _re.search(r"<title>([^<]+)</title>", html)
         if title_match:
             title = title_match.group(1)
-            parts = title.split(" - ")
-            for p in parts:
+            for p in title.split(" - "):
                 p = p.strip()
                 if p and p not in ("Portal Gov.pl", "Dane kontaktowe") and ("Komenda" in p or "Policji" in p or "PSP" in p):
                     name = p
@@ -239,14 +263,6 @@ async def _scrape_gov(url: str):
             h1_match = _re.search(r"<h1[^>]*>([^<]+)</h1>", html)
             if h1_match:
                 name = h1_match.group(1).strip()
-            else:
-                main_match = _re.search(r"<main[^>]*>(.*?)</main>", html, _re.DOTALL)
-                if main_match:
-                    text = _re.sub(r"<[^>]+>", " ", main_match.group(1))
-                    text = _re.sub(r"\s+", " ", text).strip()
-                    m = _re.search(r"(Komenda[^.]+?(?:Policji|PSP|Państwow)[^.]+)", text)
-                    if m:
-                        name = m.group(1).strip()
 
         addr_match = _re.search(r"((?:ul\.|Ul\.)\s*[^<]+\d{2}-\d{3}\s+\w[^<]+)", html)
         phone_match = _re.search(r"tel\.?\s*([+\d\s]{5,30})", html)
@@ -265,6 +281,7 @@ async def _scrape_gov(url: str):
     return None
 
 
+# ── Policja — Nominatim ────────────────────────────────────────────────────────
 @router.get("/police")
 async def get_police_info(
     powiat: str = Query(..., description="Nazwa powiatu (np. białobrzeski)"),
@@ -299,3 +316,122 @@ async def get_police_info(
         raise
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Nominatim error: {str(e)}")
+
+
+# ── NFZ — najbliższe placówki z telefonami (POZ + szpitale) ───────────────────
+NFZ_PROVINCE_MAP = {
+    "dolnośląskie": "01", "kujawsko-pomorskie": "02", "lubelskie": "06",
+    "lubuskie": "08", "łódzkie": "10", "małopolskie": "12", "mazowieckie": "14",
+    "opolskie": "16", "podkarpackie": "18", "podlaskie": "20", "pomorskie": "22",
+    "śląskie": "24", "świętokrzyskie": "26", "warmińsko-mazurskie": "28",
+    "wielkopolskie": "30", "zachodniopomorskie": "32",
+}
+
+NFZ_POZ_BENEFITS = ["POZ", "podstawowa opieka", "lekarz podstawowej", "lekarz POZ"]
+NFZ_HOSPITAL_BENEFITS = ["oddział", "szpital", "chirurg", "intern", "kardiol", "neurol",
+    "ortop", "pediatr", "ginek", "urolog", "laryng", "okul", "anestezj", "intensywn",
+    "ratunk", "SOR", "izba przyjęć", "zakaźn", "pulmon", "onkolog", "psychiatr"]
+
+
+@router.get("/nfz-places")
+async def nfz_places(
+    lat: float = Query(...),
+    lng: float = Query(...),
+    kind: str = Query("poz", description="poz | szpital"),
+):
+    if kind == "szpital":
+        nfz_case = 2
+        benefit_keywords = NFZ_HOSPITAL_BENEFITS
+    else:
+        nfz_case = 1
+        benefit_keywords = NFZ_POZ_BENEFITS
+
+    results: list[dict] = []
+    try:
+        geocode = await _reverse_geocode_nominatim(lat, lng)
+        woj_raw = geocode.get("wojewodztwo", "").lower()
+        woj_code = None
+        for name, code in NFZ_PROVINCE_MAP.items():
+            if name in woj_raw:
+                woj_code = code
+                break
+        if not woj_code:
+            woj_code = "14"
+    except Exception:
+        woj_code = "14"
+
+    try:
+        async with httpx.AsyncClient(timeout=20) as client:
+            for page in (1, 2, 3):
+                r = await client.get(
+                    "https://api.nfz.gov.pl/app-itl-api/queues",
+                    params={"case": nfz_case, "province": woj_code, "page": page, "limit": 100, "format": "json"},
+                )
+                if r.status_code != 200:
+                    break
+                entries = r.json().get("data", [])
+                if not entries:
+                    break
+                for entry in entries:
+                    attr = entry.get("attributes", {})
+                    benefit = (attr.get("benefit") or "").lower()
+                    if not any(kw.lower() in benefit for kw in benefit_keywords):
+                        continue
+                    clat = attr.get("latitude")
+                    clng = attr.get("longitude")
+                    if clat is None or clng is None:
+                        continue
+                    results.append({
+                        "name": attr.get("provider") or attr.get("place", ""),
+                        "place": attr.get("place", ""),
+                        "address": attr.get("address", ""),
+                        "locality": attr.get("locality", ""),
+                        "phone": attr.get("phone", ""),
+                        "lat": clat,
+                        "lng": clng,
+                        "provider_code": attr.get("provider-code", ""),
+                    })
+    except Exception:
+        return []
+
+    seen: dict = {}
+    uniq = []
+    for item in results:
+        key = item["provider_code"] or item["address"]
+        if key in seen:
+            continue
+        seen[key] = True
+        uniq.append(item)
+
+    def haversine(lat1, lng1, lat2, lng2):
+        from math import radians, sin, cos, sqrt, atan2
+        R = 6371
+        dlat = radians(lat2 - lat1)
+        dlng = radians(lng2 - lng1)
+        a = sin(dlat / 2) ** 2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlng / 2) ** 2
+        return R * 2 * atan2(sqrt(a), sqrt(1 - a))
+
+    uniq.sort(key=lambda x: haversine(lat, lng, x["lat"], x["lng"]))
+    for item in uniq:
+        item["distance_km"] = round(haversine(lat, lng, item["lat"], item["lng"]), 1)
+
+    return uniq[:5]
+
+
+@router.get("/nfz-poz")
+async def nfz_poz_compat(lat: float = Query(...), lng: float = Query(...)):
+    return await nfz_places(lat, lng, kind="poz")
+
+
+async def _reverse_geocode_nominatim(lat: float, lng: float) -> dict:
+    async with httpx.AsyncClient(timeout=10) as client:
+        r = await client.get(
+            "https://nominatim.openstreetmap.org/reverse",
+            params={"format": "json", "lat": lat, "lon": lng, "zoom": 10, "accept-language": "pl", "addressdetails": 1},
+            headers={"User-Agent": "CampAs/2.0"},
+        )
+        if r.status_code != 200:
+            return {}
+        data = r.json()
+        addr = data.get("address", {})
+        return {"wojewodztwo": addr.get("state", "")}
