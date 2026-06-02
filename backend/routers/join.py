@@ -1,0 +1,170 @@
+"""
+routers/join.py — Kody dołączenia do obozu (system Kahoot-style).
+"""
+import random
+import string
+from datetime import datetime, timezone, timedelta
+
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from database import get_db
+from dependencies import get_current_user, require_camp_owner
+from models.app import CampJoinCode
+from models.shared import Camp, CampAccess, User
+
+router = APIRouter(tags=["join"])
+
+ADJECTIVES = ["WILK","ORZEL","LIS","JELEN","BOBER","SOKOL","RYBA","KRET","ZUK","BARAN"]
+NOUNS      = ["LASU","GORY","RZEKI","POLA","DOLINY","LAKI","LASU","NIEBA","WODY","OGNIA"]
+
+
+def _generate_code() -> str:
+    adj = random.choice(ADJECTIVES)
+    num = random.randint(10, 99)
+    return f"{adj}{num}"
+
+
+# ── Generuj kod dołączenia (tylko owner obozu) ────────────────────────────────
+@router.post("/api/camps/{camp_id}/join-code")
+async def generate_join_code(
+    camp_id: str,
+    user_id: str = Depends(require_camp_owner),
+    db: AsyncSession = Depends(get_db),
+):
+    # Unieważnij poprzedni aktywny kod dla tego obozu (opcjonalnie możemy zostawić)
+    existing = await db.execute(
+        select(CampJoinCode).where(
+            CampJoinCode.camp_id == camp_id,
+            CampJoinCode.expires_at > datetime.now(timezone.utc),
+        ).order_by(CampJoinCode.created_at.desc()).limit(1)
+    )
+    old_code = existing.scalar_one_or_none()
+    if old_code:
+        return {
+            "code": old_code.code,
+            "expires_at": old_code.expires_at.isoformat(),
+            "uses": old_code.uses,
+            "max_uses": old_code.max_uses,
+        }
+
+    # Generuj unikalny kod
+    for _ in range(20):
+        code = _generate_code()
+        dup = await db.execute(select(CampJoinCode).where(CampJoinCode.code == code))
+        if not dup.scalar_one_or_none():
+            break
+
+    join_code = CampJoinCode(
+        camp_id=camp_id,
+        code=code,
+        created_by=user_id,
+        role="przyboczny",
+        max_uses=None,
+        uses=0,
+        expires_at=datetime.now(timezone.utc) + timedelta(days=7),
+    )
+    db.add(join_code)
+    await db.commit()
+    await db.refresh(join_code)
+
+    return {
+        "code": join_code.code,
+        "expires_at": join_code.expires_at.isoformat(),
+        "uses": join_code.uses,
+        "max_uses": join_code.max_uses,
+    }
+
+
+@router.post("/api/camps/{camp_id}/join-code/refresh")
+async def refresh_join_code(
+    camp_id: str,
+    user_id: str = Depends(require_camp_owner),
+    db: AsyncSession = Depends(get_db),
+):
+    """Wygeneruj nowy kod (unieważnia poprzedni przez zmianę expires_at)."""
+    existing = await db.execute(
+        select(CampJoinCode).where(CampJoinCode.camp_id == camp_id)
+    )
+    for old in existing.scalars().all():
+        old.expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
+    await db.commit()
+    return await generate_join_code(camp_id, user_id, db)
+
+
+# ── Sprawdź kod (publiczny endpoint) ─────────────────────────────────────────
+@router.get("/api/join/{code}")
+async def get_join_info(
+    code: str,
+    db: AsyncSession = Depends(get_db),
+):
+    code_upper = code.upper()
+    result = await db.execute(
+        select(CampJoinCode).where(CampJoinCode.code == code_upper)
+    )
+    join_code = result.scalar_one_or_none()
+    if not join_code:
+        raise HTTPException(status_code=404, detail="Nie znaleziono kodu. Sprawdź czy wpisałeś poprawnie.")
+    if join_code.expires_at < datetime.now(timezone.utc):
+        raise HTTPException(status_code=410, detail="Kod wygasł. Poproś komendanta o nowy.")
+    if join_code.max_uses and join_code.uses >= join_code.max_uses:
+        raise HTTPException(status_code=410, detail="Kod został już wykorzystany.")
+
+    camp = await db.get(Camp, join_code.camp_id)
+    if not camp:
+        raise HTTPException(status_code=404, detail="Obóz nie istnieje.")
+
+    return {
+        "code": join_code.code,
+        "camp_id": join_code.camp_id,
+        "camp_name": camp.unit_name,
+        "date_start": camp.date_start.isoformat() if camp.date_start else None,
+        "date_end": camp.date_end.isoformat() if camp.date_end else None,
+        "role": join_code.role,
+        "expires_at": join_code.expires_at.isoformat(),
+        "valid": True,
+    }
+
+
+# ── Użyj kodu (wymaga zalogowania) ───────────────────────────────────────────
+@router.post("/api/join/{code}")
+async def use_join_code(
+    code: str,
+    user_id: str = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    code_upper = code.upper()
+    result = await db.execute(
+        select(CampJoinCode).where(CampJoinCode.code == code_upper)
+    )
+    join_code = result.scalar_one_or_none()
+    if not join_code:
+        raise HTTPException(status_code=404, detail="Nieprawidłowy kod.")
+    if join_code.expires_at < datetime.now(timezone.utc):
+        raise HTTPException(status_code=410, detail="Kod wygasł.")
+    if join_code.max_uses and join_code.uses >= join_code.max_uses:
+        raise HTTPException(status_code=410, detail="Kod już wykorzystany.")
+
+    # Sprawdź czy user już ma dostęp do tego obozu
+    existing_access = await db.execute(
+        select(CampAccess).where(
+            CampAccess.camp_id == join_code.camp_id,
+            CampAccess.user_id == user_id,
+        )
+    )
+    if existing_access.scalar_one_or_none():
+        return {"success": True, "camp_id": join_code.camp_id, "already_member": True}
+
+    # Dodaj dostęp
+    access = CampAccess(
+        user_id=user_id,
+        camp_id=join_code.camp_id,
+        permissions=join_code.role,
+    )
+    db.add(access)
+
+    join_code.uses += 1
+    await db.commit()
+
+    return {"success": True, "camp_id": join_code.camp_id, "already_member": False}

@@ -1,5 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { AlertProvider } from './components/AlertContext'
+import LandingPage from './components/LandingPage'
+import CampSwitcher from './components/CampSwitcher'
+import JoinCampFlow from './components/JoinCampFlow'
 import ActivityPanel from './components/ActivityPanel'
 import DayCard from './components/DayCard'
 import TemplatePanel from './components/TemplatePanel'
@@ -63,6 +66,11 @@ export default function App() {
   const [showChangePwd, setShowChangePwd] = useState(false)
   // campId — aktywny obóz (z localStorage, ładowany po logowaniu)
   const [campId, setCampId] = useState(() => localStorage.getItem('campas_camp_id') || null)
+  // Lista obozów usera (do switchera)
+  const [campsList, setCampsList] = useState([])
+  // Flow dołączenia przez kod
+  const [showJoinFlow, setShowJoinFlow] = useState(() => window.location.pathname === '/dolacz')
+  const [pendingJoinCode, setPendingJoinCode] = useState(null)
 
   // Reset lokalnego stanu gdy zmieni się zalogowany użytkownik (ochrona przed wyciekiem danych)
   const prevUserIdRef = useRef(null)
@@ -158,17 +166,18 @@ export default function App() {
       // Upewnij się że profil istnieje (FK constraint)
       await upsertProfile({ id: u.id, display_name: u.email?.split('@')[0] || '' })
 
-      // Załaduj campId — użyj zapisanego lub pierwszego dostępnego obozu
-      if (!campId) {
-        try {
-          const { camps } = await getCamps()
-          if (camps?.length) {
+      // Załaduj listę obozów i ustaw aktywny campId
+      try {
+        const { camps } = await getCamps()
+        if (camps?.length) {
+          setCampsList(camps)
+          if (!campId || !camps.find(c => c.id === campId)) {
             const firstCamp = camps[0]
             localStorage.setItem('campas_camp_id', firstCamp.id)
             setCampId(firstCamp.id)
           }
-        } catch {}
-      }
+        }
+      } catch {}
 
       const profile = await getProfile(u.id)
       const savedMeta = await loadCampMeta(u.id)
@@ -367,45 +376,46 @@ export default function App() {
 
   const metaOk = meta.jednostka && meta.kierownik
 
-  // ── Bramka logowania — cała aplikacja za auth ──────────────────────────────
+  // ── Bramka logowania — landing page lub auth ──────────────────────────────
   if (!user && !externalUser) {
+    const handleAuth = (u) => {
+      setUser(u)
+      setShowAuth(false)
+      applyProfile(u)
+      if (!state.meta.miejsce) setShowOnboarding(true)
+      // Jeśli był pending join code — od razu dołącz
+      if (pendingJoinCode) {
+        setShowJoinFlow(true)
+      }
+    }
+
     return (
-      <div className="min-h-screen bg-green-900 flex flex-col items-center justify-center p-4">
-        <div className="mb-8 text-center">
-          <h1 className="text-3xl font-bold text-white">CampAs</h1>
-          <p className="text-green-300 mt-1">Skauci Europy · Asystent Obozowy</p>
-        </div>
+      <>
+        <LandingPage
+          onEnterApp={() => setShowAuth(true)}
+          onJoinCamp={() => setShowJoinFlow(true)}
+        />
         {resetError && (
-          <div className="bg-white rounded-xl shadow-lg w-full max-w-sm p-4 mb-4">
+          <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-white rounded-xl shadow-lg px-6 py-3">
             <p className="text-red-600 text-sm text-center">{resetError}</p>
           </div>
         )}
-        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-8">
-          <p className="text-center text-gray-600 text-sm mb-6">
-            Zaloguj się aby korzystać z aplikacji.<br/>
-            <span className="text-xs text-gray-400">Dostęp tylko dla @skauci-europy.pl</span>
-          </p>
-          <button
-            onClick={() => setShowAuth(true)}
-            className="w-full bg-green-700 text-white py-3 rounded-xl font-bold text-lg hover:bg-green-800 transition"
-          >
-            🔐 Zaloguj się
-          </button>
-        </div>
         {showAuth && (
           <AuthModal
             resetToken={resetToken}
-            onClose={() => { setShowAuth(false); setResetToken(null); window.history.replaceState({}, '', '/login') }}
-            onAuth={u => {
-              setUser(u)
-              setShowAuth(false)
-              applyProfile(u)
-              // Pokaż modal pierwszego logowania jeśli brak lokalizacji
-              if (!state.meta.miejsce) setShowOnboarding(true)
-            }}
+            onClose={() => { setShowAuth(false); setResetToken(null) }}
+            onAuth={handleAuth}
           />
         )}
-      </div>
+        {showJoinFlow && (
+          <JoinCampFlow
+            user={null}
+            onClose={() => setShowJoinFlow(false)}
+            onJoined={() => {}}
+            onNeedAuth={(code) => { setPendingJoinCode(code); setShowAuth(true); setShowJoinFlow(false) }}
+          />
+        )}
+      </>
     )
   }
 
@@ -445,11 +455,22 @@ export default function App() {
         {/* Top row */}
         <div className="px-4 py-2 flex items-center justify-between">
           <div className="flex items-center gap-3">
-
             <div>
               <h1 className="text-sm font-bold leading-tight">CampAs</h1>
               <p className="text-green-400 text-xs">Skauci Europy</p>
             </div>
+            {campsList.length > 0 && !externalUser && (
+              <CampSwitcher
+                camps={campsList}
+                currentCampId={campId}
+                onSwitch={(newId) => {
+                  localStorage.setItem('campas_camp_id', newId)
+                  setCampId(newId)
+                  setState(DEFAULT_STATE)
+                }}
+                onCreateNew={() => { setMainSection('settings') }}
+              />
+            )}
           </div>
           <div className="flex items-center gap-2">
             <span className="text-green-300 text-xs hidden md:block">{
@@ -758,6 +779,25 @@ export default function App() {
           </div>
         )
       })()}
+
+      {/* Dołącz do obozu (dla zalogowanych) */}
+      {showJoinFlow && user && (
+        <JoinCampFlow
+          user={user}
+          onClose={() => { setShowJoinFlow(false); setPendingJoinCode(null) }}
+          onJoined={async (newCampId) => {
+            setShowJoinFlow(false)
+            setPendingJoinCode(null)
+            localStorage.setItem('campas_camp_id', newCampId)
+            setCampId(newCampId)
+            try {
+              const { camps } = await getCamps()
+              if (camps?.length) setCampsList(camps)
+            } catch {}
+          }}
+          onNeedAuth={() => {}}
+        />
+      )}
     </div>
     </AlertProvider>
   )

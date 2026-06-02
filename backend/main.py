@@ -24,7 +24,7 @@ import models.ingredients  # noqa
 from database import Base
 
 from routers import auth, camps, documents, planning, terrains
-from routers import tasks, calendar, external_users, files, ingredients, robert, uldk
+from routers import tasks, calendar, external_users, files, ingredients, robert, uldk, join
 
 
 @asynccontextmanager
@@ -70,6 +70,7 @@ app.include_router(files.router)
 app.include_router(ingredients.router)
 app.include_router(robert.router)
 app.include_router(uldk.router)
+app.include_router(join.router)
 
 
 @app.get("/health")

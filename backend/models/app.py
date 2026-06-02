@@ -3,7 +3,7 @@ models/app.py — własne tabele campas.pl z prefiksem API_
 """
 from datetime import datetime, date, timezone
 from typing import Optional
-from sqlalchemy import String, Date, DateTime, Text, JSON
+from sqlalchemy import String, Date, DateTime, Text, JSON, Integer
 from sqlalchemy.orm import Mapped, mapped_column
 import uuid
 
@@ -41,6 +41,20 @@ class AppPlanItem(Base):
     patrol_id:   Mapped[Optional[str]]  = mapped_column(String(36), nullable=True)
     created_at:  Mapped[datetime]       = mapped_column(DateTime(timezone=True), default=_now)
     updated_at:  Mapped[datetime]       = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
+
+
+class CampJoinCode(Base):
+    __tablename__ = "API_camp_join_codes"
+
+    id:         Mapped[str]            = mapped_column(String(36), primary_key=True, default=_uuid)
+    code:       Mapped[str]            = mapped_column(String(16), unique=True, nullable=False, index=True)
+    camp_id:    Mapped[str]            = mapped_column(String(36), nullable=False, index=True)
+    created_by: Mapped[str]            = mapped_column(String(36), nullable=False)
+    role:       Mapped[str]            = mapped_column(String(50), default="przyboczny")
+    max_uses:   Mapped[Optional[int]]  = mapped_column(Integer, nullable=True)
+    uses:       Mapped[int]            = mapped_column(Integer, default=0)
+    expires_at: Mapped[datetime]       = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime]       = mapped_column(DateTime(timezone=True), default=_now)
 
 
 class AppParticipant(Base):

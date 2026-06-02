@@ -595,6 +595,37 @@ export async function lookupParcel(lat, lng) {
   return res.text()
 }
 
+// ── Kody dołączenia do obozu ──────────────────────────────────────────────────
+
+export async function generateJoinCode(campId) {
+  const res = await fetch(`${BASE}/api/camps/${campId}/join-code`, {
+    method: 'POST',
+    headers: _headers(),
+  })
+  return _json(res)
+}
+
+export async function refreshJoinCode(campId) {
+  const res = await fetch(`${BASE}/api/camps/${campId}/join-code/refresh`, {
+    method: 'POST',
+    headers: _headers(),
+  })
+  return _json(res)
+}
+
+export async function getJoinCodeInfo(code) {
+  const res = await fetch(`${BASE}/api/join/${encodeURIComponent(code.toUpperCase())}`)
+  return _json(res)
+}
+
+export async function useJoinCode(code) {
+  const res = await fetch(`${BASE}/api/join/${encodeURIComponent(code.toUpperCase())}`, {
+    method: 'POST',
+    headers: _headers(),
+  })
+  return _json(res)
+}
+
 // ── Eksport wsteczny (kompatybilność z komponentami używającymi supabase.js) ──
 
 /** @deprecated Użyj signIn() — shim kompatybilności z supabase.js */
