@@ -15,6 +15,32 @@ function parseChoices(html) {
   return choices
 }
 
+// Auto-detect wartości CHOICE na podstawie meta.jednostka i meta.typ_obozu
+function detectChoicesFromMeta(meta) {
+  const detected = {}
+  const numMatch = (meta.jednostka || '').match(/\d+/)
+  const num = numMatch ? parseInt(numMatch[0]) : null
+
+  if (num !== null) {
+    // Parzyste = żeńskie (dziewczęta = idx 0), nieparzyste = chłopcy (idx 1)
+    const isFemale = num % 2 === 0
+    detected.plec    = { selected: isFemale ? 0 : 1 }  // 0=dziewczęta, 1=chłopcy
+    detected.podp    = { selected: isFemale ? 1 : 0 }  // 0=podpisany, 1=podpisana
+    detected.zamiesz = { selected: isFemale ? 1 : 0 }  // 0=zamieszkały, 1=zamieszkała
+  }
+
+  const j = (meta.jednostka || '').toLowerCase()
+  if (j.includes('gromad')) {
+    detected.galaz = { selected: 0 }
+  } else if (j.includes('drúży') || j.includes('druzyn')) {
+    detected.galaz = { selected: 1 }
+  } else {
+    detected.galaz = { selected: (meta.typ_obozu || '') === 'wilczkowy' ? 0 : 1 }
+  }
+
+  return detected
+}
+
 // ── Generatory treści załączników ──────────────────────────────────────────────
 
 function generateContactsHtml(meta) {
@@ -376,6 +402,13 @@ function PaginatedEditor({ initialHtml, activeTab, meta, attachments }) {
     if (!initDone.current || reflowing.current) return
     reflowing.current = true
 
+    // Zapisz pozycję kursora przed przeorganizowaniem stron
+    const sel = window.getSelection()
+    let savedRange = null
+    if (sel && sel.rangeCount > 0) {
+      try { savedRange = sel.getRangeAt(0).cloneRange() } catch {}
+    }
+
     const temp = document.createElement('div')
     temp.style.cssText = 'width:170mm;padding:0;position:absolute;visibility:hidden;box-sizing:border-box;font-family:"Segoe UI",Arial,sans-serif;font-size:10.5pt;line-height:1.55;color:#111;word-wrap:break-word;'
     document.body.appendChild(temp)
@@ -427,6 +460,10 @@ function PaginatedEditor({ initialHtml, activeTab, meta, attachments }) {
         newPp[pi].innerHTML = '<p><br></p>'
       }
       reflowing.current = false
+      // Przywróć kursor
+      if (savedRange) {
+        try { sel.removeAllRanges(); sel.addRange(savedRange) } catch {}
+      }
     }, 0)
 
     temp.remove()
@@ -563,7 +600,16 @@ export default function DocumentEditor({ templateHtml, meta, docLabel, onClose, 
   const [selectedRecipient, setSelectedRecipient] = useState(() =>
     recipients ? recipients[0]?.id : null
   )
-  const [choices, setChoices] = useState(() => parseChoices(templateHtml || ''))
+  const [choices, setChoices] = useState(() => {
+    const parsed = parseChoices(templateHtml || '')
+    const detected = detectChoicesFromMeta(meta)
+    return Object.fromEntries(
+      Object.entries(parsed).map(([id, val]) => [
+        id,
+        detected[id] ? { ...val, selected: detected[id].selected } : val,
+      ])
+    )
+  })
   const [activeTab, setActiveTab] = useState('main')
 
   const currentRecipient = recipients?.find(r => r.id === selectedRecipient)
