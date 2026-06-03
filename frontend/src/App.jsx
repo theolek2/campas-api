@@ -665,7 +665,7 @@ function AppRoutes({
                 </div>
               </button>
               <hr />
-              <a href="/swi" target="_blank" rel="noopener noreferrer"
+              <a href="https://swi.campas.pl" target="_blank" rel="noopener noreferrer"
                 className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-blue-50 transition text-left no-underline"
                 onClick={() => setShowMenu(false)}>
                 <span className="text-2xl">🛒</span>
