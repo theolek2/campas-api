@@ -4,11 +4,10 @@ Port: 8001  (swi.campas.pl używa 8000)
 """
 import os
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, HTMLResponse
-from fastapi import HTTPException
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from pathlib import Path
 
 from config import settings
@@ -120,11 +119,38 @@ _LANDING_HTML = """\
 
 
 @app.get("/", include_in_schema=False)
-async def landing():
+async def landing(request: Request):
+    host = request.headers.get("host", "")
+    if "api.campas.pl" in host:
+        return RedirectResponse(url="/camp/")
     return HTMLResponse(content=_LANDING_HTML)
 
 
 # ── Frontend SPA (produkcja) ──────────────────────────────────────────────────
+_404_HTML = """\
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>404 — Nie znaleziono</title>
+  <style>
+    body { font-family: system-ui, sans-serif; display:flex; align-items:center; justify-content:center; min-height:100vh; margin:0; background: linear-gradient(160deg, #14532d 0%, #166534 40%, #15803d 100%); color:white }
+    .box { text-align:center }
+    h1 { font-size:5rem; margin:0; opacity:.5 }
+    a { color:#4ade80 }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h1>404</h1>
+    <p>Strona nie istnieje</p>
+    <p><a href="/">← Strona główna</a></p>
+  </div>
+</body>
+</html>"""
+
+
 # W produkcji Caddy/nginx może to robić; tu fallback dla Dockera
 _static_dir = Path(__file__).parent / "frontend" / "dist"
 if not _static_dir.exists():
@@ -147,4 +173,4 @@ if _static_dir.exists():
                 return FileResponse(str(file_path))
             return FileResponse(str(_static_dir / "index.html"))
         # Other unmatched paths → 404
-        raise HTTPException(status_code=404)
+        return HTMLResponse(content=_404_HTML, status_code=404)
