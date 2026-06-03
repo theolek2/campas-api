@@ -10,8 +10,8 @@ const SUBTABS = [
   { id: 'files',    label: 'Pliki',     icon: '📁' },
 ]
 
-export default function ZadaniaTab({ user, meta, campId }) {
-  const [subTab, setSubTab] = useState('tasks')
+export default function ZadaniaTab({ user, meta, campId, initialSubTab }) {
+  const [subTab, setSubTab] = useState(initialSubTab || 'tasks')
 
   const allTabs = [...SUBTABS, { id: 'team', label: '👥 Zespół', icon: '👥' }]
 

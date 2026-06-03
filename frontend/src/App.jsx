@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation, useParams } from 'react-router-dom'
 import { AlertProvider } from './components/AlertContext'
 import CampSwitcher from './components/CampSwitcher'
 import JoinCampFlow from './components/JoinCampFlow'
@@ -455,17 +455,27 @@ function AppRoutes({
 }) {
   const navigate = useNavigate()
   const location = useLocation()
+  const { campId: urlCampId } = useParams()
+
+  const activeCampId = urlCampId || campId
+
+  // Sync URL campId to parent state
+  useEffect(() => {
+    if (urlCampId && urlCampId !== campId && campsList.some(c => c.id === urlCampId)) {
+      setCampId(urlCampId)
+    }
+  }, [urlCampId])
 
   const path = location.pathname
-  const isBefore = path.startsWith('/before')
-  const isDuring = path.startsWith('/during')
-  const currentMain = (() => {
-    const seg = path.split('/')[1]
-    if (seg === 'before' || seg === 'during' || seg === 'tasks' || seg === 'dashboard') return seg
-    return ''
-  })()
-  const currentTab = isBefore ? path.split('/')[2] || 'camp' : null
-  const currentDuringTab = isDuring ? path.split('/')[2] || 'today' : null
+  // path format: /:campId/section/subtab  (basename /camp stripped by BrowserRouter)
+  const pathSegs = path.split('/').filter(Boolean)
+  const currentMain = pathSegs[1] && ['dashboard', 'before', 'during', 'tasks'].includes(pathSegs[1]) ? pathSegs[1] : ''
+  const isBefore = currentMain === 'before'
+  const isDuring = currentMain === 'during'
+  const isTasks = currentMain === 'tasks'
+  const currentTab = isBefore ? pathSegs[2] || 'camp' : null
+  const currentDuringTab = isDuring ? pathSegs[2] || 'today' : null
+  const currentTasksTab = isTasks ? pathSegs[2] || 'tasks' : null
   const duringDayParam = new URLSearchParams(location.search).get('day')
   const duringDayVal = duringDayParam ? parseInt(duringDayParam) : null
 
@@ -473,21 +483,23 @@ function AppRoutes({
 
   const metaOk = meta.jednostka && meta.kierownik
 
+  const go = (suffix) => navigate(`/${activeCampId}${suffix}`)
+
   const navigateToSection = (tab) => {
     const beforeTabs = ['camp','instructions','plan','jadlospis','diary','docs','map']
-    if (beforeTabs.includes(tab)) { navigate('/before/' + tab); return }
-    if (tab === 'during' || tab === 'during_today') { navigate('/during/today'); return }
-    if (tab === 'during_calendar') { navigate('/during/calendar'); return }
-    if (tab === 'during_shopping') { navigate('/during/shopping'); return }
-    if (tab === 'tasks_section') { navigate('/tasks'); return }
-    if (tab === 'dashboard') { navigate('/dashboard'); return }
+    if (beforeTabs.includes(tab)) { go('/before/' + tab); return }
+    if (tab === 'during' || tab === 'during_today') { go('/during/today'); return }
+    if (tab === 'during_calendar') { go('/during/calendar'); return }
+    if (tab === 'during_shopping') { go('/during/shopping'); return }
+    if (tab === 'tasks_section') { go('/tasks/tasks'); return }
+    if (tab === 'dashboard') { go('/dashboard'); return }
     const map = {
       'Dane obozu':  'camp',
       'Plan zajęć':  'plan',
       'Dokumenty':   'docs',
       'Mapa terenu': 'map',
     }
-    if (map[tab]) navigate('/before/' + map[tab])
+    if (map[tab]) go('/before/' + map[tab])
   }
 
   const MAIN_SECTIONS = [
@@ -513,6 +525,13 @@ function AppRoutes({
     { id: 'shopping', label: 'Zakupy' },
   ]
 
+  const TASKS_TABS = [
+    { id: 'tasks',    label: 'Tablica',   icon: '📋' },
+    { id: 'calendar', label: 'Kalendarz', icon: '📅' },
+    { id: 'files',    label: 'Pliki',     icon: '📁' },
+    { id: 'team',     label: 'Zespół',    icon: '👥' },
+  ]
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {showOnboarding && (
@@ -522,7 +541,7 @@ function AppRoutes({
             updateMeta={(newMeta) => update({ meta: newMeta })}
             onDone={() => {
               setShowOnboarding(false)
-              navigate('/dashboard')
+              navigate(`/${activeCampId}/dashboard`)
               logActivity('Ukończono konfigurację obozu', '✅')
               if (user?.id) localStorage.setItem(`campas_onboarding_${user.id}`, '1')
             }}
@@ -552,14 +571,15 @@ function AppRoutes({
                     try {
                       const savedMeta = await loadCampData(newId)
                       if (savedMeta && Object.keys(savedMeta).length > 0) {
-                        setState(prev => ({ ...DEFAULT_STATE, meta: { ...prev.meta, ...savedMeta } }))
+                        setState(prev => ({ ...DEFAULT_STATE, meta: { ...(prev.meta || {}), ...(savedMeta.meta || savedMeta) } }))
                       } else {
                         setState(DEFAULT_STATE)
                       }
                     } catch { setState(DEFAULT_STATE) }
                   }
+                  navigate(`/${newId}/dashboard`, { replace: true })
                 }}
-                onCreateNew={() => navigate('/settings')}
+                onCreateNew={() => navigate(`/${activeCampId}/settings`)}
                 onJoinCamp={() => setShowJoinFlow(true)}
                 onLeaveCamp={async (leaveId, campName) => {
                   if (!confirm(`Opuścić obóz "${campName}"? Stracisz do niego dostęp.`)) return
@@ -583,7 +603,7 @@ function AppRoutes({
               : user?.email?.split('@')[0]
             }</span>
             {externalUser && <span className="text-green-400 text-xs hidden md:block">(przyboczny)</span>}
-            {path === '/before/plan' && !externalUser && (
+            {path === `/${activeCampId}/before/plan` && !externalUser && (
               <button onClick={handleExport} disabled={!metaOk}
                 className={`text-xs font-bold px-3 py-1.5 rounded-lg transition ${
                   metaOk ? 'bg-white text-green-800 hover:bg-green-50' : 'bg-green-700 text-green-400 cursor-not-allowed'
@@ -610,7 +630,7 @@ function AppRoutes({
 
         <div className="flex border-t border-green-700">
           {MAIN_SECTIONS.map(s => (
-            <button key={s.id} onClick={() => navigate('/' + s.id)}
+            <button key={s.id} onClick={() => go('/' + s.id + (s.id === 'before' ? '/camp' : s.id === 'during' ? '/today' : s.id === 'tasks' ? '/tasks' : ''))}
               className={`flex-1 py-2.5 text-xs font-bold transition flex flex-col items-center gap-0.5 ${
                 currentMain === s.id ? 'bg-white text-green-800' : 'text-green-300 hover:text-white hover:bg-green-700'
               }`}>
@@ -623,7 +643,7 @@ function AppRoutes({
         {isBefore && (
           <div className="flex overflow-x-auto border-t border-green-700 bg-green-900">
             {BEFORE_TABS.map(t => (
-              <button key={t.id} onClick={() => navigate('/before/' + t.id)}
+              <button key={t.id} onClick={() => go('/before/' + t.id)}
                 className={`px-4 py-1.5 text-xs font-semibold whitespace-nowrap transition ${
                   currentTab === t.id ? 'bg-green-600 text-white' : 'text-green-400 hover:text-white'
                 }`}>
@@ -636,11 +656,24 @@ function AppRoutes({
         {isDuring && (
           <div className="flex overflow-x-auto border-t border-green-700 bg-green-900">
             {DURING_TABS.map(t => (
-              <button key={t.id} onClick={() => navigate('/during/' + t.id)}
+              <button key={t.id} onClick={() => go('/during/' + t.id)}
                 className={`px-4 py-1.5 text-xs font-semibold whitespace-nowrap transition ${
                   currentDuringTab === t.id ? 'bg-green-600 text-white' : 'text-green-400 hover:text-white'
                 }`}>
                 {t.label}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {isTasks && (
+          <div className="flex overflow-x-auto border-t border-green-700 bg-green-900">
+            {TASKS_TABS.map(t => (
+              <button key={t.id} onClick={() => go('/tasks/' + t.id)}
+                className={`px-4 py-1.5 text-xs font-semibold whitespace-nowrap transition ${
+                  currentTasksTab === t.id ? 'bg-green-600 text-white' : 'text-green-400 hover:text-white'
+                }`}>
+                <span className="mr-1">{t.icon}</span>{t.label}
               </button>
             ))}
           </div>
@@ -680,7 +713,7 @@ function AppRoutes({
                 </div>
               </a>
               <hr />
-              <button onClick={() => { navigate('/settings'); setShowMenu(false) }}
+              <button onClick={() => { navigate(`/${activeCampId}/settings`); setShowMenu(false) }}
                 className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition text-left">
                 <span className="text-2xl">⚙️</span>
                 <div>
@@ -694,25 +727,31 @@ function AppRoutes({
       )}
 
       <Routes>
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        <Route path="/before" element={<Navigate to="/before/camp" replace />} />
-        <Route path="/during" element={<Navigate to="/during/today" replace />} />
+        <Route index element={<Navigate to={activeCampId ? `/${activeCampId}/dashboard` : '/camp'} replace />} />
+        <Route path="/" element={<Navigate to={campsList[0]?.id ? `/${campsList[0].id}/dashboard` : '/camp'} replace />} />
 
-        <Route path="/dashboard" element={
+        <Route path="/campsmap" element={<CampsMapTab user={user} meta={meta} />} />
+        <Route path="/robert" element={
+          <RobertTab onNavigate={(tab) => {
+            const valid = ['camp','instructions','plan','jadlospis','diary','docs','map']
+            if (valid.includes(tab)) go('/before/' + tab)
+          }} />
+        } />
+
+        <Route path="/:campId/dashboard" element={
           <DashboardTab meta={meta} days={days} user={user}
             onNavigate={navigateToSection}
             activityLog={activityLog} checklist={checklist}
-            onChecklistUpdate={updateChecklist} campId={campId} />
+            onChecklistUpdate={updateChecklist} campId={activeCampId} />
         } />
 
-        <Route path="/before/camp" element={
+        <Route path="/:campId/before" element={<Navigate to={`${path}/camp`} replace />} />
+        <Route path="/:campId/before/camp" element={
           <CampDataTab meta={meta} onUpdateMeta={updateMeta} userId={user?.id}
             progress={progress} onToggleProgress={toggleProgress} />
         } />
-
-        <Route path="/before/instructions" element={<InstructionsTab />} />
-
-        <Route path="/before/jadlospis" element={
+        <Route path="/:campId/before/instructions" element={<InstructionsTab />} />
+        <Route path="/:campId/before/jadlospis" element={
           <div className="flex flex-1 overflow-hidden">
             <JadlospisTab meta={meta} days={days} mealTemplate={mealTemplate}
               mealActivities={mealActivities}
@@ -722,32 +761,26 @@ function AppRoutes({
               progress={progress} onToggleProgress={toggleProgress} />
           </div>
         } />
-
-        <Route path="/before/diary" element={
+        <Route path="/:campId/before/diary" element={
           <DiaryTab meta={meta} days={days} activities={activities}
             onNavigate={navigateToSection}
             onAddActivity={addActivity} onEditActivity={editActivity}
             onDeleteActivity={deleteActivity}
             progress={progress} onToggleProgress={toggleProgress} />
         } />
-
-        <Route path="/before/docs" element={
+        <Route path="/:campId/before/docs" element={
           <DocumentsTab meta={meta} onNavigate={navigateToSection}
             progress={progress} onToggleProgress={toggleProgress} />
         } />
-
-        <Route path="/before/map" element={
-          <div className="flex flex-1 overflow-hidden">
-            <MapTab user={user} meta={meta} />
-          </div>
+        <Route path="/:campId/before/map" element={
+          <div className="flex flex-1 overflow-hidden"><MapTab user={user} meta={meta} /></div>
         } />
-
-        <Route path="/before/plan" element={
+        <Route path="/:campId/before/plan" element={
           <div className="flex flex-1 overflow-hidden">
             <aside className="w-80 shrink-0 bg-white border-r border-gray-200 flex flex-col overflow-y-auto">
               {!metaOk && (
                 <div className="p-3 border-b border-gray-100">
-                  <button onClick={() => navigate('/before/camp')}
+                  <button onClick={() => go('/before/camp')}
                     className="w-full text-xs text-orange-600 border border-orange-200 bg-orange-50 rounded-lg py-2 hover:bg-orange-100 transition">
                     ⚠️ Uzupełnij dane obozu
                   </button>
@@ -825,36 +858,25 @@ function AppRoutes({
           </div>
         } />
 
-        <Route path="/campsmap" element={
-          <CampsMapTab user={user} meta={meta} />
-        } />
-
-        <Route path="/robert" element={
-          <RobertTab onNavigate={(tab) => {
-            const valid = ['camp','instructions','plan','jadlospis','diary','docs','map']
-            if (valid.includes(tab)) navigate('/before/' + tab)
-          }} />
-        } />
-
-        <Route path="/during/today" element={
+        <Route path="/:campId/during" element={<Navigate to={`${path}/today`} replace />} />
+        <Route path="/:campId/during/today" element={
           <DuringCampTab meta={meta} days={days} view="today" selectedDay={duringDayVal} onNavigate={navigateToSection} />
         } />
-
-        <Route path="/during/calendar" element={
+        <Route path="/:campId/during/calendar" element={
           <DuringCampTab meta={meta} days={days} view="calendar" onNavigate={navigateToSection} />
         } />
-
-        <Route path="/during/shopping" element={
+        <Route path="/:campId/during/shopping" element={
           <DuringCampTab meta={meta} days={days} view="shopping" onNavigate={navigateToSection} />
         } />
 
-        <Route path="/tasks" element={
+        <Route path="/:campId/tasks" element={<Navigate to={`${path}/tasks`} replace />} />
+        <Route path="/:campId/tasks/:subtab" element={
           <div className="flex-1 flex flex-col overflow-hidden">
-            <ZadaniaTab user={user} meta={meta} campId={campId} />
+            <ZadaniaTab user={user} meta={meta} campId={activeCampId} initialSubTab={currentTasksTab} />
           </div>
         } />
 
-        <Route path="/settings" element={
+        <Route path="/:campId/settings" element={
           <div className="flex-1 overflow-y-auto p-6 max-w-lg mx-auto w-full">
             <h2 className="text-xl font-bold text-gray-800 mb-4">Ustawienia</h2>
             <div className="bg-white rounded-2xl border border-gray-200 p-5 space-y-3">
@@ -871,13 +893,13 @@ function AppRoutes({
           </div>
         } />
 
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        <Route path="*" element={<Navigate to={activeCampId ? `/${activeCampId}/dashboard` : '/camp'} replace />} />
       </Routes>
 
       <Confetti active={showConfetti} onDone={() => setShowConfetti(false)} origin={confettiOrigin} />
-      <FloatingRobert hidden={(path === '/robert') || (externalUser && !externalUser.robert_enabled)} onNavigate={(tab) => {
+      <FloatingRobert hidden={(path === `/${activeCampId}/robert`) || (externalUser && !externalUser.robert_enabled) || !activeCampId} onNavigate={(tab) => {
         const valid = ['camp','instructions','plan','jadlospis','diary','docs','map']
-        if (valid.includes(tab)) navigate('/before/' + tab)
+        if (valid.includes(tab)) go('/before/' + tab)
       }} />
 
       {showChangePwd && (() => {
