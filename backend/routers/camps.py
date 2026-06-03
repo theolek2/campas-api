@@ -104,17 +104,36 @@ async def list_all_camps(
 @router.get("/profiles/me")
 async def get_my_profile(
     user_id: str = Depends(get_current_user),
+    camp_id: str = Query(None, description="Opcjonalne ID obozu — zwróci też dane z tabeli camps"),
     db: AsyncSession = Depends(get_db),
 ):
     profile = await db.get(Profile, user_id)
-    if not profile:
-        return {"id": user_id, "display_name": None, "organization": None, "phone": None, "camp_meta": None}
+    meta = profile.camp_meta if profile else None
+    camp_data = {}
+    if camp_id:
+        camp = await db.get(Camp, camp_id)
+        if camp:
+            camp_data = {
+                "camps_unit_name": camp.unit_name,
+                "camps_date_start": camp.date_start.isoformat() if camp.date_start else None,
+                "camps_date_end":   camp.date_end.isoformat() if camp.date_end else None,
+            }
+            # Uzupełnij meta z camps jeśli puste
+            if meta is None:
+                meta = {}
+            if not meta.get("jednostka") and camp.unit_name:
+                meta["jednostka"] = camp.unit_name
+            if not meta.get("date_start") and camp.date_start:
+                meta["date_start"] = camp.date_start.isoformat()
+            if not meta.get("date_end") and camp.date_end:
+                meta["date_end"] = camp.date_end.isoformat()
     return {
-        "id": profile.id,
-        "display_name": profile.display_name,
-        "organization": profile.organization,
-        "phone": profile.phone,
-        "camp_meta": profile.camp_meta,
+        "id": profile.id if profile else user_id,
+        "display_name": profile.display_name if profile else None,
+        "organization": profile.organization if profile else None,
+        "phone": profile.phone if profile else None,
+        "camp_meta": meta,
+        **camp_data,
     }
 
 
@@ -133,6 +152,29 @@ async def update_my_profile(
     for field in allowed:
         if field in data:
             setattr(profile, field, data[field])
+
+    # Sync do tabeli camps jeśli podano camp_id
+    camp_id = data.get("camp_id")
+    if camp_id and isinstance(data.get("camp_meta"), dict):
+        meta = data["camp_meta"]
+        camp = await db.get(Camp, camp_id)
+        if camp:
+            changed = False
+            if meta.get("jednostka") is not None and meta["jednostka"] != camp.unit_name:
+                camp.unit_name = meta["jednostka"]
+                changed = True
+            for meta_key, camp_attr in [("date_start", "date_start"), ("date_end", "date_end")]:
+                if meta.get(meta_key):
+                    try:
+                        d = datetime.date.fromisoformat(meta[meta_key])
+                        if getattr(camp, camp_attr) != d:
+                            setattr(camp, camp_attr, d)
+                            changed = True
+                    except (ValueError, TypeError):
+                        pass
+            if changed:
+                db.add(camp)
+
     await db.commit()
     return {"ok": True}
 

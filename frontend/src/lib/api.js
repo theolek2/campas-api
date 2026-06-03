@@ -179,7 +179,7 @@ export async function saveCampMeta(_userId, meta, campId) {
     const res = await fetch(`${BASE}/api/camps/profiles/me`, {
       method: 'PATCH',
       headers: _headers(),
-      body: JSON.stringify({ camp_meta: meta }),
+      body: JSON.stringify({ camp_meta: meta, camp_id: campId }),
     })
     await _json(res)
   } catch (e) {
@@ -193,7 +193,8 @@ export async function saveCampMeta(_userId, meta, campId) {
 export async function loadCampMeta(_userId, campId) {
   // Spróbuj z serwera
   try {
-    const res = await fetch(`${BASE}/api/camps/profiles/me`, { headers: _headers() })
+    const url = campId ? `${BASE}/api/camps/profiles/me?camp_id=${encodeURIComponent(campId)}` : `${BASE}/api/camps/profiles/me`
+    const res = await fetch(url, { headers: _headers() })
     const data = await _json(res)
     if (data?.camp_meta) return data.camp_meta
   } catch {}
