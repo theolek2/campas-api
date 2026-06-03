@@ -387,7 +387,7 @@ export default function App() {
 
   return (
     <AlertProvider>
-      <BrowserRouter basename="/camp">
+      <BrowserRouter>
         <AppRoutes
           user={user}
           externalUser={externalUser}
