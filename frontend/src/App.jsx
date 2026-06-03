@@ -24,7 +24,7 @@ import Confetti from './components/Confetti'
 import { makeDay, DEFAULT_CAMP_ACTIVITIES } from './utils/defaults'
 import { generatePdf } from './utils/generatePdf'
 import { saveState, loadState } from './utils/storage'
-import { supabase, signOut, getProfile, upsertProfile, saveCampMeta, loadCampMeta, saveChecklist, loadChecklist, getCamps, leaveCamp, verifyEmail, magicLogin } from './lib/api'
+import { supabase, signOut, getProfile, upsertProfile, saveCampData, loadCampData, saveChecklist, loadChecklist, getCamps, leaveCamp, verifyEmail, magicLogin } from './lib/api'
 
 const DEFAULT_STATE = {
   meta: { jednostka: '', kierownik: '', miejsce: '', termin: '', date_start: '', date_end: '' },
@@ -145,7 +145,7 @@ export default function App() {
       } catch {}
 
       const profile = await getProfile(u.id)
-      const serverState = await loadCampMeta(u.id, activeCampId)
+      const serverState = await loadCampData(activeCampId)
 
       const savedChecklist = serverState?.checklist
       if (savedChecklist && Object.keys(savedChecklist).length > 0) {
@@ -248,7 +248,7 @@ export default function App() {
     if (user?.id && serverDataReadyRef.current && campId) {
       clearTimeout(saveTimer.current)
       saveTimer.current = setTimeout(() => {
-        saveCampMeta(user.id, state, campId).catch(() => {})
+        saveCampData(campId, state).catch(() => {})
       }, 2000)
     }
   }, [state, campId])
@@ -550,7 +550,7 @@ function AppRoutes({
                     setState(saved)
                   } else {
                     try {
-                      const savedMeta = await loadCampMeta(user?.id, newId)
+                      const savedMeta = await loadCampData(newId)
                       if (savedMeta && Object.keys(savedMeta).length > 0) {
                         setState(prev => ({ ...DEFAULT_STATE, meta: { ...prev.meta, ...savedMeta } }))
                       } else {

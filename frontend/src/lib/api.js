@@ -170,38 +170,67 @@ export async function upsertProfile(profile) {
   }
 }
 
-// ── Camp meta / Checklista ────────────────────────────────────────────────────
-// Przechowywane w localStorage (były w profiles.camp_meta w Supabase).
-// Klucz: campas_meta_{camp_id}
+// ── Camp data (zastępuje camp_meta z profiles) ──────────────────────────────
 
-export async function saveCampMeta(_userId, meta, campId) {
+export async function saveCampData(campId, state) {
+  if (!campId) return
   try {
-    const res = await fetch(`${BASE}/api/camps/profiles/me`, {
+    const body = { ...state.meta }
+
+    // JSONB — stan aplikacji
+    if (state.days?.length) body.days_json = state.days
+    if (state.activities?.length) body.activities_json = state.activities
+    if (state.template?.length) body.template_json = state.template
+    if (state.activityLog?.length) body.activity_log_json = state.activityLog
+    if (state.mealTemplate?.length) body.meal_template_json = state.mealTemplate
+    if (state.mealActivities?.length) body.meal_activities_json = state.mealActivities
+
+    const res = await fetch(`${BASE}/api/camps/${encodeURIComponent(campId)}`, {
       method: 'PATCH',
       headers: _headers(),
-      body: JSON.stringify({ camp_meta: meta, camp_id: campId }),
+      body: JSON.stringify(body),
     })
     await _json(res)
   } catch (e) {
-    console.warn('[api] saveCampMeta failed:', e.message)
+    console.warn('[api] saveCampData failed:', e.message)
   }
   // Backup lokalny
-  const key = campId ? `campas_meta_${campId}` : 'campas_meta_default'
-  localStorage.setItem(key, JSON.stringify(meta))
+  const key = `campas_meta_${campId}`
+  localStorage.setItem(key, JSON.stringify(state))
 }
 
-export async function loadCampMeta(_userId, campId) {
-  // Spróbuj z serwera
+export async function loadCampData(campId) {
+  if (!campId) return null
   try {
-    const url = campId ? `${BASE}/api/camps/profiles/me?camp_id=${encodeURIComponent(campId)}` : `${BASE}/api/camps/profiles/me`
-    const res = await fetch(url, { headers: _headers() })
-    const data = await _json(res)
-    if (data?.camp_meta) return data.camp_meta
-  } catch {}
-  // Fallback do localStorage
-  const key = campId ? `campas_meta_${campId}` : 'campas_meta_default'
-  try { return JSON.parse(localStorage.getItem(key) || 'null') }
-  catch { return null }
+    const res = await fetch(`${BASE}/api/camps/${encodeURIComponent(campId)}`, { headers: _headers() })
+    const camp = await _json(res)
+    if (!camp) return null
+
+    // Zbuduj obiekt state z pól camps
+    const meta = {}
+    for (const key of Object.keys(camp)) {
+      if (!['id', 'unit_name', 'date_start', 'date_end', 'terrain_id', 'created_at',
+            'days_json', 'activities_json', 'template_json',
+            'activity_log_json', 'meal_template_json', 'meal_activities_json'].includes(key)) {
+        meta[key] = camp[key]
+      }
+    }
+    // unit_name → jednostka
+    if (meta.unit_name != null) { meta.jednostka = meta.unit_name; delete meta.unit_name }
+    // date_start/date_end normalizuj do stringa
+    if (camp.date_start) meta.date_start = String(camp.date_start).slice(0, 10)
+    if (camp.date_end) meta.date_end = String(camp.date_end).slice(0, 10)
+
+    return {
+      meta,
+      days: camp.days_json || [],
+      activities: camp.activities_json || [],
+      template: camp.template_json || [],
+      activityLog: camp.activity_log_json || [],
+      mealTemplate: camp.meal_template_json || [],
+      mealActivities: camp.meal_activities_json || [],
+    }
+  } catch { return null }
 }
 
 export async function saveChecklist(_userId, checklist, campId) {
@@ -671,7 +700,7 @@ export const supabase = {
 export default {
   signUp, signIn, signOut, verifyEmail, magicLogin, getSession, getCurrentUser,
   getProfile, upsertProfile,
-  saveCampMeta, loadCampMeta, saveChecklist, loadChecklist,
+  saveCampData, loadCampData, saveChecklist, loadChecklist,
   getTerrains, addTerrain,
   getCamps, getCampsForTerrain, getAllCamps, addCamp, updateCamp,
   getAllIngredients, addIngredient, seedIngredients,

@@ -5,8 +5,8 @@ Tabele te JUŻ ISTNIEJĄ w bazie PostgreSQL — NIE są tworzone przez migracje 
 """
 from datetime import datetime, date, timezone
 from typing import Optional
-from sqlalchemy import String, Boolean, Date, DateTime, Text, Integer, JSON
-from sqlalchemy.dialects.postgresql import UUID as PG_UUID
+from sqlalchemy import String, Boolean, Date, DateTime, Text, Integer, JSON, Float
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 import uuid
 
@@ -40,6 +40,59 @@ class Camp(Base):
     date_end:   Mapped[date]               = mapped_column(Date)
     terrain_id: Mapped[Optional[str]]      = mapped_column(String(36))
     created_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+    # ── Dane obozu (z meta) ──
+    kierownik:          Mapped[Optional[str]]      = mapped_column(String(255))
+    miejsce:            Mapped[Optional[str]]      = mapped_column(String(500))
+    termin:             Mapped[Optional[str]]      = mapped_column(String(255))
+    tel_kierownik:      Mapped[Optional[str]]      = mapped_column(String(20))
+    email:              Mapped[Optional[str]]      = mapped_column(String(255))
+    powiat:             Mapped[Optional[str]]      = mapped_column(String(100))
+    gmina:              Mapped[Optional[str]]      = mapped_column(String(100))
+    wojewodztwo:        Mapped[Optional[str]]      = mapped_column(String(100))
+    hufiec:             Mapped[Optional[str]]      = mapped_column(String(255))
+    typ_obozu:          Mapped[Optional[str]]      = mapped_column(String(100))
+    nadlesnictwo:       Mapped[Optional[str]]      = mapped_column(String(255))
+    lesnictwo:          Mapped[Optional[str]]      = mapped_column(String(255))
+    oddzial_lesny:      Mapped[Optional[str]]      = mapped_column(String(255))
+    bezp_adres:         Mapped[Optional[str]]      = mapped_column(String(500))
+    bezp_budynek:       Mapped[Optional[str]]      = mapped_column(String(255))
+    bezp_miejscowosc:   Mapped[Optional[str]]      = mapped_column(String(255))
+    lekarz:             Mapped[Optional[str]]      = mapped_column(String(255))
+    szpital:            Mapped[Optional[str]]      = mapped_column(String(500))
+    tel_szpital:        Mapped[Optional[str]]      = mapped_column(String(20))
+    przychodnia:        Mapped[Optional[str]]      = mapped_column(String(500))
+    tel_przychodnia:    Mapped[Optional[str]]      = mapped_column(String(20))
+    psp:                Mapped[Optional[str]]      = mapped_column(String(500))
+    psp_tel:            Mapped[Optional[str]]      = mapped_column(String(20))
+    policja:            Mapped[Optional[str]]      = mapped_column(String(500))
+    policja_tel:        Mapped[Optional[str]]      = mapped_column(String(20))
+    komendant_tel:      Mapped[Optional[str]]      = mapped_column(String(20))
+    tel_zastepca:       Mapped[Optional[str]]      = mapped_column(String(20))
+    nr_zgloszenia:      Mapped[Optional[str]]      = mapped_column(String(100))
+    data_zgloszenia:    Mapped[Optional[str]]      = mapped_column(String(100))
+    uwagi:              Mapped[Optional[str]]      = mapped_column(Text)
+    schronienie:        Mapped[Optional[str]]      = mapped_column(String(500))
+    kontakt1:           Mapped[Optional[str]]      = mapped_column(String(500))
+    kontakt2:           Mapped[Optional[str]]      = mapped_column(String(500))
+    tel_kontakt1:       Mapped[Optional[str]]      = mapped_column(String(20))
+    tel_kontakt2:       Mapped[Optional[str]]      = mapped_column(String(20))
+    uczestnicy:         Mapped[Optional[int]]      = mapped_column(Integer)
+    liczba_kadry:       Mapped[Optional[int]]      = mapped_column(Integer)
+    wiek:               Mapped[Optional[str]]      = mapped_column(String(50))
+
+    # ── JSONB — zagnieżdżone dane z meta ──
+    coords:             Mapped[Optional[dict]]     = mapped_column(JSONB)
+    wychowawcy:         Mapped[Optional[list]]     = mapped_column(JSONB)
+    nr_dzialki:         Mapped[Optional[list]]     = mapped_column(JSONB)
+
+    # ── JSONB — stan aplikacji ──
+    days_json:          Mapped[Optional[list]]     = mapped_column(JSONB)
+    activities_json:    Mapped[Optional[list]]     = mapped_column(JSONB)
+    template_json:      Mapped[Optional[list]]     = mapped_column(JSONB)
+    activity_log_json:  Mapped[Optional[list]]     = mapped_column(JSONB)
+    meal_template_json: Mapped[Optional[list]]     = mapped_column(JSONB)
+    meal_activities_json: Mapped[Optional[list]]   = mapped_column(JSONB)
 
 
 class Patrol(Base):

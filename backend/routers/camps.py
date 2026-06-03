@@ -104,36 +104,17 @@ async def list_all_camps(
 @router.get("/profiles/me")
 async def get_my_profile(
     user_id: str = Depends(get_current_user),
-    camp_id: str = Query(None, description="Opcjonalne ID obozu — zwróci też dane z tabeli camps"),
     db: AsyncSession = Depends(get_db),
 ):
     profile = await db.get(Profile, user_id)
-    meta = profile.camp_meta if profile else None
-    camp_data = {}
-    if camp_id:
-        camp = await db.get(Camp, camp_id)
-        if camp:
-            camp_data = {
-                "camps_unit_name": camp.unit_name,
-                "camps_date_start": camp.date_start.isoformat() if camp.date_start else None,
-                "camps_date_end":   camp.date_end.isoformat() if camp.date_end else None,
-            }
-            # Uzupełnij meta z camps jeśli puste
-            if meta is None:
-                meta = {}
-            if not meta.get("jednostka") and camp.unit_name:
-                meta["jednostka"] = camp.unit_name
-            if not meta.get("date_start") and camp.date_start:
-                meta["date_start"] = camp.date_start.isoformat()
-            if not meta.get("date_end") and camp.date_end:
-                meta["date_end"] = camp.date_end.isoformat()
+    if not profile:
+        return {"id": user_id, "display_name": None, "organization": None, "phone": None, "camp_meta": None}
     return {
-        "id": profile.id if profile else user_id,
-        "display_name": profile.display_name if profile else None,
-        "organization": profile.organization if profile else None,
-        "phone": profile.phone if profile else None,
-        "camp_meta": meta,
-        **camp_data,
+        "id": profile.id,
+        "display_name": profile.display_name,
+        "organization": profile.organization,
+        "phone": profile.phone,
+        "camp_meta": profile.camp_meta,
     }
 
 
@@ -152,37 +133,92 @@ async def update_my_profile(
     for field in allowed:
         if field in data:
             setattr(profile, field, data[field])
-
-    # Sync do tabeli camps jeśli podano camp_id
-    camp_id = data.get("camp_id")
-    if camp_id and isinstance(data.get("camp_meta"), dict):
-        meta = data["camp_meta"]
-        camp = await db.get(Camp, camp_id)
-        if camp:
-            changed = False
-            if meta.get("jednostka") is not None and meta["jednostka"] != camp.unit_name:
-                camp.unit_name = meta["jednostka"]
-                changed = True
-            for meta_key, camp_attr in [("date_start", "date_start"), ("date_end", "date_end")]:
-                if meta.get(meta_key):
-                    try:
-                        d = datetime.date.fromisoformat(meta[meta_key])
-                        if getattr(camp, camp_attr) != d:
-                            setattr(camp, camp_attr, d)
-                            changed = True
-                    except (ValueError, TypeError):
-                        pass
-            if changed:
-                db.add(camp)
-
     await db.commit()
     return {"ok": True}
 
 
+# ── Helpers: mapowanie meta ↔ kolumny camps ─────────────────────────────────
+
+_META_TO_CAMP = {
+    "jednostka": "unit_name",
+    "kierownik": "kierownik",
+    "miejsce": "miejsce",
+    "termin": "termin",
+    "date_start": None,  # handled specially
+    "date_end": None,
+    "tel_kierownik": "tel_kierownik",
+    "email": "email",
+    "powiat": "powiat",
+    "gmina": "gmina",
+    "wojewodztwo": "wojewodztwo",
+    "hufiec": "hufiec",
+    "typ_obozu": "typ_obozu",
+    "nadlesnictwo": "nadlesnictwo",
+    "lesnictwo": "lesnictwo",
+    "oddzial_lesny": "oddzial_lesny",
+    "bezp_adres": "bezp_adres",
+    "bezp_budynek": "bezp_budynek",
+    "bezp_miejscowosc": "bezp_miejscowosc",
+    "lekarz": "lekarz",
+    "szpital": "szpital",
+    "tel_szpital": "tel_szpital",
+    "przychodnia": "przychodnia",
+    "tel_przychodnia": "tel_przychodnia",
+    "psp": "psp",
+    "psp_tel": "psp_tel",
+    "policja": "policja",
+    "policja_tel": "policja_tel",
+    "komendant_tel": "komendant_tel",
+    "tel_zastepca": "tel_zastepca",
+    "nr_zgloszenia": "nr_zgloszenia",
+    "data_zgloszenia": "data_zgloszenia",
+    "uwagi": "uwagi",
+    "schronienie": "schronienie",
+    "kontakt1": "kontakt1",
+    "kontakt2": "kontakt2",
+    "tel_kontakt1": "tel_kontakt1",
+    "tel_kontakt2": "tel_kontakt2",
+    "uczestnicy": "uczestnicy",
+    "liczba_kadry": "liczba_kadry",
+    "wiek": "wiek",
+    "coords": "coords",
+    "wychowawcy": "wychowawcy",
+    "nr_dzialki": "nr_dzialki",
+}
+
+_JSON_STATE_FIELDS = [
+    "days_json", "activities_json", "template_json",
+    "activity_log_json", "meal_template_json", "meal_activities_json",
+]
+
+
+def _camp_to_dict(camp: Camp) -> dict:
+    """Zwraca słownik z wszystkich pól obozu."""
+    d = {
+        "id": camp.id,
+        "unit_name": camp.unit_name,
+        "date_start": camp.date_start.isoformat() if camp.date_start else None,
+        "date_end": camp.date_end.isoformat() if camp.date_end else None,
+        "terrain_id": camp.terrain_id,
+        "created_at": camp.created_at.isoformat() if camp.created_at else None,
+    }
+    # Dane obozu
+    for _meta, _col in _META_TO_CAMP.items():
+        val = getattr(camp, _col or _meta, None)
+        if _col in ("date_start", "date_end"):
+            val = val.isoformat() if val else None
+        d[_col or _meta] = val
+
+    # JSONB — stan aplikacji
+    for f in _JSON_STATE_FIELDS:
+        d[f] = getattr(camp, f, None)
+    return d
+
+
 # ── Obóz (pojedynczy) ─────────────────────────────────────────────────────────
 
-@router.get("/{camp_id}", response_model=CampOut)
-async def get_camp(
+@router.get("/{camp_id}")
+async def get_camp_full(
     camp_id: str,
     user_id: str = Depends(require_camp_access),
     db: AsyncSession = Depends(get_db),
@@ -190,26 +226,48 @@ async def get_camp(
     camp = await db.get(Camp, camp_id)
     if not camp:
         raise HTTPException(status_code=404, detail="Obóz nie istnieje")
-    return camp
+    return _camp_to_dict(camp)
 
 
-@router.patch("/{camp_id}", response_model=CampOut)
-async def update_camp(
+@router.patch("/{camp_id}")
+async def update_camp_full(
     camp_id: str,
-    data: CampUpdate,
+    data: dict,
     user_id: str = Depends(require_camp_owner),
     db: AsyncSession = Depends(get_db),
 ):
     camp = await db.get(Camp, camp_id)
     if not camp:
         raise HTTPException(status_code=404, detail="Obóz nie istnieje")
-    for field in ("unit_name", "date_start", "date_end", "terrain_id"):
-        val = getattr(data, field, None)
-        if val is not None:
-            setattr(camp, field, val)
+
+    # Podstawowe pola
+    for field in ("unit_name", "terrain_id"):
+        if field in data:
+            setattr(camp, field, data[field])
+
+    # Daty
+    for date_field in ("date_start", "date_end"):
+        if date_field in data and data[date_field]:
+            try:
+                setattr(camp, date_field, datetime.date.fromisoformat(data[date_field]))
+            except (ValueError, TypeError):
+                pass
+
+    # Dane obozu z meta
+    for meta_key, col_name in _META_TO_CAMP.items():
+        if meta_key in data:
+            col = col_name or meta_key
+            if col not in ("date_start", "date_end", "unit_name"):
+                setattr(camp, col, data[meta_key])
+
+    # JSONB — stan aplikacji
+    for f in _JSON_STATE_FIELDS:
+        if f in data:
+            setattr(camp, f, data[f])
+
     await db.commit()
     await db.refresh(camp)
-    return camp
+    return _camp_to_dict(camp)
 
 
 @router.delete("/{camp_id}/leave", status_code=204)
