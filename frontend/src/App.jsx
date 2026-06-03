@@ -453,12 +453,16 @@ function AppRoutes({
 
   const path = location.pathname
   const isBefore = path.startsWith('/before')
+  const isDuring = path.startsWith('/during')
   const currentMain = (() => {
     const seg = path.split('/')[1]
     if (seg === 'before' || seg === 'during' || seg === 'tasks' || seg === 'dashboard') return seg
     return ''
   })()
   const currentTab = isBefore ? path.split('/')[2] || 'camp' : null
+  const currentDuringTab = isDuring ? path.split('/')[2] || 'today' : null
+  const duringDayParam = new URLSearchParams(location.search).get('day')
+  const duringDayVal = duringDayParam ? parseInt(duringDayParam) : null
 
   const { meta, activities, days, template, activityLog, mealTemplate, mealActivities } = state
 
@@ -467,7 +471,9 @@ function AppRoutes({
   const navigateToSection = (tab) => {
     const beforeTabs = ['camp','instructions','plan','jadlospis','diary','docs','map']
     if (beforeTabs.includes(tab)) { navigate('/before/' + tab); return }
-    if (tab === 'during') { navigate('/during'); return }
+    if (tab === 'during' || tab === 'during_today') { navigate('/during/today'); return }
+    if (tab === 'during_calendar') { navigate('/during/calendar'); return }
+    if (tab === 'during_shopping') { navigate('/during/shopping'); return }
     if (tab === 'tasks_section') { navigate('/tasks'); return }
     if (tab === 'dashboard') { navigate('/dashboard'); return }
     const map = {
@@ -496,6 +502,12 @@ function AppRoutes({
     { id: 'map',         label: 'Mapa terenu' },
   ]
 
+  const DURING_TABS = [
+    { id: 'today',    label: 'Dziś' },
+    { id: 'calendar', label: 'Kalendarz' },
+    { id: 'shopping', label: 'Zakupy' },
+  ]
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {showOnboarding && (
@@ -513,7 +525,7 @@ function AppRoutes({
         </div>
       )}
 
-      <header className="bg-green-800 text-white shadow shrink-0">
+      <header className="bg-green-800 text-white shadow sticky top-0 z-50">
         <div className="px-4 py-2 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div>
@@ -615,6 +627,19 @@ function AppRoutes({
             ))}
           </div>
         )}
+
+        {isDuring && (
+          <div className="flex overflow-x-auto border-t border-green-700 bg-green-900">
+            {DURING_TABS.map(t => (
+              <button key={t.id} onClick={() => navigate('/during/' + t.id)}
+                className={`px-4 py-1.5 text-xs font-semibold whitespace-nowrap transition ${
+                  currentDuringTab === t.id ? 'bg-green-600 text-white' : 'text-green-400 hover:text-white'
+                }`}>
+                {t.label}
+              </button>
+            ))}
+          </div>
+        )}
       </header>
 
       {showMenu && (
@@ -665,6 +690,8 @@ function AppRoutes({
 
       <Routes>
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/before" element={<Navigate to="/before/camp" replace />} />
+        <Route path="/during" element={<Navigate to="/during/today" replace />} />
 
         <Route path="/dashboard" element={
           <DashboardTab meta={meta} days={days} user={user}
@@ -804,8 +831,16 @@ function AppRoutes({
           }} />
         } />
 
-        <Route path="/during" element={
-          <DuringCampTab meta={meta} days={days} />
+        <Route path="/during/today" element={
+          <DuringCampTab meta={meta} days={days} view="today" selectedDay={duringDayVal} onNavigate={navigateToSection} />
+        } />
+
+        <Route path="/during/calendar" element={
+          <DuringCampTab meta={meta} days={days} view="calendar" onNavigate={navigateToSection} />
+        } />
+
+        <Route path="/during/shopping" element={
+          <DuringCampTab meta={meta} days={days} view="shopping" onNavigate={navigateToSection} />
         } />
 
         <Route path="/tasks" element={

@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { getShoppingList, generateCompactShoppingPdf } from '../utils/generateJadlospis.js'
 
 // ── Pomocnicze ────────────────────────────────────────────────────────────────
@@ -69,9 +70,27 @@ function DayPlanView({ day, dayNumber, date }) {
 }
 
 // ── Główny komponent ──────────────────────────────────────────────────────────
-export default function DuringCampTab({ meta, days }) {
-  const [view, setView] = useState('today')      // 'today' | 'calendar' | 'shopping'
-  const [selectedDay, setSelectedDay] = useState(null)
+export default function DuringCampTab({ meta, days, view: externalView, selectedDay: externalSelectedDay, onNavigate }) {
+  const navigate = useNavigate()
+  const [internalView, setInternalView] = useState('today')
+  const [selectedDay, setSelectedDay] = useState(externalSelectedDay ?? null)
+  const view = externalView || internalView
+
+  useEffect(() => {
+    if (externalSelectedDay !== undefined) setSelectedDay(externalSelectedDay)
+  }, [externalSelectedDay])
+
+  const setView = (v, dayIndex = null) => {
+    if (externalView && onNavigate) {
+      const dayParam = dayIndex !== null ? `?day=${dayIndex}` : ''
+      if (v === 'today') navigate(`/during/today${dayParam}`)
+      else if (v === 'calendar') navigate('/during/calendar')
+      else navigate('/during/shopping')
+    } else {
+      setInternalView(v)
+      if (dayIndex !== null) setSelectedDay(dayIndex)
+    }
+  }
 
   const today = new Date().toISOString().split('T')[0]
 
@@ -109,15 +128,17 @@ export default function DuringCampTab({ meta, days }) {
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-gray-50">
 
-      {/* Sub-nav */}
+      {/* Sub-nav — pokazywana tylko gdy brak zewnętrznego view (legacy fallback) */}
+      {!externalView && (
       <div className="bg-green-800 flex shrink-0">
         {[['today','📅 Dziś'], ['calendar','📆 Kalendarz'], ['shopping','🛒 Zakupy']].map(([v, l]) => (
-          <button key={v} onClick={() => { setView(v); if (v === 'today') setSelectedDay(null) }}
+          <button key={v} onClick={() => { setInternalView(v); if (v === 'today') setSelectedDay(null) }}
             className={`flex-1 py-2 text-sm font-semibold transition ${
               view === v ? 'bg-white text-green-800' : 'text-green-300 hover:text-white'
             }`}>{l}</button>
         ))}
       </div>
+      )}
 
       {/* Stan obozu */}
       {campFuture && (
@@ -171,7 +192,7 @@ export default function DuringCampTab({ meta, days }) {
             {days.length > 1 && (
               <div className="flex gap-2 mt-4 overflow-x-auto pb-2">
                 {campDays.map((d, i) => (
-                  <button key={d.id} onClick={() => { setSelectedDay(i); setView('today') }}
+                  <button key={d.id} onClick={() => { setSelectedDay(i); setView('today', i) }}
                     className={`shrink-0 px-3 py-2 rounded-xl text-xs font-bold border transition ${
                       (selectedDay === null ? campDayIndex === i : selectedDay === i)
                         ? 'bg-green-700 text-white border-green-700'
@@ -203,7 +224,7 @@ export default function DuringCampTab({ meta, days }) {
               const slots   = day.slots || []
               return (
                 <button key={day.id}
-                  onClick={() => { setSelectedDay(i); setView('today') }}
+                  onClick={() => setView('today', i)}
                   className={`w-full text-left mb-3 rounded-2xl border-2 p-4 transition ${
                     isToday ? 'border-green-600 bg-green-50' : 'border-gray-200 bg-white hover:border-green-400'
                   } ${isPast ? 'opacity-60' : ''}`}>
