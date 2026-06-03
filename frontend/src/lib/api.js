@@ -93,6 +93,12 @@ export async function signOut() {
   localStorage.removeItem('skauting_progress')
   localStorage.removeItem('skauting_checklist')
   localStorage.removeItem('skauting_geo_results')
+  localStorage.removeItem('campas_mainSection')
+  localStorage.removeItem('campas_activeTab')
+  // Usuń wszystkie klucze per-camp (skauting_v1_{id}, campas_meta_{id}, campas_checklist_{id})
+  Object.keys(localStorage)
+    .filter(k => k.startsWith('skauting_v1_') || k.startsWith('campas_meta_') || k.startsWith('campas_checklist_'))
+    .forEach(k => localStorage.removeItem(k))
   window.location.href = '/'
   return { error: null }
 }

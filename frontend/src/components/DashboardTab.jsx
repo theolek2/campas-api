@@ -242,7 +242,7 @@ export default function DashboardTab({ meta, days, user, onNavigate, checklist =
 
   const handleCreateTask = async (item) => {
     try {
-      const data = await createTask({
+      const data = await createTask(campId, {
         title: item.title,
         column: 'todo',
         priority: item.urgent ? 'urgent' : item.star ? 'high' : 'medium',

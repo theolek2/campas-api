@@ -241,10 +241,15 @@ export default function App() {
 
   const { meta, activities, days, template, activityLog = [], mealTemplate = [], mealActivities = [] } = state
 
+  const saveTimer = useRef(null)
   useEffect(() => {
     saveState(state, campId)
+    // Zapisz pełny stan na serwer z debounce 2s (guard zapobiega nadpisaniu podczas ładowania)
     if (user?.id && serverDataReadyRef.current && campId) {
-      saveCampMeta(user.id, state, campId).catch(() => {})
+      clearTimeout(saveTimer.current)
+      saveTimer.current = setTimeout(() => {
+        saveCampMeta(user.id, state, campId).catch(() => {})
+      }, 2000)
     }
   }, [state, campId])
 

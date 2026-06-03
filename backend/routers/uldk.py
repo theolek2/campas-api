@@ -176,7 +176,7 @@ async def uldk_proxy(
 
 # ── BDL — Nadleśnictwo + Leśnictwo ────────────────────────────────────────────
 @router.get("/forest-district")
-async def forest_district(lat: float = Query(...), lng: float = Query(...)):
+async def forest_district(lat: float = Query(...), lng: float = Query(...), user_id: str = Depends(get_current_user)):
     d = 0.0001
     bbox = f"{lng - d},{lat - d},{lng + d},{lat + d}"
     result = {"nadlesnictwo": None, "lesnictwo": None}
@@ -202,6 +202,7 @@ async def forest_district(lat: float = Query(...), lng: float = Query(...)):
 async def get_psp_info(
     powiat: str = Query(..., description="Nazwa powiatu (np. białobrzeski)"),
     city: str | None = Query(None, description="Nazwa miasta powiatowego (np. Białobrzegi)"),
+    user_id: str = Depends(get_current_user),
 ):
     """Scrapuje dane kontaktowe PSP z gov.pl dla danego powiatu."""
     import re as _re
@@ -285,6 +286,7 @@ async def _scrape_gov(url: str):
 @router.get("/police")
 async def get_police_info(
     powiat: str = Query(..., description="Nazwa powiatu (np. białobrzeski)"),
+    user_id: str = Depends(get_current_user),
 ):
     """Wyszukuje komendę Policji przez Nominatim."""
     import re as _re

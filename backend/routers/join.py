@@ -7,6 +7,7 @@ from datetime import datetime, timezone, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import get_db
@@ -49,25 +50,29 @@ async def generate_join_code(
             "max_uses": old_code.max_uses,
         }
 
-    # Generuj unikalny kod
-    for _ in range(20):
+    # Generuj unikalny kod — obsłuż race condition przez IntegrityError retry
+    join_code = None
+    for _ in range(10):
         code = _generate_code()
-        dup = await db.execute(select(CampJoinCode).where(CampJoinCode.code == code))
-        if not dup.scalar_one_or_none():
+        try:
+            join_code = CampJoinCode(
+                camp_id=camp_id,
+                code=code,
+                created_by=user_id,
+                role="przyboczny",
+                max_uses=None,
+                uses=0,
+                expires_at=datetime.now(timezone.utc) + timedelta(days=7),
+            )
+            db.add(join_code)
+            await db.commit()
+            await db.refresh(join_code)
             break
-
-    join_code = CampJoinCode(
-        camp_id=camp_id,
-        code=code,
-        created_by=user_id,
-        role="przyboczny",
-        max_uses=None,
-        uses=0,
-        expires_at=datetime.now(timezone.utc) + timedelta(days=7),
-    )
-    db.add(join_code)
-    await db.commit()
-    await db.refresh(join_code)
+        except IntegrityError:
+            await db.rollback()
+            join_code = None
+    if not join_code:
+        raise HTTPException(status_code=500, detail="Nie udało się wygenerować unikalnego kodu")
 
     return {
         "code": join_code.code,
