@@ -24,7 +24,7 @@ import Confetti from './components/Confetti'
 import { makeDay, DEFAULT_CAMP_ACTIVITIES } from './utils/defaults'
 import { generatePdf } from './utils/generatePdf'
 import { saveState, loadState } from './utils/storage'
-import { supabase, signOut, getProfile, upsertProfile, saveCampData, loadCampData, saveChecklist, loadChecklist, getCamps, leaveCamp, verifyEmail, magicLogin } from './lib/api'
+import { supabase, signOut, getProfile, upsertProfile, saveCampData, loadCampData, saveChecklist, loadChecklist, getCamps, leaveCamp, deleteCamp, verifyEmail, magicLogin } from './lib/api'
 
 const DEFAULT_STATE = {
   meta: { jednostka: '', kierownik: '', miejsce: '', termin: '', date_start: '', date_end: '' },
@@ -582,9 +582,11 @@ function AppRoutes({
                 onCreateNew={() => navigate(`/${activeCampId}/settings`)}
                 onJoinCamp={() => setShowJoinFlow(true)}
                 onLeaveCamp={async (leaveId, campName) => {
-                  if (!confirm(`Opuścić obóz "${campName}"? Stracisz do niego dostęp.`)) return
+                  // Spróbuj najpierw opuścić (przyboczny)
+                  if (!confirm(`Opuścić obóz "${campName}"?\nStracisz do niego dostęp.`)) return
                   try {
                     await leaveCamp(leaveId)
+                    // Sukces — przyboczny opuścił
                     const updated = campsList.filter(c => c.id !== leaveId)
                     setCampsList(updated)
                     if (leaveId === campId && updated.length > 0) {
@@ -592,7 +594,33 @@ function AppRoutes({
                       setCampId(updated[0].id)
                       setState(DEFAULT_STATE)
                     }
-                  } catch (e) { alert(e.message) }
+                  } catch (e) {
+                    // Jeśli właściciel próbuje opuścić — zaproponuj usunięcie obozu
+                    if (e.message?.includes('właścicielem') || e.message?.includes('owner')) {
+                      const confirmed = window.confirm(
+                        `Jesteś właścicielem obozu "${campName}".\n\n` +
+                        `Usunięcie obozu spowoduje:\n` +
+                        `• Trwałe usunięcie wszystkich danych obozu\n` +
+                        `• Utratę dostępu dla wszystkich przybocznych\n` +
+                        `• Usunięcie planów zajęć, dokumentów i historii\n\n` +
+                        `Tej operacji nie można cofnąć!\n\n` +
+                        `Czy na pewno chcesz USUNĄĆ obóz "${campName}"?`
+                      )
+                      if (!confirmed) return
+                      try {
+                        await deleteCamp(leaveId)
+                        const updated = campsList.filter(c => c.id !== leaveId)
+                        setCampsList(updated)
+                        if (leaveId === campId) {
+                          localStorage.setItem('campas_camp_id', updated[0]?.id || '')
+                          setCampId(updated[0]?.id || null)
+                          setState(DEFAULT_STATE)
+                        }
+                      } catch (e2) { alert('Błąd usuwania obozu: ' + e2.message) }
+                    } else {
+                      alert('Błąd: ' + e.message)
+                    }
+                  }
                 }}
               />
             )}

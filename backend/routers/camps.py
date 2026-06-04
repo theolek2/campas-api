@@ -276,7 +276,7 @@ async def leave_camp(
     user_id: str = Depends(require_camp_access),
     db: AsyncSession = Depends(get_db),
 ):
-    """Usuń swój dostęp do obozu (opuść obóz). Owner nie może opuścić — musi najpierw przekazać ownership."""
+    """Opuść obóz (usuń własny dostęp). Właściciel musi użyć DELETE /{camp_id} aby usunąć obóz."""
     access = await db.execute(
         select(CampAccess).where(CampAccess.camp_id == camp_id, CampAccess.user_id == user_id)
     )
@@ -284,8 +284,28 @@ async def leave_camp(
     if not entry:
         raise HTTPException(status_code=404, detail="Brak dostępu do obozu")
     if entry.permissions == "owner":
-        raise HTTPException(status_code=400, detail="Właściciel nie może opuścić obozu. Najpierw przekaż obóz innemu użytkownikowi lub usuń obóz.")
+        raise HTTPException(status_code=400, detail="Jesteś właścicielem — użyj 'Usuń obóz' zamiast 'Opuść'.")
     await db.delete(entry)
+    await db.commit()
+
+
+@router.delete("/{camp_id}", status_code=204)
+async def delete_camp(
+    camp_id: str,
+    user_id: str = Depends(require_camp_owner),
+    db: AsyncSession = Depends(get_db),
+):
+    """Usuń obóz całkowicie wraz ze wszystkimi danymi (tylko właściciel)."""
+    camp = await db.get(Camp, camp_id)
+    if not camp:
+        raise HTTPException(status_code=404, detail="Obóz nie istnieje")
+    # Usuń dostępy
+    await db.execute(select(CampAccess).where(CampAccess.camp_id == camp_id))
+    accesses = await db.execute(select(CampAccess).where(CampAccess.camp_id == camp_id))
+    for a in accesses.scalars().all():
+        await db.delete(a)
+    # Usuń obóz
+    await db.delete(camp)
     await db.commit()
 
 

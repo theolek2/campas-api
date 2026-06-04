@@ -642,6 +642,15 @@ export async function leaveCamp(campId) {
   return _json(res)
 }
 
+export async function deleteCamp(campId) {
+  const res = await fetch(`${BASE}/api/camps/${campId}`, {
+    method: 'DELETE',
+    headers: _headers(),
+  })
+  if (res.status === 204) return { success: true }
+  return _json(res)
+}
+
 export async function generateJoinCode(campId) {
   const res = await fetch(`${BASE}/api/camps/${campId}/join-code`, {
     method: 'POST',
