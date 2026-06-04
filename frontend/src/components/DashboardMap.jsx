@@ -115,13 +115,14 @@ export default function DashboardMap({ meta, campId, mapState: initialMapState, 
         </div>
       </div>
 
-      {/* SVG */}
+      {/* SVG — stały rozmiar 1:1 z obrazem */}
       <div className="flex-1 overflow-auto">
         <svg
+          width={MAP_WIDTH}
+          height={MAP_HEIGHT}
           viewBox={`0 0 ${MAP_WIDTH} ${MAP_HEIGHT}`}
-          preserveAspectRatio="xMidYMin meet"
-          className="w-full h-auto cursor-crosshair"
-          style={{ minHeight: '100%', background: '#f0f4e8' }}
+          className="block cursor-crosshair"
+          style={{ background: '#f0f4e8' }}
           onClick={handleMapClick}
           onMouseMove={handleMapMove}
           onMouseLeave={() => setHoveredArea(null)}
