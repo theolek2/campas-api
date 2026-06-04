@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Map Coordinate Picker — Campas Dashboard 2.0</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box }
+  body { font-family: system-ui, sans-serif; background: #1a1a2e; color: white; overflow: hidden; height:100vh; display:flex }
+  #sidebar { width: 360px; background: #16213e; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; flex-shrink: 0 }
+  #sidebar h2 { font-size: 16px; margin-bottom: 4px }
+  #canvas-wrap { flex:1; overflow: auto; background: #0f3460; position: relative }
+  canvas { display: block }
+  button, select { padding: 8px 14px; border-radius: 6px; border: none; cursor: pointer; font-size: 13px; font-weight: 600 }
+  .btn-primary { background: #e94560; color: white }
+  .btn-primary:hover { background: #ff6b6b }
+  .btn-secondary { background: #0f3460; color: white; border: 1px solid #e94560 }
+  .btn-secondary:hover { background: #1a1a5e }
+  .btn-success { background: #0e9d57; color: white }
+  .btn-success:hover { background: #12b863 }
+  .btn-danger { background: #6c1a1a; color: white; border:1px solid #e94560 }
+  .btn-danger:hover { background: #8b2323 }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; background: #e94560; color: white }
+  select { background: #0f3460; color:white; border:1px solid #e94560; flex:1 }
+  textarea { width:100%; height:200px; background:#0f3460; color:#00ff88; border:1px solid #e94560; border-radius:6px; padding:8px; font-family: monospace; font-size:11px; resize:vertical }
+  .mode-indicator { padding:4px 8px; border-radius:4px; font-size:12px; font-weight:bold; text-align:center }
+  .mode-polygon { background: #e94560 }  .mode-path { background: #0e9d57 }  .mode-none { background: #333 }
+  .item-list { max-height: 200px; overflow-y: auto }
+  .item-row { display:flex; justify-content:space-between; align-items:center; padding:4px 8px; margin:2px 0; background:#0f3460; border-radius:4px; font-size:12px }
+  .item-row button { padding:2px 8px; font-size:11px }
+  hr { border-color: #333; margin: 4px 0 }
+</style>
+</head>
+<body>
+<div id="sidebar">
+  <h2>🗺️ Map Coordinate Picker</h2>
+
+  <div class="mode-indicator mode-none" id="modeBadge">TRYB: —</div>
+
+  <div class="row">
+    <select id="modeSelect">
+      <option value="">— wybierz tryb —</option>
+      <option value="polygon">🎯 Rysuj obszar (poligon)</option>
+      <option value="path">🛤️ Rysuj ścieżkę</option>
+    </select>
+  </div>
+
+  <div class="row">
+    <input id="nodeName" placeholder="Nazwa obszaru (np. 3.1 PSP)" style="flex:1; padding:8px; border-radius:6px; border:1px solid #e94560; background:#0f3460; color:white; font-size:13px" />
+    <button class="btn-primary" id="finishBtn">✅ Zatwierdź</button>
+  </div>
+
+  <div class="row">
+    <button class="btn-secondary" id="undoBtn">↩ Cofnij punkt</button>
+    <button class="btn-danger" id="clearBtn">🗑 Wyczyść bieżący</button>
+  </div>
+
+  <hr />
+
+  <h3>Obszary (polygons) <span class="badge" id="polyCount">0</span></h3>
+  <div class="item-list" id="polyList"></div>
+
+  <h3>Ścieżki (paths) <span class="badge" id="pathCount">0</span></h3>
+  <div class="item-list" id="pathList"></div>
+
+  <hr />
+
+  <h3>Eksport</h3>
+  <textarea id="output" readonly placeholder="Kliknij 'Eksportuj JSON', aby zobaczyć wynik..."></textarea>
+  <div class="row">
+    <button class="btn-success" id="exportBtn">📋 Eksportuj JSON</button>
+    <button class="btn-secondary" id="copyBtn">📎 Kopiuj</button>
+    <button class="btn-danger" id="resetAllBtn">🗑 Reset wszystkiego</button>
+  </div>
+
+  <div style="font-size:11px; color:#888; margin-top:8px">
+    <p><b>Obszar:</b> Wybierz tryb "Rysuj obszar", klikaj po kolei rogi budynku/miejsca, zatwierdź.</p>
+    <p><b>Ścieżka:</b> Wybierz tryb "Rysuj ścieżkę", klikaj punkty wzdłuż drogi, zatwierdź.</p>
+    <p><b>Kliknij prawym</b> = usuń ostatni punkt.</p>
+    <p>Wynikowy JSON wklej do <code>data/mapNodes.js</code> w miejsce MAP_COORDS i PATHS.</p>
+  </div>
+</div>
+
+<div id="canvas-wrap">
+  <canvas id="canvas"></canvas>
+</div>
+
+<script>
+const canvas = document.getElementById('canvas')
+const ctx = canvas.getContext('2d')
+const img = new Image()
+img.src = 'frontend/src/assets/map/tlo.png'    // ścieżka względna do campas-api/
+img.onload = () => {
+  canvas.width = img.width
+  canvas.height = img.height
+  draw()
+}
+
+window.onerror = () => {
+  // fallback — wczytaj z pliku przez drag & drop
+}
+
+// Stan
+let mode = ''                       // 'polygon' | 'path' | ''
+let currentPoints = []              // punkty rysowanego właśnie obszaru/ścieżki
+let polygons = []                   // { name, points: [{x,y},...] }
+let paths = []                       // { name, points: [{x,y},...] }
+
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height)
+  ctx.drawImage(img, 0, 0)
+
+  // Narysuj zapisane obszary
+  polygons.forEach(p => drawPolygon(p.points, 'rgba(233,69,96,0.3)', 'rgba(233,69,96,0.8)', p.name))
+  // Narysuj zapisane ścieżki
+  paths.forEach(p => drawPathLine(p.points, 'rgba(14,157,87,0.8)', p.name))
+  // Narysuj bieżący
+  if (currentPoints.length > 0) {
+    if (mode === 'polygon') {
+      drawPolygon(currentPoints, 'rgba(233,69,96,0.5)', 'rgba(255,255,255,0.9)', 'rysowany...')
+    } else if (mode === 'path') {
+      drawPathLine(currentPoints, 'rgba(255,255,255,0.9)', 'rysowana...')
+    }
+  }
+}
+
+function drawPolygon(pts, fill, stroke, label) {
+  if (pts.length === 0) return
+  ctx.beginPath()
+  ctx.moveTo(pts[0].x, pts[0].y)
+  for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y)
+  ctx.closePath()
+  ctx.fillStyle = fill
+  ctx.fill()
+  ctx.strokeStyle = stroke
+  ctx.lineWidth = 2
+  ctx.stroke()
+
+  // Kropki na rogach
+  pts.forEach(p => {
+    ctx.beginPath(); ctx.arc(p.x, p.y, 5, 0, Math.PI*2)
+    ctx.fillStyle = stroke; ctx.fill()
+  })
+
+  // Label
+  if (label && pts.length > 0) {
+    const cx = pts.reduce((s,p) => s+p.x, 0) / pts.length
+    const cy = pts.reduce((s,p) => s+p.y, 0) / pts.length
+    ctx.fillStyle = 'white'
+    ctx.font = 'bold 14px system-ui'
+    ctx.textAlign = 'center'
+    ctx.fillText(label, cx, cy-10)
+  }
+}
+
+function drawPathLine(pts, stroke, label) {
+  if (pts.length < 2) return
+  ctx.beginPath()
+  ctx.strokeStyle = stroke
+  ctx.lineWidth = 4
+  ctx.lineCap = 'round'
+  ctx.setLineDash([8, 6])
+  ctx.moveTo(pts[0].x, pts[0].y)
+  for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y)
+  ctx.stroke()
+  ctx.setLineDash([])
+
+  pts.forEach(p => {
+    ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI*2)
+    ctx.fillStyle = stroke; ctx.fill()
+  })
+
+  if (label && pts.length >= 2) {
+    const mid = Math.floor(pts.length / 2)
+    ctx.fillStyle = 'white'
+    ctx.font = 'bold 13px system-ui'
+    ctx.textAlign = 'center'
+    ctx.fillText(label, pts[mid].x, pts[mid].y - 12)
+  }
+}
+
+canvas.addEventListener('click', (e) => {
+  if (!mode) return
+  const rect = canvas.getBoundingClientRect()
+  const scaleX = canvas.width / rect.width
+  const scaleY = canvas.height / rect.height
+  const x = Math.round((e.clientX - rect.left) * scaleX)
+  const y = Math.round((e.clientY - rect.top) * scaleY)
+  currentPoints.push({ x, y })
+  draw()
+})
+
+canvas.addEventListener('contextmenu', (e) => {
+  e.preventDefault()
+  if (currentPoints.length > 0) {
+    currentPoints.pop()
+    draw()
+  }
+})
+
+// Tryb drag & drop dla obrazu (jeśli ścieżka nie działa)
+document.addEventListener('dragover', e => e.preventDefault())
+document.addEventListener('drop', e => {
+  e.preventDefault()
+  const file = e.dataTransfer.files[0]
+  if (!file || !file.type.startsWith('image/')) return
+  const reader = new FileReader()
+  reader.onload = () => { img.src = reader.result }
+  reader.readAsDataURL(file)
+})
+
+document.getElementById('modeSelect').addEventListener('change', (e) => {
+  mode = e.target.value
+  currentPoints = []
+  document.getElementById('modeBadge').textContent = mode === 'polygon' ? 'TRYB: RYSUJ OBSZAR' : mode === 'path' ? 'TRYB: RYSUJ ŚCIEŻKĘ' : 'TRYB: —'
+  document.getElementById('modeBadge').className = 'mode-indicator ' + (mode === 'polygon' ? 'mode-polygon' : mode === 'path' ? 'mode-path' : 'mode-none')
+  draw()
+})
+
+document.getElementById('finishBtn').addEventListener('click', () => {
+  if (!mode || currentPoints.length < (mode === 'polygon' ? 3 : 2)) {
+    alert(mode === 'polygon' ? 'Obszar potrzebuje min. 3 punktów' : 'Ścieżka potrzebuje min. 2 punktów')
+    return
+  }
+  const name = document.getElementById('nodeName').value.trim() || `bez_nazwy_${Date.now()}`
+  if (mode === 'polygon') {
+    polygons.push({ name, points: [...currentPoints] })
+  } else {
+    paths.push({ name, points: [...currentPoints] })
+  }
+  currentPoints = []
+  document.getElementById('nodeName').value = ''
+  refreshLists()
+  draw()
+})
+
+document.getElementById('undoBtn').addEventListener('click', () => {
+  if (currentPoints.length > 0) { currentPoints.pop(); draw() }
+})
+
+document.getElementById('clearBtn').addEventListener('click', () => {
+  currentPoints = []; draw()
+})
+
+document.getElementById('exportBtn').addEventListener('click', () => {
+  const polygonsObj = {}
+  polygons.forEach(p => {
+    polygonsObj[p.name] = p.points.map(pt => ({ x: pt.x, y: pt.y }))
+  })
+  const pathsArr = paths.map(p => ({
+    name: p.name,
+    points: p.points.map(pt => ({ x: pt.x, y: pt.y }))
+  }))
+  const json = JSON.stringify({ polygons: polygonsObj, paths: pathsArr }, null, 2)
+  document.getElementById('output').value = json
+})
+
+document.getElementById('copyBtn').addEventListener('click', () => {
+  navigator.clipboard.writeText(document.getElementById('output').value)
+  alert('Skopiowane!')
+})
+
+document.getElementById('resetAllBtn').addEventListener('click', () => {
+  if (confirm('Usunąć wszystkie obszary i ścieżki?')) {
+    polygons = []; paths = []; currentPoints = []
+    refreshLists(); draw()
+  }
+})
+
+function refreshLists() {
+  document.getElementById('polyCount').textContent = polygons.length
+  document.getElementById('pathCount').textContent = paths.length
+
+  const polyHtml = polygons.map((p, i) =>
+    `<div class="item-row"><span>${p.name}</span><span>${p.points.length} pkt</span><button onclick="deletePoly(${i})" style="background:#e94560;color:white;border:none;border-radius:4px">✕</button></div>`
+  ).join('')
+  document.getElementById('polyList').innerHTML = polyHtml
+
+  const pathHtml = paths.map((p, i) =>
+    `<div class="item-row"><span>${p.name}</span><span>${p.points.length} pkt</span><button onclick="deletePath(${i})" style="background:#e94560;color:white;border:none;border-radius:4px">✕</button></div>`
+  ).join('')
+  document.getElementById('pathList').innerHTML = pathHtml
+}
+
+window.deletePoly = (i) => { polygons.splice(i, 1); refreshLists(); draw() }
+window.deletePath = (i) => { paths.splice(i, 1); refreshLists(); draw() }
+
+// Drag & drop info
+if (img.complete && img.naturalWidth === 0) {
+  document.getElementById('canvas-wrap').innerHTML += '<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;color:#888"><p style="font-size:48px">🖼️</p><p>Przeciągnij i upuść obraz tlo.png tutaj</p></div>'
+}
+</script>
+</body>
+</html>

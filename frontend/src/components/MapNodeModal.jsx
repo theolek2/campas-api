@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import {
-  NODE_LABELS, NODE_ICONS, NODE_DETAIL_IMAGE_KEY,
+  NODE_LABELS, NODE_ICONS, NODE_DETAIL_IMAGE_KEY, NODE_TO_AREA, NODE_AREAS,
 } from '../data/mapNodes'
 import detaleInfo from '../assets/map/detale-info.png'
 import detalePsp from '../assets/map/detale-psp.png'
@@ -8,33 +8,26 @@ import detaleKuratorium from '../assets/map/detale-kuratorium.png'
 import detaleOgolny from '../assets/map/detale-ogolny.png'
 
 const IMAGE_MAP = {
-  'detale-info': detaleInfo,
-  'detale-psp': detalePsp,
-  'detale-kuratorium': detaleKuratorium,
-  'detale-ogolny': detaleOgolny,
+  'detale-info': detaleInfo, 'detale-psp': detalePsp,
+  'detale-kuratorium': detaleKuratorium, 'detale-ogolny': detaleOgolny,
 }
-
 const DEFAULT_DETAIL_IMAGE = detaleOgolny
 
 /**
- * MapNodeModal — modal po kliknięciu węzła.
- * Pokazuje szczegóły, formularz lub link do podstrony.
+ * MapNodeModal — modal po kliknięciu obszaru na mapie.
  */
-export default function MapNodeModal({ nodeId, status, meta, onClose, onDone, onNavigate }) {
+export default function MapNodeModal({ nodeId, status, meta, onClose, onDone, onNavigate, allNodeIds, nodeStatus, onSelectNode }) {
   const label = NODE_LABELS[nodeId] || nodeId
   const icon = NODE_ICONS[nodeId] || '📍'
 
-  // Wybierz obraz szczegółów
-  const getDetailImage = () => {
-    const key = NODE_DETAIL_IMAGE_KEY[nodeId]
-    if (key) return IMAGE_MAP[key] || DEFAULT_DETAIL_IMAGE
-    const prefix = nodeId.split('.')[0]
-    const wildcard = `${prefix}.x`
-    const wkey = NODE_DETAIL_IMAGE_KEY[wildcard]
-    if (wkey) return IMAGE_MAP[wkey] || DEFAULT_DETAIL_IMAGE
-    return DEFAULT_DETAIL_IMAGE
-  }
+  // Znajdź wszystkie węzły w tym obszarze
+  const areaId = NODE_TO_AREA[nodeId] || nodeId
+  const siblingNodes = allNodeIds.filter(nid => (NODE_TO_AREA[nid] || nid) === areaId)
 
+  const getDetailImage = () => {
+    const key = NODE_DETAIL_IMAGE_KEY[nodeId] || NODE_DETAIL_IMAGE_KEY[areaId]
+    return key ? IMAGE_MAP[key] || DEFAULT_DETAIL_IMAGE : DEFAULT_DETAIL_IMAGE
+  }
   const detailImg = getDetailImage()
 
   // ── Treść modala zależna od typu węzła ──
@@ -150,26 +143,19 @@ export default function MapNodeModal({ nodeId, status, meta, onClose, onDone, on
   }
 
   const isLocked = status === 'locked'
+  const hasSubTabs = siblingNodes.length > 1
 
   return (
     <div className="fixed inset-0 z-[3000] flex" onClick={onClose}>
-      {/* Tło */}
       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
 
-      {/* Panel szczegółów */}
       <div
         className="relative m-auto w-full max-w-lg max-h-[90vh] overflow-y-auto bg-white rounded-2xl shadow-2xl"
         onClick={e => e.stopPropagation()}
       >
-        {/* Obraz szczegółów */}
         <div className="relative h-48 bg-gray-100 rounded-t-2xl overflow-hidden">
           <img src={detailImg} alt={label} className="w-full h-full object-cover" />
-          <button
-            onClick={onClose}
-            className="absolute top-3 right-3 w-8 h-8 bg-white/80 rounded-full flex items-center justify-center text-gray-600 hover:bg-white transition"
-          >
-            ✕
-          </button>
+          <button onClick={onClose} className="absolute top-3 right-3 w-8 h-8 bg-white/80 rounded-full flex items-center justify-center text-gray-600 hover:bg-white transition">✕</button>
           <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/40 to-transparent p-3">
             <div className="flex items-center gap-2">
               <span className="text-2xl">{icon}</span>
@@ -177,6 +163,24 @@ export default function MapNodeModal({ nodeId, status, meta, onClose, onDone, on
             </div>
           </div>
         </div>
+
+        {/* Sub-tabs dla obszarów z wieloma węzłami */}
+        {hasSubTabs && (
+          <div className="flex border-b border-gray-200 bg-gray-50">
+            {siblingNodes.map(nid => {
+              const s = nodeStatus[nid] || 'locked'
+              const nodeLabel = NODE_LABELS[nid] || nid
+              return (
+                <button key={nid} onClick={() => onSelectNode(nid)}
+                  className={`flex-1 py-2 text-xs font-semibold transition ${
+                    nid === nodeId ? 'bg-white text-green-800 border-b-2 border-green-600' : 'text-gray-500 hover:text-gray-700'
+                  }`}>
+                  <span className="mr-1">{s === 'done' ? '✅' : NODE_ICONS[nid]}</span>{nodeLabel}
+                </button>
+              )
+            })}
+          </div>
+        )}
 
         {/* Treść */}
         <div className="p-5">
