@@ -1,7 +1,20 @@
 import { useState } from 'react'
 import {
-  NODE_LABELS, NODE_ICONS, NODE_DETAIL_IMAGE, DEFAULT_DETAIL_IMAGE,
+  NODE_LABELS, NODE_ICONS, NODE_DETAIL_IMAGE_KEY,
 } from '../data/mapNodes'
+import detaleInfo from '../assets/map/detale-info.png'
+import detalePsp from '../assets/map/detale-psp.png'
+import detaleKuratorium from '../assets/map/detale-kuratorium.png'
+import detaleOgolny from '../assets/map/detale-ogolny.png'
+
+const IMAGE_MAP = {
+  'detale-info': detaleInfo,
+  'detale-psp': detalePsp,
+  'detale-kuratorium': detaleKuratorium,
+  'detale-ogolny': detaleOgolny,
+}
+
+const DEFAULT_DETAIL_IMAGE = detaleOgolny
 
 /**
  * MapNodeModal — modal po kliknięciu węzła.
@@ -13,10 +26,13 @@ export default function MapNodeModal({ nodeId, status, meta, onClose, onDone, on
 
   // Wybierz obraz szczegółów
   const getDetailImage = () => {
-    if (NODE_DETAIL_IMAGE[nodeId]) return NODE_DETAIL_IMAGE[nodeId]
+    const key = NODE_DETAIL_IMAGE_KEY[nodeId]
+    if (key) return IMAGE_MAP[key] || DEFAULT_DETAIL_IMAGE
     const prefix = nodeId.split('.')[0]
     const wildcard = `${prefix}.x`
-    return NODE_DETAIL_IMAGE[wildcard] || DEFAULT_DETAIL_IMAGE
+    const wkey = NODE_DETAIL_IMAGE_KEY[wildcard]
+    if (wkey) return IMAGE_MAP[wkey] || DEFAULT_DETAIL_IMAGE
+    return DEFAULT_DETAIL_IMAGE
   }
 
   const detailImg = getDetailImage()

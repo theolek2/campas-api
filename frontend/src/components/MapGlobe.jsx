@@ -1,3 +1,5 @@
+import globusImg from '../assets/map/globus.png'
+
 /**
  * MapGlobe — widoczny gdy brak lokalizacji obozu (ETAP 0 niezaliczony).
  * Animowana kula ziemska z przyciskiem do wyboru lokalizacji.
@@ -8,7 +10,7 @@ export default function MapGlobe({ onChooseLocation }) {
       <div className="relative w-80 h-80 mb-8">
         {/* Animowana kula ziemska */}
         <img
-          src="/camp/map/globus.png"
+          src={globusImg}
           alt="Wybierz lokalizację"
           className="w-full h-full object-contain animate-spin"
           style={{ animationDuration: '20s' }}

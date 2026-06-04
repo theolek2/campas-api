@@ -9,7 +9,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     # Database
-    DATABASE_URL: str = "postgresql+asyncpg://campas:HASLO@localhost/campas"
+    DATABASE_URL: str = "sqlite+aiosqlite:///./local_test.db"
 
     # Auth
     JWT_SECRET: str = "dev-secret-change-in-production"
@@ -29,6 +29,7 @@ class Settings(BaseSettings):
 
     class Config:
         env_file = ".env"
+        env_file_encoding = "utf-8"
         extra = "ignore"
 
     @property

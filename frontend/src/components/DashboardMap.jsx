@@ -9,8 +9,9 @@ import {
   MAP_COORDS, PATHS, NODE_LABELS, NODE_ICONS, NODE_RADIUS,
   START_NODE, STATUS_COLORS,
 } from '../data/mapNodes'
+import tloImg from '../assets/map/tlo.png'
 
-const MAP_IMAGE = '/camp/map/tlo.png'
+const MAP_IMAGE = tloImg
 const MAP_WIDTH = 2000
 const MAP_HEIGHT = 3500
 

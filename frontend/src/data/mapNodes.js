@@ -134,21 +134,17 @@ export const NODE_ICONS = {
 }
 
 // Graf szczegółów lokacji do wyświetlenia po "przybliżeniu"
-// Base path dla grafik (zgodny z vite.config.js base)
-const B = '/camp'
-
-export const NODE_DETAIL_IMAGE = {
-  '1.x': `${B}/map/detale-info.png`,
-  '2.x': `${B}/map/detale-info.png`,
-  '3.1': `${B}/map/detale-psp.png`,
-  '4.1': `${B}/map/detale-kuratorium.png`,
-  '4.2': `${B}/map/detale-kuratorium.png`,
-  '4.3': `${B}/map/detale-kuratorium.png`,
-  '5.x': `${B}/map/detale-ogolny.png`,
-  '6.x': `${B}/map/detale-ogolny.png`,
+// Mapowanie węzłów na obrazy szczegółów (importowane przez komponent)
+export const NODE_DETAIL_IMAGE_KEY = {
+  '1.x': 'detale-info',
+  '2.x': 'detale-info',
+  '3.1': 'detale-psp',
+  '4.1': 'detale-kuratorium',
+  '4.2': 'detale-kuratorium',
+  '4.3': 'detale-kuratorium',
+  '5.x': 'detale-ogolny',
+  '6.x': 'detale-ogolny',
 }
-
-export const DEFAULT_DETAIL_IMAGE = `${B}/map/detale-ogolny.png`
 
 // Zależności — lista węzłów wymaganych do odblokowania danego węzła
 export const DEPENDENCIES = {
