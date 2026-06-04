@@ -8,7 +8,7 @@ export default function MapGlobe({ onChooseLocation }) {
       <div className="relative w-80 h-80 mb-8">
         {/* Animowana kula ziemska */}
         <img
-          src="/map/globus.png"
+          src="/camp/map/globus.png"
           alt="Wybierz lokalizację"
           className="w-full h-full object-contain animate-spin"
           style={{ animationDuration: '20s' }}

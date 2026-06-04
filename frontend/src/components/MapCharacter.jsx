@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { MAP_COORDS } from '../data/mapNodes'
 
-const IDLE_GIF = '/map/ludzik-idle.png'
-const WALK_GIF = '/map/ludzik-walk.png'
+const IDLE_GIF = '/camp/map/ludzik-idle.png'
+const WALK_GIF = '/camp/map/ludzik-walk.png'
 
 /**
  * MapCharacter — ludzik na mapie.

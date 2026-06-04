@@ -134,19 +134,21 @@ export const NODE_ICONS = {
 }
 
 // Graf szczegółów lokacji do wyświetlenia po "przybliżeniu"
+// Base path dla grafik (zgodny z vite.config.js base)
+const B = '/camp'
+
 export const NODE_DETAIL_IMAGE = {
-  '1.x': '/map/detale-info.png',       // ETAP 1 — informacje podstawowe
-  '2.x': '/map/detale-info.png',       // ETAP 2 — dokumenty
-  '3.1': '/map/detale-psp.png',        // PSP
-  '4.1': '/map/detale-kuratorium.png', // Kuratorium
-  '4.2': '/map/detale-kuratorium.png',
-  '4.3': '/map/detale-kuratorium.png',
-  '5.x': '/map/detale-ogolny.png',     // ETAP 5 — ogólne
-  '6.x': '/map/detale-ogolny.png',     // ETAP 6 — finał
+  '1.x': `${B}/map/detale-info.png`,
+  '2.x': `${B}/map/detale-info.png`,
+  '3.1': `${B}/map/detale-psp.png`,
+  '4.1': `${B}/map/detale-kuratorium.png`,
+  '4.2': `${B}/map/detale-kuratorium.png`,
+  '4.3': `${B}/map/detale-kuratorium.png`,
+  '5.x': `${B}/map/detale-ogolny.png`,
+  '6.x': `${B}/map/detale-ogolny.png`,
 }
 
-// Domyślny obraz dla braku specyficznego
-export const DEFAULT_DETAIL_IMAGE = '/map/detale-ogolny.png'
+export const DEFAULT_DETAIL_IMAGE = `${B}/map/detale-ogolny.png`
 
 // Zależności — lista węzłów wymaganych do odblokowania danego węzła
 export const DEPENDENCIES = {

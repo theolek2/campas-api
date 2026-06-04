@@ -10,7 +10,7 @@ import {
   START_NODE, STATUS_COLORS,
 } from '../data/mapNodes'
 
-const MAP_IMAGE = '/map/tlo.png'
+const MAP_IMAGE = '/camp/map/tlo.png'
 const MAP_WIDTH = 2000
 const MAP_HEIGHT = 3500
 
