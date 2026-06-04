@@ -32,7 +32,7 @@ function detectChoicesFromMeta(meta) {
   const j = (meta.jednostka || '').toLowerCase()
   if (j.includes('gromad')) {
     detected.galaz = { selected: 0 }
-  } else if (j.includes('drúży') || j.includes('druzyn')) {
+  } else if (j.includes('drużyn') || j.includes('druzyn') || j.includes('drużyn')) {
     detected.galaz = { selected: 1 }
   } else {
     detected.galaz = { selected: (meta.typ_obozu || '') === 'wilczkowy' ? 0 : 1 }
@@ -460,19 +460,25 @@ function PaginatedEditor({ initialHtml, activeTab, meta, attachments }) {
         newPp[pi].innerHTML = '<p><br></p>'
       }
       reflowing.current = false
-      // Przywróć kursor
+      // Przywróć kursor — znajdź stronę, która zawiera węzeł i daj jej focus
       if (savedRange) {
-        try { sel.removeAllRanges(); sel.addRange(savedRange) } catch {}
+        try {
+          const anchorNode = savedRange.startContainer
+          const pageEl = pagesRef.current.find(p => p && p.contains(anchorNode))
+          if (pageEl) {
+            pageEl.focus()
+            sel.removeAllRanges()
+            sel.addRange(savedRange)
+          }
+        } catch {}
       }
     }, 0)
 
     temp.remove()
   }, [pageCount])
 
-  useEffect(() => {
-    const timer = setTimeout(() => reflow(), 150)
-    return () => clearTimeout(timer)
-  }, [initialHtml])
+  // Reflow przy zmianie initialHtml jest zbedny — DOM ma juz tresc uzytkownika.
+  // Reflow wykonuje handleInput po kazdym keystroke (1200ms debounce).
 
   const handlePageNav = useCallback((e, pageIdx) => {
     if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return
