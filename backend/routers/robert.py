@@ -24,6 +24,7 @@ JINA_EMBED_URL = "https://api.jina.ai/v1/embeddings"
 
 # ── Ładowanie danych ──────────────────────────────────────────────────────────
 _DOCS: list = []
+_DOC_EMBEDS: list = []   # Pre-computed embeddings z robert-docs.json
 _FILE_MAP: dict = {}
 _DATA_DIR = (Path(__file__).resolve().parent.parent.parent / "frontend" / "src" / "data")
 _DOCS_PATH = _DATA_DIR / "robert-docs.json"
@@ -32,8 +33,11 @@ _FILE_MAP_PATH = _DATA_DIR / "file-map.json"
 if _DOCS_PATH.exists():
     try:
         _DOCS = json.loads(_DOCS_PATH.read_text(encoding="utf-8"))
+        # Załaduj pre-computed embeddingi z JSON (wyliczone raz, nie przy każdym pytaniu)
+        _DOC_EMBEDS = [d.get("embedding") or [] for d in _DOCS]
     except Exception:
         _DOCS = []
+        _DOC_EMBEDS = []
 
 if _FILE_MAP_PATH.exists():
     try:
@@ -68,6 +72,7 @@ def _cosine_sim(a: list[float], b: list[float]) -> float:
 
 
 async def _embed_text(text: str) -> list[float] | None:
+    """Embedduje tekst pytania z task=retrieval.query (specjalizacja dla RAG)."""
     if not JINA_API_KEY:
         return None
     try:
@@ -75,27 +80,13 @@ async def _embed_text(text: str) -> list[float] | None:
             r = await client.post(
                 JINA_EMBED_URL,
                 headers={"Authorization": f"Bearer {JINA_API_KEY}", "Content-Type": "application/json"},
-                json={"model": "jina-embeddings-v3", "input": text[:2000]},
+                json={"model": "jina-embeddings-v3", "input": text[:2000], "task": "retrieval.query"},
             )
             r.raise_for_status()
             data = r.json()
             return data["data"][0]["embedding"]
     except Exception:
         return None
-
-
-async def _batch_embed(texts: list[str]) -> list[list[float]]:
-    if not JINA_API_KEY:
-        return [[0.0] * 768 for _ in texts]
-    async with httpx.AsyncClient(timeout=30) as client:
-        r = await client.post(
-            JINA_EMBED_URL,
-            headers={"Authorization": f"Bearer {JINA_API_KEY}", "Content-Type": "application/json"},
-            json={"model": "jina-embeddings-v3", "input": [t[:2000] for t in texts]},
-        )
-        r.raise_for_status()
-        data = r.json()
-        return [item["embedding"] for item in data["data"]]
 
 
 # ── Hybrydowe wyszukiwanie: 60% semantyczne + 40% keyword (polski stemming) ──
@@ -134,15 +125,11 @@ async def _retrieve(question: str) -> tuple[str, list[dict]]:
     # Keyword scores — zawsze
     kw = _keyword_scores(_DOCS, question)
 
-    # Semantic scores — jeśli API klucz dostępny
+    # Semantic scores — używamy pre-computed embeddings z JSON (task=retrieval.query dla pytania)
     sem = [0.0] * len(_DOCS)
     q_embed = await _embed_text(question)
-    if q_embed:
-        doc_embeds = []
-        for i in range(0, len(_DOCS), 50):
-            batch_texts = [d.get("pageContent") or d.get("content", "") for d in _DOCS[i : i + 50]]
-            doc_embeds.extend(await _batch_embed(batch_texts))
-        sem = [_cosine_sim(q_embed, e) for e in doc_embeds]
+    if q_embed and _DOC_EMBEDS:
+        sem = [_cosine_sim(q_embed, e) if e else 0.0 for e in _DOC_EMBEDS]
 
     # Scal: 60% semantyczne + 40% keyword
     scored = sorted(
@@ -150,7 +137,7 @@ async def _retrieve(question: str) -> tuple[str, list[dict]]:
         key=lambda x: 0.6 * sem[x[0]] + 0.4 * kw[x[0]],
         reverse=True,
     )
-    top = [i for i, score in scored if 0.6 * sem[i] + 0.4 * kw[i] > 0][:8]
+    top = [i for i, score in scored if 0.6 * sem[i] + 0.4 * kw[i] > 0][:10]
 
     chunks = []
     raw_sources = []
