@@ -19,6 +19,7 @@ import InstructionsTab from './components/InstructionsTab'
 import JadlospisTab from './components/JadlospisTab'
 import RobertTab from './components/RobertTab'
 import ZadaniaTab from './components/ZadaniaTab'
+import DashboardMap from './components/DashboardMap'
 import FloatingRobert from './components/FloatingRobert'
 import Confetti from './components/Confetti'
 import { makeDay, DEFAULT_CAMP_ACTIVITIES } from './utils/defaults'
@@ -771,6 +772,12 @@ function AppRoutes({
             onNavigate={navigateToSection}
             activityLog={activityLog} checklist={checklist}
             onChecklistUpdate={updateChecklist} campId={activeCampId} />
+        } />
+
+        <Route path="/:campId/dashboard2" element={
+          <DashboardMap meta={meta} campId={activeCampId}
+            mapState={state.map_state}
+            onStateChange={(ms) => update({ map_state: ms })} />
         } />
 
         <Route path="/:campId/before" element={<Navigate to={`${path}/camp`} replace />} />

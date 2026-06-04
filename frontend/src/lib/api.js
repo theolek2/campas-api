@@ -184,6 +184,7 @@ export async function saveCampData(campId, state) {
     if (state.activityLog?.length) body.activity_log_json = state.activityLog
     if (state.mealTemplate?.length) body.meal_template_json = state.mealTemplate
     if (state.mealActivities?.length) body.meal_activities_json = state.mealActivities
+    if (state.map_state != null) body.map_state = state.map_state
 
     const res = await fetch(`${BASE}/api/camps/${encodeURIComponent(campId)}`, {
       method: 'PATCH',
@@ -211,7 +212,8 @@ export async function loadCampData(campId) {
     for (const key of Object.keys(camp)) {
       if (!['id', 'unit_name', 'date_start', 'date_end', 'terrain_id', 'created_at',
             'days_json', 'activities_json', 'template_json',
-            'activity_log_json', 'meal_template_json', 'meal_activities_json'].includes(key)) {
+            'activity_log_json', 'meal_template_json', 'meal_activities_json',
+            'map_state'].includes(key)) {
         meta[key] = camp[key]
       }
     }
@@ -229,6 +231,7 @@ export async function loadCampData(campId) {
       activityLog: camp.activity_log_json || [],
       mealTemplate: camp.meal_template_json || [],
       mealActivities: camp.meal_activities_json || [],
+      map_state: camp.map_state || null,
     }
   } catch { return null }
 }

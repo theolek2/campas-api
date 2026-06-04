@@ -189,6 +189,7 @@ _META_TO_CAMP = {
 _JSON_STATE_FIELDS = [
     "days_json", "activities_json", "template_json",
     "activity_log_json", "meal_template_json", "meal_activities_json",
+    "map_state",
 ]
 
 

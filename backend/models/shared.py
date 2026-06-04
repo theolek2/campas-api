@@ -93,6 +93,7 @@ class Camp(Base):
     activity_log_json:  Mapped[Optional[list]]     = mapped_column(JSONB)
     meal_template_json: Mapped[Optional[list]]     = mapped_column(JSONB)
     meal_activities_json: Mapped[Optional[list]]   = mapped_column(JSONB)
+    map_state:          Mapped[Optional[dict]]     = mapped_column(JSONB)
 
 
 class Patrol(Base):
