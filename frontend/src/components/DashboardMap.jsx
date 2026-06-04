@@ -119,8 +119,9 @@ export default function DashboardMap({ meta, campId, mapState: initialMapState, 
       <div className="flex-1 overflow-auto">
         <svg
           viewBox={`0 0 ${MAP_WIDTH} ${MAP_HEIGHT}`}
-          className="w-full cursor-crosshair"
-          style={{ background: '#f0f4e8' }}
+          preserveAspectRatio="xMidYMin meet"
+          className="w-full h-auto cursor-crosshair"
+          style={{ minHeight: '100%', background: '#f0f4e8' }}
           onClick={handleMapClick}
           onMouseMove={handleMapMove}
           onMouseLeave={() => setHoveredArea(null)}
