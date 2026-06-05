@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import {
-  NODE_LABELS, NODE_ICONS, NODE_DETAIL_IMAGE_KEY, NODE_TO_AREA, NODE_AREAS,
+  NODE_LABELS, NODE_ICONS, NODE_DETAIL_IMAGE_KEY, NODE_TO_AREA, NODE_DESCRIPTIONS, STAGE_GROUPS,
 } from '../data/mapNodes'
 import detaleInfo from '../assets/map/detale-info.png'
 import detalePsp from '../assets/map/detale-psp.png'
@@ -16,13 +16,17 @@ const DEFAULT_DETAIL_IMAGE = detaleOgolny
 /**
  * MapNodeModal — modal po kliknięciu obszaru na mapie.
  */
-export default function MapNodeModal({ nodeId, status, meta, onClose, onDone, onNavigate, allNodeIds, nodeStatus, onSelectNode }) {
+export default function MapNodeModal({ nodeId, status, meta, stage, onClose, onDone, onNavigate, allNodeIds, nodeStatus, onSelectNode }) {
   const label = NODE_LABELS[nodeId] || nodeId
   const icon = NODE_ICONS[nodeId] || '📍'
+  const description = NODE_DESCRIPTIONS[nodeId] || ''
 
-  // Znajdź wszystkie węzły w tym obszarze
   const areaId = NODE_TO_AREA[nodeId] || nodeId
   const siblingNodes = allNodeIds.filter(nid => (NODE_TO_AREA[nid] || nid) === areaId)
+
+  // Tytuł modala = nazwa etapu, nie nazwa karty
+  const stageNames = { '0': 'Lokalizacja', '1': 'Dane podstawowe', '2': 'Dokumenty PSP', '3': 'Straż Pożarna', '4': 'Kuratorium', '5': 'Pozostałe zadania', '6': 'Finał' }
+  const modalTitle = stage != null ? `ETAP ${stage}: ${stageNames[stage] || ''}` : label
 
   const getDetailImage = () => {
     const key = NODE_DETAIL_IMAGE_KEY[nodeId] || NODE_DETAIL_IMAGE_KEY[areaId]
@@ -159,7 +163,7 @@ export default function MapNodeModal({ nodeId, status, meta, onClose, onDone, on
           <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/40 to-transparent p-3">
             <div className="flex items-center gap-2">
               <span className="text-2xl">{icon}</span>
-              <h3 className="text-white font-bold text-lg">{label}</h3>
+              <h3 className="text-white font-bold text-lg">{modalTitle}</h3>
             </div>
           </div>
         </div>
@@ -184,6 +188,11 @@ export default function MapNodeModal({ nodeId, status, meta, onClose, onDone, on
 
         {/* Treść */}
         <div className="p-5">
+          {description && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800 mb-4">
+              {description}
+            </div>
+          )}
           {isLocked ? (
             <div className="text-center py-6 space-y-3">
               <div className="text-4xl">🔒</div>

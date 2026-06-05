@@ -146,9 +146,50 @@ export const ALWAYS_AVAILABLE = new Set([
 export const AUTO_CHECK = {
   '0.1': (meta) => !!(meta.coords?.lat && meta.coords?.lng),
   '1.1': (meta) => !!meta.jednostka,
+  '1.2': (meta) => !!meta.kierownik,
   '1.3': (meta) => !!(meta.date_start && meta.date_end),
   '1.4': (meta) => !!(meta.uczestnicy),
   '1.5': (meta) => Array.isArray(meta.wychowawcy) && meta.wychowawcy.length > 0,
+}
+
+// ── Opisy węzłów (co trzeba zrobić) ───────────────────────────────────────
+
+export const NODE_DESCRIPTIONS = {
+  '0.1': 'Wybierz miejsce obozu na mapie w zakładce "Teren". Określ właściciela terenu (prywatny lub nadleśnictwo).',
+  '1.1': 'Podaj pełną nazwę jednostki harcerskiej (np. "3 Drużyna Harcerska im. XYZ").',
+  '1.2': 'Podaj imię i nazwisko kierownika obozu — osoby odpowiedzialnej za całość.',
+  '1.3': 'Ustal dokładne daty rozpoczęcia i zakończenia obozu. Od tego zależy termin zgłoszenia do Kuratorium (21 dni przed).',
+  '1.4': 'Podaj liczbę uczestników (harcerzy) biorących udział w obozie.',
+  '1.5': 'Wpisz dane kadry: imię, nazwisko, funkcja (kierownik/wychowawca) oraz datę uzyskania zaświadczenia o niekaralności.',
+  '2.1': 'Sporządź regulamin obozu. Musi zawierać zasady bezpieczeństwa, porządek dnia, obowiązki uczestników. Załącznik nr 5 do wniosku PSP.',
+  '2.2': 'Przygotuj instrukcję postępowania w razie pożaru oraz instrukcję bezpieczeństwa pożarowego (zał. 1 i 2 do wniosku PSP).',
+  '2.3': 'Stwórz mapę zagospodarowania terenu obozu (zał. 3 do PSP). Zaznacz namioty, kuchnię, latryny, drogi.',
+  '2.4': 'Przygotuj plan dróg ewakuacyjnych wraz z mapą dojazdu do obozu (zał. 4 do PSP).',
+  '2.5': 'Określ środki łączności (telefon, radiotelefon) i potwierdź liczbę uczestników (zał. 6 do PSP).',
+  '3.1': 'Złóż wniosek o opinię ppoż do właściwej komendy PSP. Dołącz załączniki 1-6. PSP ma do 30 dni na odpowiedź. Może wymagać wizji lokalnej.',
+  '4.1': 'Złóż zgłoszenie obozu do Kuratorium Oświaty — najpóźniej 21 dni przed rozpoczęciem. Wymaga pozytywnej opinii PSP + danych kadry. Kuratorium powiadomi Sanepid automatycznie.',
+  '4.2': 'Zbierz zaświadczenia o niekaralności od wszystkich członków kadry (wymagane do zgłoszenia do Kuratorium).',
+  '4.3': 'Sporządź oficjalną listę uczestników obozu.',
+  '5.1': 'Wyślij zawiadomienie do lokalnej jednostki Policji o organizacji obozu. Nie wymaga odpowiedzi zwrotnej.',
+  '5.2': 'Poinformuj najbliższy szpital / przychodnię o lokalizacji i terminie obozu.',
+  '5.3': 'Uzyskaj zgodę właściciela terenu i gminy na wykopanie latryn i dołów chłonnych.',
+  '5.4': 'Zamów mauzer (zbiornik na wodę) lub paletę wody pitnej. Ustal harmonogram dowozu.',
+  '5.5': 'Podpisz umowę na wywóz śmieci z lokalną firmą lub gminą.',
+  '6.1': 'Stwórz szczegółowy plan zajęć i jadłospis na cały obóz.',
+  '6.2': 'Sporządź budżet obozu — koszty wyżywienia, transportu, materiałów.',
+  '6.3': 'Wykup ubezpieczenie dla uczestników i kadry (NNW). Opcjonalnie zgłoś do ZUS.',
+  '6.4': 'Wszystkie zadania wykonane! Obóz gotowy do startu.',
+}
+
+// Grupy etapów (do sprawdzania kompletności)
+export const STAGE_GROUPS = {
+  '0': ['0.1'],
+  '1': ['1.1','1.2','1.3','1.4','1.5'],
+  '2': ['2.1','2.2','2.3','2.4','2.5'],
+  '3': ['3.1'],
+  '4': ['4.1','4.2','4.3'],
+  '5': ['5.1','5.2','5.3','5.4','5.5'],
+  '6': ['6.1','6.2','6.3','6.4'],
 }
 
 export const FINAL_NODE = '6.4'
