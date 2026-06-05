@@ -22,7 +22,8 @@ export default function DashboardMap({ meta, campId, mapState: initialMapState, 
   const [showModal, setShowModal] = useState(false)
   const [scale, setScale] = useState(1)
   const [hoveredArea, setHoveredArea] = useState(null)
-  const [walkingTarget, setWalkingTarget] = useState(null)
+  const [walking, setWalking] = useState(false)
+  const [targetPos, setTargetPos] = useState(null)
 
   const hasLocation = nodeStatus['0.1'] === 'done'
   const charNodeId = initialMapState?.character_position?.node_id || (hasLocation ? START_NODE : '0.1')
@@ -57,6 +58,7 @@ export default function DashboardMap({ meta, campId, mapState: initialMapState, 
   }, [scale, w, h])
 
   const handleMapClick = (e) => {
+    if (walking) return
     const { x, y } = toMapCoords(e)
     const areaId = findArea(x, y)
     if (!areaId) return
@@ -64,16 +66,21 @@ export default function DashboardMap({ meta, campId, mapState: initialMapState, 
     for (const [nid, aid] of Object.entries(NODE_TO_AREA)) {
       if (aid === areaId) { nodeId = nid; break }
     }
-    // Animacja: ludzik idzie, potem modal
-    setWalkingTarget(nodeId)
-    setTimeout(() => {
-      setWalkingTarget(null)
-      setNodeStatus(nodeId, nodeStatus[nodeId])
+    const dockPos = getCharPosition(nodeId)
+    setWalking(true)
+    setTargetPos(dockPos)
+    setSelectedNode(nodeId)
+  }
+
+  const handleArrive = () => {
+    setWalking(false)
+    setTargetPos(null)
+    if (selectedNode) {
+      setNodeStatus(selectedNode, nodeStatus[selectedNode])
       const updated = getMapState()
-      notifyStateChange({ ...updated, character_position: { node_id: nodeId } })
-      setSelectedNode(nodeId)
+      notifyStateChange({ ...updated, character_position: { node_id: selectedNode } })
       setShowModal(true)
-    }, 600)
+    }
   }
 
   const handleMapMove = (e) => {
@@ -155,8 +162,8 @@ export default function DashboardMap({ meta, campId, mapState: initialMapState, 
               })
             })}
 
-            {/* Ludzik — chodzący GIF podczas animacji */}
-            <MapCharacter x={charPos.x} y={charPos.y} walking={!!walkingTarget} />
+            {/* Ludzik z płynną animacją */}
+            <MapCharacter x={charPos.x} y={charPos.y} targetX={targetPos?.x} targetY={targetPos?.y} onArrive={handleArrive} />
           </svg>
         </div>
       </div>

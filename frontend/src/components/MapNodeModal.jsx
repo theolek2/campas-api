@@ -25,7 +25,7 @@ export default function MapNodeModal({ nodeId, status, meta, stage, onClose, onD
   const siblingNodes = allNodeIds.filter(nid => (NODE_TO_AREA[nid] || nid) === areaId)
 
   // Tytuł modala = nazwa etapu, nie nazwa karty
-  const stageNames = { '0': 'Lokalizacja', '1': 'Dane podstawowe', '2': 'Dokumenty PSP', '3': 'Straż Pożarna', '4': 'Kuratorium', '5': 'Pozostałe zadania', '6': 'Finał' }
+  const stageNames = { '0': 'Lokalizacja', '1': 'Dane podstawowe', '2': 'Dokumenty PSP', '3': 'Straż Pożarna', '4': 'Kuratorium', '5': 'Pozostałe zadania', '6': 'Finał', '7': 'Przygotowanie pedagogiczne' }
   const modalTitle = stage != null ? `ETAP ${stage}: ${stageNames[stage] || ''}` : label
 
   const getDetailImage = () => {
@@ -83,10 +83,25 @@ export default function MapNodeModal({ nodeId, status, meta, stage, onClose, onD
         </div>
       )
 
-      case '2.1': return <DocLink label="Regulamin obozu" onNavigate={() => onNavigate('/before/docs')} />
+      case '2.1': return (
+        <div className="space-y-3">
+          <DocLink label="Regulamin obozu" onNavigate={() => onNavigate('/before/docs')} />
+          <ManualCheck label="Regulamin gotowy" nodeId={nodeId} onDone={onDone} />
+        </div>
+      )
       case '2.2': return <ManualCheck label="Instrukcja ppoż gotowa?" nodeId={nodeId} onDone={onDone} />
-      case '2.3': return <DocLink label="Mapa zagospodarowania terenu" onNavigate={() => onNavigate('/before/map')} />
-      case '2.4': return <DocLink label="Drogi ewakuacyjne + mapa dojazdu" onNavigate={() => onNavigate('/before/map')} />
+      case '2.3': return (
+        <div className="space-y-3">
+          <DocLink label="Mapa zagospodarowania terenu" onNavigate={() => onNavigate('/before/map')} />
+          <ManualCheck label="Mapa terenu gotowa" nodeId={nodeId} onDone={onDone} />
+        </div>
+      )
+      case '2.4': return (
+        <div className="space-y-3">
+          <DocLink label="Drogi ewakuacyjne + mapa dojazdu" onNavigate={() => onNavigate('/before/map')} />
+          <ManualCheck label="Drogi ewakuacyjne gotowe" nodeId={nodeId} onDone={onDone} />
+        </div>
+      )
       case '2.5': return (
         <div className="space-y-2">
           <p className="text-sm text-gray-600">Określ środki łączności i liczbę uczestników (zał. 6 do PSP).</p>
@@ -96,6 +111,7 @@ export default function MapNodeModal({ nodeId, status, meta, stage, onClose, onD
           >
             📡 Otwórz dane
           </button>
+          <ManualCheck label="Środki łączności określone" nodeId={nodeId} onDone={onDone} />
         </div>
       )
 
@@ -140,6 +156,8 @@ export default function MapNodeModal({ nodeId, status, meta, stage, onClose, onD
           <p className="text-sm text-gray-600">Wszystkie zadania wykonane. Czas pakować plecaki!</p>
         </div>
       )
+
+      case '7.1': return <ManualCheck label="Przygotowanie pedagogiczne ukończone?" nodeId={nodeId} onDone={onDone} />
 
       default:
         return <ManualCheck label={`"${label}" — gotowe?`} nodeId={nodeId} onDone={onDone} />
