@@ -87,41 +87,139 @@ export const REAL_PATHS = [
   { id: 'stage5-policja', points: [{x:591,y:976},{x:567,y:963}] },
 ]
 
-// ── Graf ścieżek (BFS) ──────────────────────────────────────────────────
+// ── Węzły ścieżek (junctions) — miejsca łączenia się ścieżek ────────────
 
-export const PATH_GRAPH = {
-  '0.1': [{ to: '1.x' }],
-  '1.x': [{ to: '3.1' }, { to: '2.1' }, { to: '7.1' }],
-  '7.1': [{ to: '1.x' }],
-  '2.1': [{ to: '2.2' }], '2.2': [{ to: '2.x' }],
-  '2.x': [{ to: '2.5' }], '2.5': [{ to: '3.1' }],
-  '3.1': [{ to: '4.1' }, { to: '1.x' }, { to: '2.5' }],
-  '4.1': [{ to: '6.x' }, { to: '4.2' }, { to: '4.3' }],
-  '4.2': [{ to: '4.1' }], '4.3': [{ to: '4.1' }],
-  '5.1': [{ to: '6.x' }], '5.2': [{ to: '6.x' }],
-  '5.3': [{ to: '6.x' }], '5.4': [{ to: '6.x' }],
-  '5.5': [{ to: '6.x' }],
-  '6.x': [{ to: '4.1' }, { to: '5.1' }, { to: '5.2' }, { to: '5.3' }, { to: '5.4' }, { to: '5.5' }],
+const JUNCTIONS = [
+  { id: 'j_main_start',    x: 518, y: 261 },
+  { id: 'j_etap1_main',    x: 377, y: 302 },
+  { id: 'j_pedag_main',    x: 223, y: 419 },
+  { id: 'j_psp_main',      x: 412, y: 631 },
+  { id: 'j_zal_psp_main',  x: 358, y: 599 },
+  { id: 'j_kuratorium_main', x: 383, y: 915 },
+  { id: 'j_stage5_main',   x: 574, y: 1119 },
+  { id: 'j_main_end',      x: 414, y: 1268 },
+  { id: 'j_zal_psp_instr', x: 138, y: 519 },
+  { id: 'j_zal_psp_mapy',  x: 155, y: 575 },
+  { id: 'j_zal_psp_srodki', x: 245, y: 607 },
+  { id: 'j_kuratorium_cross', x: 313, y: 861 },
+  { id: 'j_stage5_smieci', x: 619, y: 1097 },
+  { id: 'j_stage5_latryna', x: 643, y: 1070 },
+  { id: 'j_stage5_mauzer', x: 629, y: 1027 },
+  { id: 'j_stage5_szp_pol', x: 595, y: 973 },
+]
+
+// Połączenia obszarów z węzłami (ręcznie zmapowane na podstawie ścieżek)
+const AREA_JUNCTION_MAP = {
+  '0.1': 'j_main_start',   '1.x': 'j_etap1_main',
+  '7.1': 'j_pedag_main',   '3.1': 'j_psp_main',
+  '2.1': 'j_zal_psp_instr','2.2': 'j_zal_psp_instr',
+  '2.x': 'j_zal_psp_mapy', '2.5': 'j_zal_psp_srodki',
+  '4.1': 'j_kuratorium_main', '4.2': 'j_kuratorium_cross', '4.3': 'j_kuratorium_cross',
+  '5.1': 'j_stage5_szp_pol','5.2': 'j_stage5_szp_pol',
+  '5.3': 'j_stage5_latryna','5.4': 'j_stage5_mauzer',
+  '5.5': 'j_stage5_smieci', '6.x': 'j_main_end',
 }
 
-// BFS
-export function findRoute(fromArea, toArea) {
-  if (fromArea === toArea) return [toArea]
-  const visited = new Set(), queue = [[fromArea]]
+const TOLERANCE = 8
+
+function dist(a, b) { return Math.hypot(a.x - b.x, a.y - b.y) }
+
+// ── Budowa zunifikowanego grafu ──────────────────────────────────────────
+
+let _routeCache = null
+
+function buildRouteGraph() {
+  if (_routeCache) return _routeCache
+
+  // Wszystkie węzły grafu: dock_id + junction_id
+  const allNodes = new Map() // id → { id, x, y, type: 'dock'|'junction' }
+  for (const [areaId, pos] of Object.entries(DOCK_POSITIONS)) {
+    allNodes.set(areaId, { id: areaId, x: pos.x, y: pos.y, type: 'dock' })
+  }
+  for (const j of JUNCTIONS) {
+    allNodes.set(j.id, { id: j.id, x: j.x, y: j.y, type: 'junction' })
+  }
+
+  // Dla każdego węzła, znajdź sąsiednie węzły i zbierz waypointy ścieżek między nimi
+  const adjacency = new Map() // nodeId → [{ to, via: [{x,y}...] }]
+
+  for (const [nid] of allNodes) {
+    adjacency.set(nid, [])
+  }
+
+  // Dla każdej ścieżki: znajdź węzły przy jej początku i końcu
+  for (const path of REAL_PATHS) {
+    const { points } = path
+    if (points.length < 2) continue
+    const start = points[0], end = points[points.length - 1]
+
+    let startNode = null, endNode = null
+    let startDist = Infinity, endDist = Infinity
+
+    for (const [nid, node] of allNodes) {
+      const ds = dist(start, node), de = dist(end, node)
+      if (ds < startDist) { startDist = ds; startNode = nid }
+      if (de < endDist) { endDist = de; endNode = nid }
+    }
+
+    if (startNode && startDist < TOLERANCE * 2 && endNode && endDist < TOLERANCE * 2 && startNode !== endNode) {
+      // Dodaj połączenie w obie strony z waypointami
+      adjacency.get(startNode).push({ to: endNode, via: [...points] })
+      adjacency.get(endNode).push({ to: startNode, via: [...points].reverse() })
+    }
+  }
+
+  // Połącz dock z jego junction (jeśli zmapowane)
+  for (const [areaId, jId] of Object.entries(AREA_JUNCTION_MAP)) {
+    const dockNode = allNodes.get(areaId)
+    const juncNode = allNodes.get(jId)
+    if (dockNode && juncNode) {
+      adjacency.get(areaId).push({ to: jId, via: [{ x: dockNode.x, y: dockNode.y }, { x: juncNode.x, y: juncNode.y }] })
+      adjacency.get(jId).push({ to: areaId, via: [{ x: juncNode.x, y: juncNode.y }, { x: dockNode.x, y: dockNode.y }] })
+    }
+  }
+
+  _routeCache = { adjacency, allNodes }
+  return _routeCache
+}
+
+// BFS na zunifikowanym grafie — zwraca tablicę waypointów (nieprzerwaną ścieżkę)
+export function findPathWaypoints(fromArea, toArea) {
+  if (fromArea === toArea || !fromArea || !toArea) return []
+  const { adjacency } = buildRouteGraph()
+
+  if (!adjacency.has(fromArea) || !adjacency.has(toArea)) return []
+
+  const visited = new Set()
+  const queue = [[{ node: fromArea, waypoints: [] }]]
   visited.add(fromArea)
+
   while (queue.length) {
-    const p = queue.shift(); const cur = p[p.length - 1]
-    for (const { to } of (PATH_GRAPH[cur] || [])) {
-      if (to === toArea) return [...p, to]
-      if (!visited.has(to)) { visited.add(to); queue.push([...p, to]) }
+    const path = queue.shift()
+    const last = path[path.length - 1]
+    const edges = adjacency.get(last.node) || []
+
+    for (const { to, via } of edges) {
+      if (to === toArea) {
+        // Zbierz wszystkie waypointy z całej ścieżki
+        const allWps = []
+        for (const step of path) {
+          if (step.waypoints.length > 0) allWps.push(...step.waypoints)
+        }
+        allWps.push(...via)
+        return allWps
+      }
+      if (!visited.has(to)) {
+        visited.add(to)
+        queue.push([...path, { node: to, waypoints: via }])
+      }
     }
   }
   return []
 }
 
-export function getWaypoints(areaPath) {
-  return areaPath.map(id => DOCK_POSITIONS[id] || { x: 380, y: 160 })
-}
+// Invalidate cache (np. przy zmianie danych)
+export function clearRouteCache() { _routeCache = null }
 
 // ── Helpers ──────────────────────────────────────────────────────────────
 

@@ -7,7 +7,7 @@ import useMapState from './useMapState'
 import MapRealPath from './MapRealPath'
 import {
   ALL_AREA_IDS, NODE_TO_AREA, ALL_NODE_IDS, STAGE_GROUPS, REAL_PATHS,
-  START_NODE, hitTest, getCharPosition, getAllPolygons, findRoute, getWaypoints,
+  START_NODE, hitTest, getCharPosition, getAllPolygons, findPathWaypoints,
 } from '../data/mapNodes'
 import tloImg from '../assets/map/tlo.png'
 
@@ -68,8 +68,7 @@ export default function DashboardMap({ meta, campId, mapState: initialMapState, 
       if (aid === areaId) { nodeId = nid; break }
     }
     const targetAreaId = NODE_TO_AREA[nodeId] || nodeId
-    const route = findRoute(currentAreaId, targetAreaId)
-    const wps = getWaypoints(route)
+    const wps = findPathWaypoints(currentAreaId, targetAreaId)
 
     // Jeśli brak ścieżki lub stoimy już na miejscu — pokaż modal od razu
     if (!wps || wps.length === 0 || (wps.length === 1 && Math.hypot(wps[0].x - charPos.x, wps[0].y - charPos.y) < 5)) {
