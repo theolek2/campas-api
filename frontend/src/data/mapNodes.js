@@ -163,9 +163,35 @@ function buildRouteGraph() {
     }
 
     if (startNode && startDist < TOLERANCE * 2 && endNode && endDist < TOLERANCE * 2 && startNode !== endNode) {
-      // Dodaj połączenie w obie strony z waypointami
       adjacency.get(startNode).push({ to: endNode, via: [...points] })
       adjacency.get(endNode).push({ to: startNode, via: [...points].reverse() })
+    }
+
+    // Dodatkowo: znajdź węzły, które leżą W ŚRODKU ścieżki (blisko dowolnego punktu)
+    for (const [nid, node] of allNodes) {
+      if (nid === startNode || nid === endNode) continue
+      let closestPt = null, closestDist = Infinity
+      let closestIdx = -1
+      for (let i = 0; i < points.length; i++) {
+        const d = dist(points[i], node)
+        if (d < closestDist) { closestDist = d; closestPt = points[i]; closestIdx = i }
+      }
+      if (closestDist < TOLERANCE * 2 && closestIdx > 1 && closestIdx < points.length - 2) {
+        // Podziel ścieżkę na 2 części w tym węźle
+        const firstHalf = points.slice(0, closestIdx + 1)
+        const secondHalf = points.slice(closestIdx)
+        adjacency.get(startNode).push({ to: nid, via: firstHalf })
+        adjacency.get(nid).push({ to: startNode, via: [...firstHalf].reverse() })
+        adjacency.get(nid).push({ to: endNode, via: secondHalf })
+        adjacency.get(endNode).push({ to: nid, via: [...secondHalf].reverse() })
+        // Usuń oryginalną krawędź
+        const edgesFromStart = adjacency.get(startNode)
+        const origIdx = edgesFromStart.findIndex(e => e.to === endNode && e.via.length > 2)
+        if (origIdx >= 0) edgesFromStart.splice(origIdx, 1)
+        const edgesFromEnd = adjacency.get(endNode)
+        const origIdx2 = edgesFromEnd.findIndex(e => e.to === startNode && e.via.length > 2)
+        if (origIdx2 >= 0) edgesFromEnd.splice(origIdx2, 1)
+      }
     }
   }
 
