@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import MapCharacter from './MapCharacter'
 import MapGlobe from './MapGlobe'
@@ -29,6 +29,14 @@ export default function DashboardMap({ meta, campId, mapState: initialMapState, 
   const charNodeId = initialMapState?.character_position?.node_id || (hasLocation ? START_NODE : '0.1')
   const charPos = getCharPosition(charNodeId)
   const currentAreaId = NODE_TO_AREA[charNodeId] || charNodeId
+
+  // ESC — zamknij modal
+  useEffect(() => {
+    if (!showModal) return
+    const handler = (e) => { if (e.key === 'Escape') setShowModal(false) }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [showModal])
 
   // Kompletność etapów
   const stageComplete = {}

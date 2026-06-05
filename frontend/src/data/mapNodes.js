@@ -172,7 +172,7 @@ function buildRouteGraph() {
         const d = dist(pts[i], node)
         if (d < cd) { cd = d; ci = i }
       }
-      if (cd < 20 && ci > 1 && ci < pts.length - 2) {
+      if (cd < 20 && ci > 0 && ci < pts.length - 1) {
         midNodes.push({ id: nid, idx: ci })
       }
     }
