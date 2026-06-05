@@ -11,8 +11,8 @@ import {
 } from '../data/mapNodes'
 import tloImg from '../assets/map/tlo.png'
 
-const MAP_WIDTH = 2000
-const MAP_HEIGHT = 3500
+const MAP_WIDTH = 784
+const MAP_HEIGHT = 1360
 
 /**
  * DashboardMap — interaktywna mapa z klikalnymi, niewidocznymi obszarami.
@@ -103,7 +103,7 @@ export default function DashboardMap({ meta, campId, mapState: initialMapState, 
             style={{ width: '100%', height: '100%', display: 'block', pointerEvents: 'none' }}
           />
 
-          {/* Warstwa SVG — nakładka klikalna, dopasowana do obrazu */}
+          {/* Warstwa SVG — full piksel w piksel z obrazem */}
           <svg
             viewBox={`0 0 ${MAP_WIDTH} ${MAP_HEIGHT}`}
             width={w}
