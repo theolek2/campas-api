@@ -70,6 +70,17 @@ export default function DashboardMap({ meta, campId, mapState: initialMapState, 
     const targetAreaId = NODE_TO_AREA[nodeId] || nodeId
     const route = findRoute(currentAreaId, targetAreaId)
     const wps = getWaypoints(route)
+
+    // Jeśli brak ścieżki lub stoimy już na miejscu — pokaż modal od razu
+    if (!wps || wps.length === 0 || (wps.length === 1 && Math.hypot(wps[0].x - charPos.x, wps[0].y - charPos.y) < 5)) {
+      setNodeStatus(nodeId, nodeStatus[nodeId])
+      const updated = getMapState()
+      notifyStateChange({ ...updated, character_position: { node_id: nodeId } })
+      setSelectedNode(nodeId)
+      setShowModal(true)
+      return
+    }
+
     setWalking(true)
     setWaypoints(wps)
     setSelectedNode(nodeId)
