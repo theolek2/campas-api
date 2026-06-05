@@ -131,8 +131,7 @@ let _routeCache = null
 function buildRouteGraph() {
   if (_routeCache) return _routeCache
 
-  // Wszystkie węzły grafu: dock_id + junction_id
-  const allNodes = new Map() // id → { id, x, y, type: 'dock'|'junction' }
+  const allNodes = new Map()
   for (const [areaId, pos] of Object.entries(DOCK_POSITIONS)) {
     allNodes.set(areaId, { id: areaId, x: pos.x, y: pos.y, type: 'dock' })
   }
@@ -140,68 +139,55 @@ function buildRouteGraph() {
     allNodes.set(j.id, { id: j.id, x: j.x, y: j.y, type: 'junction' })
   }
 
-  // Dla każdego węzła, znajdź sąsiednie węzły i zbierz waypointy ścieżek między nimi
-  const adjacency = new Map() // nodeId → [{ to, via: [{x,y}...] }]
-
-  for (const [nid] of allNodes) {
+  const adjacency = new Map()
+  for (const nid of allNodes.keys()) {
     adjacency.set(nid, [])
   }
 
-  // Dla każdej ścieżki: znajdź węzły przy jej początku i końcu
+  // Faza 1: endpointy ścieżek → tylko dock↔junction lub junction↔junction
   for (const path of REAL_PATHS) {
-    const { points } = path
-    if (points.length < 2) continue
-    const start = points[0], end = points[points.length - 1]
-
-    let startNode = null, endNode = null
-    let startDist = Infinity, endDist = Infinity
-
-    for (const [nid, node] of allNodes) {
-      const ds = dist(start, node), de = dist(end, node)
-      if (ds < startDist) { startDist = ds; startNode = nid }
-      if (de < endDist) { endDist = de; endNode = nid }
+    const pts = path.points
+    if (pts.length < 2) continue
+    const sa = pts[0], sb = pts[pts.length - 1]
+    let na = null, nb = null, da = Infinity, db = Infinity
+    for (const [id, node] of allNodes) {
+      const d1 = dist(sa, node), d2 = dist(sb, node)
+      if (d1 < da) { da = d1; na = id }
+      if (d2 < db) { db = d2; nb = id }
+    }
+    const aIsDock = na && allNodes.get(na).type === 'dock'
+    const bIsDock = nb && allNodes.get(nb).type === 'dock'
+    const bothDocks = aIsDock && bIsDock
+    if (na && nb && na !== nb && da < 20 && db < 20 && !bothDocks) {
+      adjacency.get(na).push({ to: nb, via: pts.slice() })
+      adjacency.get(nb).push({ to: na, via: pts.slice().reverse() })
     }
 
-    if (startNode && startDist < TOLERANCE * 2 && endNode && endDist < TOLERANCE * 2 && startNode !== endNode) {
-      adjacency.get(startNode).push({ to: endNode, via: [...points] })
-      adjacency.get(endNode).push({ to: startNode, via: [...points].reverse() })
-    }
-
-    // Dodatkowo: znajdź węzły, które leżą W ŚRODKU ścieżki (blisko dowolnego punktu)
+    // Faza 2: węzły w środku ścieżki
     for (const [nid, node] of allNodes) {
-      if (nid === startNode || nid === endNode) continue
-      let closestPt = null, closestDist = Infinity
-      let closestIdx = -1
-      for (let i = 0; i < points.length; i++) {
-        const d = dist(points[i], node)
-        if (d < closestDist) { closestDist = d; closestPt = points[i]; closestIdx = i }
+      if (nid === na || nid === nb) continue
+      let ci = -1, cd = Infinity
+      for (let i = 0; i < pts.length; i++) {
+        const d = dist(pts[i], node)
+        if (d < cd) { cd = d; ci = i }
       }
-      if (closestDist < TOLERANCE * 2 && closestIdx > 1 && closestIdx < points.length - 2) {
-        // Podziel ścieżkę na 2 części w tym węźle
-        const firstHalf = points.slice(0, closestIdx + 1)
-        const secondHalf = points.slice(closestIdx)
-        adjacency.get(startNode).push({ to: nid, via: firstHalf })
-        adjacency.get(nid).push({ to: startNode, via: [...firstHalf].reverse() })
-        adjacency.get(nid).push({ to: endNode, via: secondHalf })
-        adjacency.get(endNode).push({ to: nid, via: [...secondHalf].reverse() })
-        // Usuń oryginalną krawędź
-        const edgesFromStart = adjacency.get(startNode)
-        const origIdx = edgesFromStart.findIndex(e => e.to === endNode && e.via.length > 2)
-        if (origIdx >= 0) edgesFromStart.splice(origIdx, 1)
-        const edgesFromEnd = adjacency.get(endNode)
-        const origIdx2 = edgesFromEnd.findIndex(e => e.to === startNode && e.via.length > 2)
-        if (origIdx2 >= 0) edgesFromEnd.splice(origIdx2, 1)
+      if (cd < 20 && ci > 1 && ci < pts.length - 2) {
+        const a = pts.slice(0, ci + 1), b = pts.slice(ci)
+        adjacency.get(na).push({ to: nid, via: a })
+        adjacency.get(nid).push({ to: na, via: a.slice().reverse() })
+        adjacency.get(nid).push({ to: nb, via: b })
+        adjacency.get(nb).push({ to: nid, via: b.slice().reverse() })
       }
     }
   }
 
-  // Połącz dock z jego junction (jeśli zmapowane)
+  // Dock ↔ junction (ręczne mapowanie)
   for (const [areaId, jId] of Object.entries(AREA_JUNCTION_MAP)) {
-    const dockNode = allNodes.get(areaId)
-    const juncNode = allNodes.get(jId)
-    if (dockNode && juncNode) {
-      adjacency.get(areaId).push({ to: jId, via: [{ x: dockNode.x, y: dockNode.y }, { x: juncNode.x, y: juncNode.y }] })
-      adjacency.get(jId).push({ to: areaId, via: [{ x: juncNode.x, y: juncNode.y }, { x: dockNode.x, y: dockNode.y }] })
+    const da = allNodes.get(areaId), db = allNodes.get(jId)
+    if (da && db && da.type === 'dock') {
+      const dp = [da, db].map(n => ({ x: n.x, y: n.y }))
+      adjacency.get(areaId).push({ to: jId, via: dp })
+      adjacency.get(jId).push({ to: areaId, via: dp.slice().reverse() })
     }
   }
 
