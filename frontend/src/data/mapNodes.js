@@ -163,7 +163,8 @@ function buildRouteGraph() {
       adjacency.get(nb).push({ to: na, via: pts.slice().reverse() })
     }
 
-    // Faza 2: węzły w środku ścieżki
+    // Faza 2: węzły w środku ścieżki → połącz w kolejności ich wystąpienia
+    const midNodes = []
     for (const [nid, node] of allNodes) {
       if (nid === na || nid === nb) continue
       let ci = -1, cd = Infinity
@@ -172,12 +173,28 @@ function buildRouteGraph() {
         if (d < cd) { cd = d; ci = i }
       }
       if (cd < 20 && ci > 1 && ci < pts.length - 2) {
-        const a = pts.slice(0, ci + 1), b = pts.slice(ci)
-        adjacency.get(na).push({ to: nid, via: a })
-        adjacency.get(nid).push({ to: na, via: a.slice().reverse() })
-        adjacency.get(nid).push({ to: nb, via: b })
-        adjacency.get(nb).push({ to: nid, via: b.slice().reverse() })
+        midNodes.push({ id: nid, idx: ci })
       }
+    }
+    midNodes.sort((a, b) => a.idx - b.idx)
+
+    if (midNodes.length > 0) {
+      // na → pierwszy węzeł
+      const first = midNodes[0], last = midNodes[midNodes.length - 1]
+      const seg1 = pts.slice(0, first.idx + 1)
+      adjacency.get(na).push({ to: first.id, via: seg1 })
+      adjacency.get(first.id).push({ to: na, via: seg1.slice().reverse() })
+      // Węzły między sobą (sekwencyjnie)
+      for (let i = 0; i < midNodes.length - 1; i++) {
+        const a = midNodes[i], b = midNodes[i + 1]
+        const seg = pts.slice(a.idx, b.idx + 1)
+        adjacency.get(a.id).push({ to: b.id, via: seg })
+        adjacency.get(b.id).push({ to: a.id, via: seg.slice().reverse() })
+      }
+      // Ostatni węzeł → nb
+      const segN = pts.slice(last.idx)
+      adjacency.get(last.id).push({ to: nb, via: segN })
+      adjacency.get(nb).push({ to: last.id, via: segN.slice().reverse() })
     }
   }
 
