@@ -138,8 +138,8 @@ export default function DashboardMap({ meta, campId, mapState: initialMapState, 
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto relative">
-        <div style={{ width: w, height: h, position: 'relative' }}>
+      <div className="flex-1 overflow-auto flex items-center justify-center" style={{ background: '#d4edda' }}>
+        <div style={{ width: w, height: h, position: 'relative', flexShrink: 0 }}>
           <img src={tloImg} alt="Mapa organizacji obozu" style={{ width: '100%', height: '100%', display: 'block', pointerEvents: 'none' }} />
 
           <svg
@@ -150,10 +150,7 @@ export default function DashboardMap({ meta, campId, mapState: initialMapState, 
             onMouseMove={handleMapMove}
             onMouseLeave={() => setHoveredArea(null)}
           >
-            {/* Ścieżki */}
-            {REAL_PATHS.map((p, i) => (
-              <MapRealPath key={p.id || i} points={p.points} nodeStatus={nodeStatus} />
-            ))}
+            {/* Ścieżki (ukryte — tylko do pathfindingu) */}
 
             {/* Obszary klikalne */}
             {ALL_AREA_IDS.map(areaId => {
