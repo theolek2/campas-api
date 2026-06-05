@@ -7,7 +7,7 @@ import useMapState from './useMapState'
 import MapRealPath from './MapRealPath'
 import {
   ALL_AREA_IDS, NODE_TO_AREA, ALL_NODE_IDS, STAGE_GROUPS, REAL_PATHS,
-  START_NODE, hitTest, getCharPosition, getAllPolygons,
+  START_NODE, hitTest, getCharPosition, getAllPolygons, findRoute, getWaypoints,
 } from '../data/mapNodes'
 import tloImg from '../assets/map/tlo.png'
 
@@ -23,11 +23,12 @@ export default function DashboardMap({ meta, campId, mapState: initialMapState, 
   const [scale, setScale] = useState(1)
   const [hoveredArea, setHoveredArea] = useState(null)
   const [walking, setWalking] = useState(false)
-  const [targetPos, setTargetPos] = useState(null)
+  const [waypoints, setWaypoints] = useState(null)
 
   const hasLocation = nodeStatus['0.1'] === 'done'
   const charNodeId = initialMapState?.character_position?.node_id || (hasLocation ? START_NODE : '0.1')
   const charPos = getCharPosition(charNodeId)
+  const currentAreaId = NODE_TO_AREA[charNodeId] || charNodeId
 
   // Kompletność etapów
   const stageComplete = {}
@@ -66,16 +67,18 @@ export default function DashboardMap({ meta, campId, mapState: initialMapState, 
     for (const [nid, aid] of Object.entries(NODE_TO_AREA)) {
       if (aid === areaId) { nodeId = nid; break }
     }
-    const dockPos = getCharPosition(nodeId)
+    const targetAreaId = NODE_TO_AREA[nodeId] || nodeId
+    const route = findRoute(currentAreaId, targetAreaId)
+    const wps = getWaypoints(route)
     setWalking(true)
-    setTargetPos(dockPos)
+    setWaypoints(wps)
     setSelectedNode(nodeId)
   }
 
   const handleArrive = () => {
-    setWalking(false)
-    setTargetPos(null)
     if (selectedNode) {
+      setWalking(false)
+      setWaypoints(null)
       setNodeStatus(selectedNode, nodeStatus[selectedNode])
       const updated = getMapState()
       notifyStateChange({ ...updated, character_position: { node_id: selectedNode } })
@@ -162,8 +165,8 @@ export default function DashboardMap({ meta, campId, mapState: initialMapState, 
               })
             })}
 
-            {/* Ludzik z płynną animacją */}
-            <MapCharacter x={charPos.x} y={charPos.y} targetX={targetPos?.x} targetY={targetPos?.y} onArrive={handleArrive} />
+            {/* Ludzik z płynną animacją po ścieżce */}
+            <MapCharacter x={charPos.x} y={charPos.y} waypoints={waypoints} onArrive={handleArrive} />
           </svg>
         </div>
       </div>

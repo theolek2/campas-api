@@ -84,7 +84,62 @@ export function hitTest(areaId, px, py) {
   return false
 }
 
-// Punkty dokowania ludzika — precyzyjne współrzędne dla każdego węzła
+// Graf ścieżek — które obszary są połączone i jakimi punktami pośrednimi
+export const PATH_GRAPH = {
+  '0.1': [{ to: '1.x', via: [] }],
+  '1.x': [{ to: '3.1', via: [] }, { to: '2.1', via: [] }],
+  '2.1': [{ to: '2.2', via: [] }], '2.2': [{ to: '2.x', via: [] }],
+  '2.x': [{ to: '2.5', via: [] }], '2.5': [{ to: '3.1', via: [] }],
+  '3.1': [{ to: '4.1', via: [] }, { to: '1.x', via: [] }, { to: '2.5', via: [] }],
+  '4.1': [{ to: '6.x', via: [] }, { to: '4.2', via: [] }, { to: '4.3', via: [] }],
+  '4.2': [{ to: '4.1', via: [] }], '4.3': [{ to: '4.1', via: [] }],
+  '5.1': [{ to: '6.x', via: [] }], '5.2': [{ to: '6.x', via: [] }],
+  '5.3': [{ to: '6.x', via: [] }], '5.4': [{ to: '6.x', via: [] }],
+  '5.5': [{ to: '6.x', via: [] }],
+  '6.x': [{ to: '4.1', via: [] }, { to: '5.1', via: [] }, { to: '5.2', via: [] }, { to: '5.3', via: [] }, { to: '5.4', via: [] }, { to: '5.5', via: [] }],
+  '7.1': [{ to: '1.x', via: [] }],
+}
+
+// BFS — znajdź najkrótszą ścieżkę między obszarami
+export function findRoute(fromArea, toArea) {
+  if (fromArea === toArea) return []
+  const visited = new Set()
+  const queue = [[fromArea]]
+  visited.add(fromArea)
+  while (queue.length > 0) {
+    const path = queue.shift()
+    const current = path[path.length - 1]
+    const edges = PATH_GRAPH[current] || []
+    for (const { to } of edges) {
+      if (to === toArea) return [...path, to]
+      if (!visited.has(to)) {
+        visited.add(to)
+        queue.push([...path, to])
+      }
+    }
+  }
+  return []
+}
+
+// Zbierz waypointy dla ścieżki między obszarami (używa DOCK_POSITIONS)
+export function getWaypoints(areaPath) {
+  const wps = []
+  for (const areaId of areaPath) {
+    const dock = DOCK_POSITIONS[areaId] || getCharPositionRaw(areaId)
+    wps.push({ x: dock.x, y: dock.y })
+  }
+  return wps
+}
+
+function getCharPositionRaw(areaId) {
+  const polyList = NODE_AREAS[areaId]
+  if (!polyList || !polyList[0] || polyList[0].length === 0) return { x: 200, y: 100 }
+  const poly = polyList[0]
+  return {
+    x: Math.round(poly.reduce((s, p) => s + p.x, 0) / poly.length),
+    y: Math.round(poly.reduce((s, p) => s + p.y, 0) / poly.length),
+  }
+}
 export const DOCK_POSITIONS = {
   '0.1': { x: 400, y: 160 },
   '1.x': { x: 380, y: 160 },
