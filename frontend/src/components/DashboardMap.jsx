@@ -103,10 +103,12 @@ export default function DashboardMap({ meta, campId, mapState: initialMapState, 
             style={{ width: '100%', height: '100%', display: 'block', pointerEvents: 'none' }}
           />
 
-          {/* Warstwa SVG — nakładka klikalna */}
+          {/* Warstwa SVG — nakładka klikalna, dopasowana do obrazu */}
           <svg
             viewBox={`0 0 ${MAP_WIDTH} ${MAP_HEIGHT}`}
-            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
+            width={w}
+            height={h}
+            style={{ position: 'absolute', top: 0, left: 0 }}
             onClick={handleMapClick}
             onMouseMove={handleMapMove}
             onMouseLeave={() => setHoveredArea(null)}
