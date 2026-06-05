@@ -7,7 +7,7 @@ import useMapState from './useMapState'
 import MapRealPath from './MapRealPath'
 import {
   NODE_AREAS, REAL_PATHS, ALL_AREA_IDS, NODE_TO_AREA, ALL_NODE_IDS,
-  START_NODE, hitTest, getCharPosition,
+  START_NODE, hitTest, getCharPosition, getAllPolygons,
 } from '../data/mapNodes'
 import tloImg from '../assets/map/tlo.png'
 
@@ -61,7 +61,6 @@ export default function DashboardMap({ meta, campId, mapState: initialMapState, 
     for (const [nid, aid] of Object.entries(NODE_TO_AREA)) {
       if (aid === areaId) { nodeId = nid; break }
     }
-    if (nodeStatus[nodeId] === 'locked') return
     setSelectedNode(nodeId)
     setShowModal(true)
   }
@@ -120,24 +119,26 @@ export default function DashboardMap({ meta, campId, mapState: initialMapState, 
 
             {/* Obszary klikalne */}
             {ALL_AREA_IDS.map(areaId => {
-              const poly = NODE_AREAS[areaId]
-              if (!poly) return null
+              const polys = getAllPolygons(areaId)
+              if (!polys || polys.length === 0) return null
               let nodeId = areaId
               for (const [nid, aid] of Object.entries(NODE_TO_AREA)) { if (aid === areaId) { nodeId = nid; break } }
               const isDone = nodeStatus[nodeId] === 'done'
               const isLocked = nodeStatus[nodeId] === 'locked'
               const isHovered = hoveredArea === areaId
-              const pts = poly.map(p => `${p.x},${p.y}`).join(' ')
-              return (
-                <polygon
-                  key={areaId}
-                  points={pts}
-                  fill={isHovered ? (isDone ? 'rgba(34,197,94,0.25)' : isLocked ? 'rgba(156,163,175,0.1)' : 'rgba(59,130,246,0.2)') : 'transparent'}
-                  stroke={isHovered ? (isDone ? '#22c55e' : isLocked ? '#9ca3af' : '#3b82f6') : 'none'}
-                  strokeWidth={isHovered ? 2 : 0}
-                  style={{ transition: 'fill 0.2s, stroke 0.2s' }}
-                />
-              )
+              return polys.map((poly, pi) => {
+                const pts = poly.map(p => `${p.x},${p.y}`).join(' ')
+                return (
+                  <polygon
+                    key={`${areaId}-${pi}`}
+                    points={pts}
+                    fill={isHovered ? (isDone ? 'rgba(34,197,94,0.25)' : isLocked ? 'rgba(156,163,175,0.1)' : 'rgba(59,130,246,0.2)') : 'transparent'}
+                    stroke={isHovered ? (isDone ? '#22c55e' : isLocked ? '#9ca3af' : '#3b82f6') : 'none'}
+                    strokeWidth={isHovered ? 2 : 0}
+                    style={{ transition: 'fill 0.2s, stroke 0.2s' }}
+                  />
+                )
+              })
             })}
 
             {/* Ludzik */}

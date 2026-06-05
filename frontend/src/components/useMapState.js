@@ -1,11 +1,8 @@
 import { useState, useCallback, useMemo } from 'react'
 import {
-  DEPENDENCIES, AUTO_CHECK, FINAL_NODE, ALL_NODE_IDS,
+  DEPENDENCIES, AUTO_CHECK, FINAL_NODE, ALL_NODE_IDS, ALWAYS_AVAILABLE,
 } from '../data/mapNodes'
 
-/**
- * useMapState — zarządza stanem mapy.
- */
 export default function useMapState(initialMapState, meta) {
   const [mapState, setMapState] = useState(() => ({
     nodes: {},
@@ -18,8 +15,13 @@ export default function useMapState(initialMapState, meta) {
     ALL_NODE_IDS.forEach(id => { status[id] = 'locked' })
     status['0.1'] = 'available'
 
+    // Zawsze odblokowane — misje poboczne
+    for (const id of ALWAYS_AVAILABLE) {
+      status[id] = 'available'
+    }
+
     for (const [id, fn] of Object.entries(AUTO_CHECK)) {
-      status[id] = fn(meta) ? 'done' : 'available'
+      status[id] = fn(meta) ? 'done' : (ALWAYS_AVAILABLE.has(id) ? 'available' : 'available')
     }
 
     for (const [id, s] of Object.entries(mapState.nodes || {})) {

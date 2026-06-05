@@ -185,10 +185,27 @@ export default function MapNodeModal({ nodeId, status, meta, onClose, onDone, on
         {/* Treść */}
         <div className="p-5">
           {isLocked ? (
-            <div className="text-center py-6 text-gray-400">
-              <div className="text-4xl mb-3">🔒</div>
-              <p className="font-semibold">Ten punkt jest zablokowany</p>
-              <p className="text-sm mt-1">Wykonaj wcześniejsze zadania, aby go odblokować.</p>
+            <div className="text-center py-6 space-y-3">
+              <div className="text-4xl">🔒</div>
+              <p className="font-semibold text-gray-700">Ten punkt jest zablokowany</p>
+              <p className="text-sm text-gray-500">Wykonaj wcześniejsze zadania, aby go odblokować.</p>
+              {nodeId === '3.1' && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-800 text-left">
+                  <p className="font-semibold mb-1">Potrzebujesz:</p>
+                  <ul className="list-disc pl-4 space-y-0.5">
+                    <li>✅ Wypełniona nazwa jednostki (ETAP 1)</li>
+                    <li>Wszystkie załączniki do PSP (ETAP 2): regulamin, instrukcja ppoż, mapy, drogi ewakuacyjne, środki łączności</li>
+                  </ul>
+                </div>
+              )}
+              {nodeId === '4.1' && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-800 text-left">
+                  <p className="font-semibold mb-1">Potrzebujesz:</p>
+                  <ul className="list-disc pl-4 space-y-0.5">
+                    <li>✅ Pozytywna opinia PSP (ETAP 3)</li>
+                  </ul>
+                </div>
+              )}
             </div>
           ) : (
             renderContent()
