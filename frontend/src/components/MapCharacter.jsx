@@ -1,14 +1,15 @@
-import idleGif from '../assets/map/ludzik-idle.png'
+import idleImg from '../assets/map/harcerz-stojacy1.png'
+import walkGif from '../assets/map/chodzacy-harcerz.gif'
 
-const SIZE = 64
+const SIZE = 48
 
 /**
- * MapCharacter — ludzik na mapie.
+ * MapCharacter — ludzik na mapie (idle PNG, walk GIF).
  */
-export default function MapCharacter({ x, y }) {
+export default function MapCharacter({ x, y, walking = false }) {
   return (
     <image
-      href={idleGif}
+      href={walking ? walkGif : idleImg}
       x={x - SIZE / 2}
       y={y - SIZE}
       width={SIZE}
