@@ -861,7 +861,7 @@ function AppRoutes({
                 ) : (
                   <span className="text-sm text-orange-600">⚠️ Ustaw daty obozu w zakładce „Dane obozu"</span>
                 )}
-                {days.length > 0 && (
+                {meta.date_start && (
                   <button onClick={addDay}
                     className="ml-auto text-sm text-green-700 border border-green-400 px-3 py-1.5 rounded-lg hover:bg-green-50">
                     + Dodaj dzień
