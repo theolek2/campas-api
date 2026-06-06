@@ -59,86 +59,6 @@ function MapEventsCapture({ onReady }) {
   return null
 }
 
-// Nakładka pokazująca kadr PDF — czerwone tło poza obszarem wydruku
-function CropOverlay({ ratio }) {
-  return (
-    <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 500 }}>
-      <svg
-        width="100%" height="100%"
-        style={{ position: 'absolute', inset: 0 }}
-        preserveAspectRatio="none"
-      >
-        <defs>
-          {/* Maska: biała = pokazuj tło, czarna = przezroczyste (kadr) */}
-          <mask id="frame-mask">
-            <rect width="100%" height="100%" fill="white" />
-            {/* Kadr wyśrodkowany z proporcjami PDF */}
-            <CropRect ratio={ratio} />
-          </mask>
-        </defs>
-        {/* Czerwone tło maskowane — widoczne tylko POZA kadrem */}
-        <rect width="100%" height="100%" fill="rgba(220,38,38,0.45)" mask="url(#frame-mask)" />
-      </svg>
-      {/* Biała ramka kadru */}
-      <CropBorder ratio={ratio} />
-    </div>
-  )
-}
-
-// Renderuje prostokąt kadru jako czarną dziurę w masce SVG
-function CropRect({ ratio }) {
-  // Używamy foreignObject trick — liczymy przez CSS
-  // Zamiast tego użyjemy viewBox i obliczeń procentowych
-  // Kadr: wyśrodkowany, aspect-ratio = ratio
-  // Jeśli kontener W×H: jeśli W/H > ratio → kadr W'=H*ratio, H'=H; else W'=W, H'=W/ratio
-  // Wyrażamy przez SVG units (viewport = 1000×1000 dla wygody)
-  const VW = 1000, VH = 1000
-  let cw, ch
-  if (VW / VH > ratio) { ch = VH; cw = VH * ratio }
-  else { cw = VW; ch = VW / ratio }
-  const cx = (VW - cw) / 2
-  const cy = (VH - ch) / 2
-  return (
-    <svg viewBox={`0 0 ${VW} ${VH}`} width="100%" height="100%" preserveAspectRatio="none" style={{position:'absolute',inset:0}}>
-      <rect x={cx} y={cy} width={cw} height={ch} fill="black" />
-    </svg>
-  )
-}
-
-// Renderuje białą ramkę + label
-function CropBorder({ ratio }) {
-  return (
-    <div style={{
-      position: 'absolute', inset: 0,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-    }}>
-      <div style={{
-        aspectRatio: `${ratio}`,
-        maxWidth: '100%',
-        maxHeight: '100%',
-        border: '2px dashed rgba(255,255,255,0.9)',
-        boxShadow: '0 0 0 1px rgba(0,0,0,0.3)',
-        position: 'relative',
-      }}>
-        <span style={{
-          position: 'absolute', top: 6, left: '50%', transform: 'translateX(-50%)',
-          background: 'rgba(0,0,0,0.6)', color: 'white', padding: '2px 10px',
-          borderRadius: 4, fontSize: 11, whiteSpace: 'nowrap',
-        }}>
-          ✅ Ta strefa trafi do PDF
-        </span>
-        <span style={{
-          position: 'absolute', bottom: 6, right: 8,
-          background: 'rgba(220,38,38,0.8)', color: 'white', padding: '2px 8px',
-          borderRadius: 4, fontSize: 10,
-        }}>
-          A4 poziomo
-        </span>
-      </div>
-    </div>
-  )
-}
-
 export default function MapTab({ user, meta }) {
   const hasMetaCoords = !!(meta?.coords?.lat && meta?.coords?.lng)
   const [step, setStep] = useState(hasMetaCoords ? 'navigate' : 'coords')
@@ -382,9 +302,6 @@ export default function MapTab({ user, meta }) {
   }
 
   // ── KROK 2: Nawiguj po mapie ──────────────────────────────────────────
-  // Proporcje kadru PDF: 297mm × 170mm (A4 landscape minus nagłówek/stopka)
-  const PDF_RATIO = 297 / 170  // ≈ 1.747
-
   if (step === 'navigate') {
     return (
       <div className="flex-1 flex flex-col overflow-hidden">
@@ -437,9 +354,6 @@ export default function MapTab({ user, meta }) {
             })()}
             <MapEventsCapture onReady={setMapRef} />
           </MapContainer>
-
-          {/* Nakładka kadru — SVG z dziurą w proporcjach PDF */}
-          <CropOverlay ratio={PDF_RATIO} />
         </div>
       </div>
     )
