@@ -1,7 +1,20 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 
-const DOC_HEADER = ''
-const DOC_FOOTER = ''
+const BASE = import.meta.env.BASE_URL
+
+const DOC_HEADER = `
+<div class="doc-header-inline" style="display:flex;align-items:center;gap:14px;border-bottom:2px solid #2d6a2d;padding-bottom:10px;margin-bottom:18px;">
+  <img src="${BASE}logo.png" style="height:52px;width:auto;object-fit:contain;" onerror="this.style.display='none'"/>
+  <div>
+    <div style="font-weight:bold;font-size:12pt;color:#1a4a1a;">Skauci Europy</div>
+    <div style="font-size:9pt;color:#444;">Stowarzyszenie Harcerstwa Katolickiego „Zawisza" · Federacja Skautingu Europejskiego</div>
+  </div>
+</div>`
+
+const DOC_FOOTER = `
+<div class="doc-footer-inline" style="border-top:1px solid #ddd;margin-top:28px;padding-top:8px;text-align:center;font-size:8pt;color:#999;">
+  skauci-europy.pl · Skauci Europy
+</div>`
 
 function parseChoices(html) {
   const choices = {}
