@@ -7,43 +7,44 @@ export const DEFAULT_ARROW_COLORS = [
 ]
 
 // Piktogramy oparte na SVG z /icons/
+const ICONS = `${import.meta.env.BASE_URL}icons/`
 export const PICTOGRAM_CATEGORIES = [
   {
     name: 'Obóz',
     items: [
-      { id: 'namiot',        icon: '/icons/namiot.svg',              label: 'Namiot / zastęp' },
-      { id: 'namiot_fiol',   icon: '/icons/namiot-fiolet-tlo.svg',   label: 'Namiot (fiolet)' },
-      { id: 'namiot_pom',    icon: '/icons/namiot-pom-tlo.svg',      label: 'Namiot (pom.)' },
-      { id: 'namiot_zol',    icon: '/icons/namiot-zolty-tlo.svg',    label: 'Namiot (żółty)' },
-      { id: 'mauzer',        icon: '/icons/mauzer.svg',              label: 'Mauzer / magazyn' },
-      { id: 'dom',           icon: '/icons/dom.svg',                 label: 'Budynek / dom' },
+      { id: 'namiot',        icon: ICONS + 'namiot.svg',              label: 'Namiot / zastęp' },
+      { id: 'namiot_fiol',   icon: ICONS + 'namiot-fiolet-tlo.svg',   label: 'Namiot (fiolet)' },
+      { id: 'namiot_pom',    icon: ICONS + 'namiot-pom-tlo.svg',      label: 'Namiot (pom.)' },
+      { id: 'namiot_zol',    icon: ICONS + 'namiot-zolty-tlo.svg',    label: 'Namiot (żółty)' },
+      { id: 'mauzer',        icon: ICONS + 'mauzer.svg',              label: 'Mauzer / magazyn' },
+      { id: 'dom',           icon: ICONS + 'dom.svg',                 label: 'Budynek / dom' },
     ],
   },
   {
     name: 'Bezpieczeństwo',
     items: [
-      { id: 'gasnica',       icon: '/icons/gasnica.svg',        label: 'Gaśnica' },
-      { id: 'ognisko_ppoz',  icon: '/icons/ognisko_z_pkt_ppoz.svg',  label: 'Ognisko + p.poż.' },
-      { id: 'ognisko_znak',  icon: '/icons/ognisko_znak.svg',        label: 'Znak ogniska' },
-      { id: 'ewakuacja',     icon: '/icons/Punkt-zbiorki-do-ewakuacji.svg', label: 'Punkt zbiórki ewak.' },
+      { id: 'gasnica',       icon: ICONS + 'gasnica.svg',        label: 'Gaśnica' },
+      { id: 'ognisko_ppoz',  icon: ICONS + 'ognisko_z_pkt_ppoz.svg',  label: 'Ognisko + p.poż.' },
+      { id: 'ognisko_znak',  icon: ICONS + 'ognisko_znak.svg',        label: 'Znak ogniska' },
+      { id: 'ewakuacja',     icon: ICONS + 'Punkt-zbiorki-do-ewakuacji.svg', label: 'Punkt zbiórki ewak.' },
     ],
   },
   {
     name: 'Obozowanie',
     items: [
-      { id: 'ognisko',       icon: '/icons/ognisko.svg',             label: 'Ognisko' },
-      { id: 'kosciol',       icon: '/icons/kosciol.svg',             label: 'Kościół / msza' },
-      { id: 'stacja_kol',    icon: '/icons/stacja_kol.svg',          label: 'Stacja kolejowa' },
-      { id: 'rozne',         icon: '/icons/rozne.svg',     label: 'Inne' },
+      { id: 'ognisko',       icon: ICONS + 'ognisko.svg',             label: 'Ognisko' },
+      { id: 'kosciol',       icon: ICONS + 'kosciol.svg',             label: 'Kościół / msza' },
+      { id: 'stacja_kol',    icon: ICONS + 'stacja_kol.svg',          label: 'Stacja kolejowa' },
+      { id: 'rozne',         icon: ICONS + 'r\u00F3\u017Cne.svg',    label: 'Inne' },
     ],
   },
   {
     name: 'Sanitarno-higieniczne',
     items: [
-      { id: 'toalety',       icon: '/icons/toalety.svg',             label: 'Toalety' },
-      { id: 'natryski',      icon: '/icons/natryski.svg',            label: 'Natryski / prysznice' },
-      { id: 'woda',          icon: '/icons/woda.svg',                label: 'Woda pitna' },
-      { id: 'smieci',        icon: '/icons/smieci.svg',              label: 'Śmietnik' },
+      { id: 'toalety',       icon: ICONS + 'toalety.svg',             label: 'Toalety' },
+      { id: 'natryski',      icon: ICONS + 'natryski.svg',            label: 'Natryski / prysznice' },
+      { id: 'woda',          icon: ICONS + 'woda.svg',                label: 'Woda pitna' },
+      { id: 'smieci',        icon: ICONS + 'smieci.svg',              label: 'Śmietnik' },
     ],
   },
 ]

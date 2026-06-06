@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import GIF_DURATIONS from '../data/gif-durations.json'
 
-const BASE = '/filmiki'
+const BASE = `${import.meta.env.BASE_URL}filmiki`
 
 const IDLE_GIFS = [
   'A_cheerful_boy_scout_sitting_by_a_campfire_ro.gif',

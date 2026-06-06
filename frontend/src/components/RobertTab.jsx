@@ -127,7 +127,7 @@ export default function RobertTab({ onNavigate }) {
       <div className="bg-white border-b border-gray-200 px-6 py-4 shrink-0">
         <div className="flex items-center gap-3">
           <div className="bg-white rounded-full overflow-hidden w-10 h-10 shrink-0">
-            <img src={`/filmiki/${idleGif}`} alt="Robert" className="w-full h-full object-cover" />
+            <img src={`${import.meta.env.BASE_URL}filmiki/${idleGif}`} alt="Robert" className="w-full h-full object-cover" />
           </div>
           <div>
             <h2 className="font-bold text-gray-800">Robert</h2>
