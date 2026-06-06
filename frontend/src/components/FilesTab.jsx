@@ -3,14 +3,23 @@ import { getSharedFiles, uploadSharedFile, deleteSharedFile, getFileDownloadUrl 
 
 export default function FilesTab({ user, campId }) {
   const [files, setFiles] = useState([])
+  const [totalSize, setTotalSize] = useState(0)
+  const [maxStorage, setMaxStorage] = useState(100 * 1024 * 1024)
   const [uploading, setUploading] = useState(false)
   const fileRef = useRef(null)
 
   const load = async () => {
     if (!campId) return
     try {
-      const f = await getSharedFiles(campId)
-      setFiles(f || [])
+      const data = await getSharedFiles(campId)
+      if (Array.isArray(data)) {
+        setFiles(data)
+        setTotalSize(data.reduce((s, f) => s + (f.size || 0), 0))
+      } else {
+        setFiles(data?.files || [])
+        setTotalSize(data?.total_size || 0)
+        setMaxStorage(data?.max_storage || 100 * 1024 * 1024)
+      }
     } catch {}
   }
 
@@ -48,6 +57,9 @@ export default function FilesTab({ user, campId }) {
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
   }
 
+  const isFull = totalSize >= maxStorage
+  const usagePercent = Math.min(100, Math.round((totalSize / maxStorage) * 100))
+
   if (!campId) {
     return (
       <div className="flex-1 flex items-center justify-center text-gray-400 p-8">
@@ -60,15 +72,26 @@ export default function FilesTab({ user, campId }) {
     <div className="flex-1 overflow-y-auto bg-gray-50 p-6">
       <div className="max-w-2xl mx-auto">
         <h2 className="text-2xl font-bold text-green-900 mb-1">📁 Pliki obozowe</h2>
-        <p className="text-sm text-gray-500 mb-6">
+        <p className="text-sm text-gray-500 mb-1">
           Dropbox obozowy — pliki przechowywane na serwerze api.campas.pl
         </p>
+        <p className="text-xs text-gray-400 mb-2">
+          {formatSize(totalSize)} / {formatSize(maxStorage)}
+          {isFull && <span className="text-red-500 ml-2 font-semibold">Limit wyczerpany</span>}
+        </p>
+        <div className="w-full bg-gray-200 rounded-full h-2.5 mb-4">
+          <div
+            className={`h-2.5 rounded-full transition-all ${isFull ? 'bg-red-500' : usagePercent > 80 ? 'bg-yellow-500' : 'bg-green-600'}`}
+            style={{ width: `${usagePercent}%` }}
+          />
+        </div>
 
         <div className="mb-4">
           <input ref={fileRef} type="file" className="hidden" onChange={handleUpload} />
-          <button onClick={() => fileRef.current?.click()} disabled={uploading}
+          <button onClick={() => fileRef.current?.click()}
+            disabled={uploading || isFull}
             className="bg-green-700 text-white font-bold px-5 py-2.5 rounded-xl hover:bg-green-800 transition text-sm disabled:opacity-50">
-            {uploading ? '⏳ Wgrywanie...' : '📤 Wgraj plik'}
+            {isFull ? '🚫 Limit wyczerpany' : uploading ? '⏳ Wgrywanie...' : '📤 Wgraj plik'}
           </button>
         </div>
 

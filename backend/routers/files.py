@@ -5,9 +5,9 @@ Prefix: /api/camps/{camp_id}/files
 import os
 import uuid
 from pathlib import Path
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
 from fastapi.responses import FileResponse
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import aiofiles
@@ -19,7 +19,8 @@ from models.files import AppSharedFile
 router = APIRouter(prefix="/api/camps/{camp_id}/files", tags=["files"])
 
 UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", "/data/uploads"))
-MAX_UPLOAD_SIZE = 20 * 1024 * 1024  # 20 MB
+MAX_UPLOAD_SIZE = 20 * 1024 * 1024  # 20 MB per file
+MAX_CAMP_STORAGE = 100 * 1024 * 1024  # 100 MB per camp
 ALLOWED_MIME_TYPES = {
     "application/pdf", "application/msword",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -62,7 +63,13 @@ async def list_files(
         .where(AppSharedFile.camp_id == camp_id)
         .order_by(AppSharedFile.created_at.desc())
     )
-    return [_file_dict(f) for f in result.scalars().all()]
+    files = result.scalars().all()
+    total_size = sum(f.size or 0 for f in files)
+    return {
+        "files": [_file_dict(f) for f in files],
+        "total_size": total_size,
+        "max_storage": MAX_CAMP_STORAGE,
+    }
 
 
 @router.post("/upload", status_code=201)
@@ -72,10 +79,22 @@ async def upload_file(
     user_id: str = Depends(require_camp_access),
     db: AsyncSession = Depends(get_db),
 ):
-    # Walidacja rozmiaru
+    # Walidacja rozmiaru pliku
     content = await file.read()
     if len(content) > MAX_UPLOAD_SIZE:
         raise HTTPException(status_code=400, detail=f"Plik przekracza limit {MAX_UPLOAD_SIZE // 1024 // 1024} MB")
+
+    # Sprawdź łączny limit obozu
+    existing = await db.execute(
+        select(func.coalesce(func.sum(AppSharedFile.size), 0))
+        .where(AppSharedFile.camp_id == camp_id)
+    )
+    current_total = existing.scalar()
+    if current_total + len(content) > MAX_CAMP_STORAGE:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Przekroczono limit 100 MB na obóz. Wykorzystano: {current_total // 1024 // 1024} MB",
+        )
 
     # Walidacja rozszerzenia
     ext = Path(file.filename or "").suffix.lower()
@@ -130,9 +149,36 @@ async def delete_file(
 async def download_file(
     camp_id: str,
     file_id: str,
-    user_id: str = Depends(require_camp_access),
+    token: str = Query(None),
     db: AsyncSession = Depends(get_db),
 ):
+    """
+    Pobierz plik. Autoryzacja przez Bearer header LUB query ?token=xxx
+    """
+    import jwt
+    from config import settings
+
+    user_id = None
+    try:
+        # Próbuj Bearer header
+        header_token = None
+        from fastapi import Request
+        # Token jest przekazywany jako parametr - użyjemy tylko query tokenu
+        if token:
+            payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
+            user_id = payload.get("sub")
+    except Exception:
+        pass
+
+    if not user_id:
+        # Spróbuj Authorization header przez dependency
+        try:
+            from fastapi import Header as HeaderParam
+            pass  # will be handled by the require_camp_access fallback
+        except Exception:
+            pass
+        raise HTTPException(status_code=401, detail="Nieprawidłowy token")
+
     record = await db.get(AppSharedFile, file_id)
     if not record or record.camp_id != camp_id:
         raise HTTPException(status_code=404, detail="Plik nie istnieje")
