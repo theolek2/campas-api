@@ -85,7 +85,8 @@ function TaskCard({ task, onClick, members, onUpdate, onComplete }) {
       {checklists.length > 0 && (
         <div className="mt-2 space-y-0.5">
           {checklists.slice(0, 5).map(item => (
-            <label key={item.id} className="flex items-center gap-1.5 text-xs cursor-pointer hover:bg-gray-50 rounded px-0.5">
+            <label key={item.id} onClick={e => e.stopPropagation()}
+              className="flex items-center gap-1.5 text-xs cursor-pointer hover:bg-gray-50 rounded px-0.5">
               <input type="checkbox" checked={item.done}
                 onChange={e => toggleSubtask(e, item)}
                 className="accent-green-600 w-3 h-3" />
