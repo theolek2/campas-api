@@ -37,10 +37,14 @@ EXPOSE 8001
 
 # Utwórz nieuprzywilejowanego użytkownika
 RUN useradd -m -u 1000 appuser && mkdir -p /data && chown -R appuser:appuser /app /data
-USER appuser
+
+# Entrypoint (root) — tworzy upload dir z uprawnieniami, potem przełącza na appuser
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
 # Healthcheck
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:8001/health || exit 1
 
+ENTRYPOINT ["/entrypoint.sh"]
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001", "--workers", "1"]

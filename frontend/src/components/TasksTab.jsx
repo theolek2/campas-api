@@ -18,10 +18,13 @@ const NEXT_COLUMN = { todo: 'in_progress', in_progress: 'done' }
 function TaskCard({ task, onClick, members, onUpdate, onComplete }) {
   const [hovered, setHovered] = useState(false)
   const [showAssign, setShowAssign] = useState(false)
+  const [localChecklists, setLocalChecklists] = useState(task.checklists || [])
+
+  useEffect(() => { setLocalChecklists(task.checklists || []) }, [task.id, task.checklists])
 
   const deadline = task.deadline ? new Date(task.deadline) : null
   const isOverdue = deadline && deadline < new Date() && task.column !== 'done' && task.column !== 'archived'
-  const checklists = task.checklists || []
+  const checklists = localChecklists
   const doneCount = checklists.filter(c => c.done).length
   const nextCol = NEXT_COLUMN[task.column]
 
@@ -75,10 +78,10 @@ function TaskCard({ task, onClick, members, onUpdate, onComplete }) {
         <div className="mt-2 space-y-0.5">
           {checklists.slice(0, 5).map(item => (
             <label key={item.id} className="flex items-center gap-1.5 text-xs cursor-pointer hover:bg-gray-50 rounded px-0.5"
-              onClick={e => toggleSubtask(e, item)}>
+              onClick={e => e.stopPropagation()}>
               <input type="checkbox" checked={item.done}
-                onChange={e => toggleSubtask(e, item)}
-                className="accent-green-600 w-3 h-3 pointer-events-none" />
+                onChange={() => toggleSubtask(item)}
+                className="accent-green-600 w-3 h-3" />
               <span className={item.done ? 'line-through text-gray-400' : 'text-gray-600'}>{item.text}</span>
             </label>
           ))}
@@ -373,10 +376,11 @@ export default function TasksTab({ user, meta }) {
       <div className="flex-1 overflow-x-auto p-4 flex gap-4">
         {COLUMNS.filter(c => c.id !== 'archived' || showArchived).map(col => {
           const colTasks = filtered.filter(t => t.column === col.id)
-  const toggleSubtask = async (e, item) => {
-    e.stopPropagation()
+  const toggleSubtask = async (item) => {
     const campId = localStorage.getItem('campas_camp_id') || ''
-    await toggleChecklistItem(campId, task.id, item.id, !item.done)
+    const newDone = !item.done
+    setLocalChecklists(prev => prev.map(c => c.id === item.id ? { ...c, done: newDone } : c))
+    await toggleChecklistItem(campId, task.id, item.id, newDone)
     onUpdate?.()
   }
 
