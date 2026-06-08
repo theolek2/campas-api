@@ -540,7 +540,7 @@ export async function getSharedFiles(campId) {
     const res = await fetch(`${BASE}/api/camps/${campId}/files`, { headers: _headers() })
     return _json(res)
   } catch {
-    return []
+    return { files: [], total_size: 0, max_storage: 100 * 1024 * 1024 }
   }
 }
 

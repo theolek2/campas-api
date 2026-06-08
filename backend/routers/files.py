@@ -86,10 +86,9 @@ async def upload_file(
 
     # Sprawdź łączny limit obozu
     existing = await db.execute(
-        select(func.coalesce(func.sum(AppSharedFile.size), 0))
-        .where(AppSharedFile.camp_id == camp_id)
+        select(AppSharedFile.size).where(AppSharedFile.camp_id == camp_id)
     )
-    current_total = existing.scalar()
+    current_total = sum(s[0] or 0 for s in existing.all())
     if current_total + len(content) > MAX_CAMP_STORAGE:
         raise HTTPException(
             status_code=400,
@@ -153,30 +152,21 @@ async def download_file(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Pobierz plik. Autoryzacja przez Bearer header LUB query ?token=xxx
+    Pobierz plik. Autoryzacja przez query ?token=xxx (dla linków <a>) lub Bearer header.
     """
     import jwt
     from config import settings
+    from fastapi import Request
 
     user_id = None
-    try:
-        # Próbuj Bearer header
-        header_token = None
-        from fastapi import Request
-        # Token jest przekazywany jako parametr - użyjemy tylko query tokenu
-        if token:
+    if token:
+        try:
             payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
             user_id = payload.get("sub")
-    except Exception:
-        pass
-
-    if not user_id:
-        # Spróbuj Authorization header przez dependency
-        try:
-            from fastapi import Header as HeaderParam
-            pass  # will be handled by the require_camp_access fallback
         except Exception:
             pass
+
+    if not user_id:
         raise HTTPException(status_code=401, detail="Nieprawidłowy token")
 
     record = await db.get(AppSharedFile, file_id)

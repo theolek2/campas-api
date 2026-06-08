@@ -66,9 +66,9 @@ export default function TaskModal({ task, onClose, onUpdate, isDruzynowy, user }
     const campId = localStorage.getItem('campas_camp_id') || ''
     const text = newSubtask.trim()
     if (!text || !campId) return
-    await addChecklistItem(campId, task.id, { text, order: checklist.length })
+    const newItem = await addChecklistItem(campId, task.id, { text, order: checklist.length })
     setNewSubtask('')
-    load()
+    if (newItem) setChecklist(prev => [...prev, newItem])
   }
 
   const addComment = async () => {
@@ -245,6 +245,7 @@ export default function TaskModal({ task, onClose, onUpdate, isDruzynowy, user }
           <button
             onClick={async () => {
               if (!confirm('Usunąć to zadanie?')) return
+              const campId = localStorage.getItem('campas_camp_id') || ''
               await deleteTask(campId, task.id)
               logActivity('task_deleted', { title: task.title })
               onUpdate?.()
