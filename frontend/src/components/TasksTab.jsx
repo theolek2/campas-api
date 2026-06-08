@@ -1,5 +1,5 @@
 ﻿import { useState, useEffect, useCallback } from 'react'
-import { getTasks, createTask, updateTask, deleteTask, deleteAllTasks, logActivity, getActivityFeed, getDefaultTemplate, getTeamMembers } from '../lib/api'
+import { getTasks, createTask, updateTask, deleteTask, deleteAllTasks, logActivity, getActivityFeed, getDefaultTemplate, getTeamMembers, toggleChecklistItem } from '../lib/api'
 import TaskModal from './TaskModal'
 import Confetti from './Confetti'
 
@@ -70,16 +70,21 @@ function TaskCard({ task, onClick, members, onUpdate, onComplete }) {
         )}
       </div>
 
-      {/* Pasek postępu subtasków */}
+      {/* Subtaski */}
       {checklists.length > 0 && (
-        <div className="mt-2">
-          <div className="flex items-center gap-1.5">
-            <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-              <div className="h-full bg-green-500 rounded-full transition-all"
-                style={{ width: `${Math.round((doneCount / checklists.length) * 100)}%` }} />
-            </div>
-            <span className="text-[10px] text-gray-400">{doneCount}/{checklists.length}</span>
-          </div>
+        <div className="mt-2 space-y-0.5">
+          {checklists.slice(0, 5).map(item => (
+            <label key={item.id} className="flex items-center gap-1.5 text-xs cursor-pointer hover:bg-gray-50 rounded px-0.5"
+              onClick={e => toggleSubtask(e, item)}>
+              <input type="checkbox" checked={item.done}
+                onChange={e => toggleSubtask(e, item)}
+                className="accent-green-600 w-3 h-3 pointer-events-none" />
+              <span className={item.done ? 'line-through text-gray-400' : 'text-gray-600'}>{item.text}</span>
+            </label>
+          ))}
+          {checklists.length > 5 && (
+            <span className="text-[10px] text-gray-400 pl-4">+{checklists.length - 5} więcej</span>
+          )}
         </div>
       )}
 
@@ -368,7 +373,14 @@ export default function TasksTab({ user, meta }) {
       <div className="flex-1 overflow-x-auto p-4 flex gap-4">
         {COLUMNS.filter(c => c.id !== 'archived' || showArchived).map(col => {
           const colTasks = filtered.filter(t => t.column === col.id)
-          return (
+  const toggleSubtask = async (e, item) => {
+    e.stopPropagation()
+    const campId = localStorage.getItem('campas_camp_id') || ''
+    await toggleChecklistItem(campId, task.id, item.id, !item.done)
+    onUpdate?.()
+  }
+
+  return (
             <div key={col.id}
               onDragOver={e => e.preventDefault()}
               onDrop={e => handleDrop(e, col.id)}
