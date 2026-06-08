@@ -25,7 +25,8 @@ function TaskCard({ task, onClick, members, onUpdate, onComplete }) {
   const doneCount = checklists.filter(c => c.done).length
   const nextCol = NEXT_COLUMN[task.column]
 
-  const assignee = task.assigned?.display_name || task.assigned?.email || null
+  const assignedMember = (members || []).find(m => m.id === task.assigned_to)
+  const assignee = assignedMember?.display_name || assignedMember?.email || null
   const initials = assignee ? assignee.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() : null
 
   const handleQuickAssign = async (e, memberId) => {
@@ -117,7 +118,7 @@ function TaskCard({ task, onClick, members, onUpdate, onComplete }) {
               {members.map(m => (
                 <button key={m.id} onClick={e => handleQuickAssign(e, m.id)}
                   className={`w-full text-left px-3 py-1.5 text-xs hover:bg-green-50 hover:text-green-800 ${
-                    task.assigned?.id === m.id ? 'bg-green-50 text-green-800 font-semibold' : 'text-gray-700'
+                    task.assigned_to === m.id ? 'bg-green-50 text-green-800 font-semibold' : 'text-gray-700'
                   }`}>
                   {m.display_name || m.email}
                 </button>

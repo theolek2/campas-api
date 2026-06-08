@@ -83,6 +83,13 @@ export default function DayCard({ day, index, activities, onChange, onDelete }) 
                   activities={activities}
                   onChange={updated => updateSlot(slot.id, updated)}
                   onDelete={() => deleteSlot(slot.id)}
+                  onCopyTime={(time) => {
+                    const updated = [...day.slots]
+                    for (let j = i + 1; j < updated.length; j++) {
+                      updated[j] = { ...updated[j], time }
+                    }
+                    onChange({ ...day, slots: updated })
+                  }}
                 />
               </div>
             </div>

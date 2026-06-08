@@ -210,7 +210,7 @@ export async function loadCampData(campId) {
     // Zbuduj obiekt state z pól camps
     const meta = {}
     for (const key of Object.keys(camp)) {
-      if (!['id', 'unit_name', 'date_start', 'date_end', 'terrain_id', 'created_at',
+      if (!['id', 'date_start', 'date_end', 'terrain_id', 'created_at',
             'days_json', 'activities_json', 'template_json',
             'activity_log_json', 'meal_template_json', 'meal_activities_json',
             'map_state'].includes(key)) {

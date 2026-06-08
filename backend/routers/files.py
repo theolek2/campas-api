@@ -18,7 +18,7 @@ from models.files import AppSharedFile
 
 router = APIRouter(prefix="/api/camps/{camp_id}/files", tags=["files"])
 
-UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", "/app/uploads"))
+UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", "/data/uploads"))
 MAX_UPLOAD_SIZE = 20 * 1024 * 1024  # 20 MB per file
 MAX_CAMP_STORAGE = 100 * 1024 * 1024  # 100 MB per camp
 ALLOWED_MIME_TYPES = {

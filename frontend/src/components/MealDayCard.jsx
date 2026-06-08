@@ -61,6 +61,13 @@ export default function MealDayCard({ day, index, mealActivities, onChange, onDe
                 <MealSlotRow slot={slot} mealActivities={mealActivities}
                   onChange={updated => updateSlot(slot.id, updated)}
                   onDelete={() => deleteSlot(slot.id)}
+                  onCopyTime={(time) => {
+                    const updated = [...slots]
+                    for (let j = i + 1; j < updated.length; j++) {
+                      updated[j] = { ...updated[j], time }
+                    }
+                    onChange({ ...day, slots: updated })
+                  }}
                   peopleCount={peopleCount} />
               </div>
             </div>

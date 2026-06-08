@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { FIXED_ACTIVITIES } from '../utils/defaults'
 
-export default function SlotRow({ slot, activities, onChange, onDelete }) {
+export default function SlotRow({ slot, activities, onChange, onDelete, onCopyTime }) {
   const [open, setOpen] = useState(false)
 
   const allActivities = [
@@ -17,12 +17,20 @@ export default function SlotRow({ slot, activities, onChange, onDelete }) {
   return (
     <div className="slot-row flex items-start gap-2 px-2 py-1.5 rounded group">
       {/* Czas */}
-      <input
-        type="time"
-        value={slot.time}
-        onChange={e => onChange({ ...slot, time: e.target.value })}
-        className="w-24 border border-gray-300 rounded px-1.5 py-1 text-sm focus:outline-none focus:border-green-500 shrink-0"
-      />
+      <div className="flex items-center gap-0.5 shrink-0">
+        <input
+          type="time"
+          value={slot.time}
+          onChange={e => onChange({ ...slot, time: e.target.value })}
+          className="w-24 border border-gray-300 rounded px-1.5 py-1 text-sm focus:outline-none focus:border-green-500"
+        />
+        {slot.time && onCopyTime && (
+          <button onClick={() => onCopyTime(slot.time)}
+            title="Kopiuj godzinę do następnych zajęć" className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-green-600 text-sm leading-none shrink-0">
+            ⤓
+          </button>
+        )}
+      </div>
 
       {/* Nazwa zajęcia */}
       <div className="flex-1 min-w-0 relative">

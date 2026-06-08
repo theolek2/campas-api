@@ -33,7 +33,7 @@ function IngredientRow({ ing, index, onChange, onDelete }) {
   )
 }
 
-export default function MealSlotRow({ slot, mealActivities, onChange, onDelete, peopleCount = 1 }) {
+export default function MealSlotRow({ slot, mealActivities, onChange, onDelete, peopleCount = 1, onCopyTime }) {
   const [open, setOpen] = useState(false)
   const [aiLoading, setAiLoading] = useState(false)
 
@@ -100,9 +100,17 @@ export default function MealSlotRow({ slot, mealActivities, onChange, onDelete, 
   return (
     <div className="border border-gray-200 rounded-xl p-3 mb-2 bg-white">
       <div className="flex items-center gap-2 mb-2">
-        <input type="time" value={slot.time || ''}
-          onChange={e => onChange({ ...slot, time: e.target.value })}
-          className="w-24 border border-gray-200 rounded px-1.5 py-1 text-xs focus:outline-none focus:border-blue-400 shrink-0" />
+        <div className="flex items-center gap-0.5 shrink-0">
+          <input type="time" value={slot.time || ''}
+            onChange={e => onChange({ ...slot, time: e.target.value })}
+            className="w-24 border border-gray-200 rounded px-1.5 py-1 text-xs focus:outline-none focus:border-blue-400" />
+          {slot.time && onCopyTime && (
+            <button onClick={() => onCopyTime(slot.time)}
+              title="Kopiuj godzinę do następnych posiłków" className="text-gray-400 hover:text-blue-600 text-xs leading-none shrink-0">
+              ⤓
+            </button>
+          )}
+        </div>
         <div className="flex-1 min-w-0 relative">
           <input className="w-full border border-gray-200 rounded px-2 py-1 text-sm font-medium focus:outline-none focus:border-blue-400"
             placeholder="Posiłek..." value={slot.name || ''}
