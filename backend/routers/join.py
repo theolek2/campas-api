@@ -2,6 +2,7 @@
 routers/join.py — Kody dołączenia do obozu (system Kahoot-style).
 """
 import random
+import secrets
 import string
 from datetime import datetime, timezone, timedelta
 
@@ -13,18 +14,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from database import get_db
 from dependencies import get_current_user, require_camp_owner
 from models.app import CampJoinCode
-from models.shared import Camp, CampAccess, User
+from models.shared import Camp, CampAccess, User, Profile
+from services.auth import hash_password, create_jwt, generate_password
 
 router = APIRouter(tags=["join"])
 
-ADJECTIVES = ["WILK","ORZEL","LIS","JELEN","BOBER","SOKOL","RYBA","KRET","ZUK","BARAN"]
-NOUNS      = ["LASU","GORY","RZEKI","POLA","DOLINY","LAKI","LASU","NIEBA","WODY","OGNIA"]
-
 
 def _generate_code() -> str:
-    adj = random.choice(ADJECTIVES)
-    num = random.randint(10, 99)
-    return f"{adj}{num}"
+    return secrets.token_urlsafe(6)  # 8 znaków, ~2.8 biliona kombinacji
 
 
 # ── Generuj kod dołączenia (tylko owner obozu) ────────────────────────────────
@@ -132,11 +129,18 @@ async def get_join_info(
     }
 
 
-# ── Użyj kodu (wymaga zalogowania) ───────────────────────────────────────────
+# ── Użyj kodu (publiczny — tworzy konto lub dodaje dostęp) ────────────────
+from pydantic import BaseModel
+
+class JoinRequest(BaseModel):
+    display_name: str
+    email: str
+
+
 @router.post("/api/join/{code}")
 async def use_join_code(
     code: str,
-    user_id: str = Depends(get_current_user),
+    body: JoinRequest,
     db: AsyncSession = Depends(get_db),
 ):
     code_upper = code.upper()
@@ -151,25 +155,66 @@ async def use_join_code(
     if join_code.max_uses and join_code.uses >= join_code.max_uses:
         raise HTTPException(status_code=410, detail="Kod już wykorzystany.")
 
-    # Sprawdź czy user już ma dostęp do tego obozu
+    email_lower = body.email.strip().lower()
+    if "@" not in email_lower:
+        raise HTTPException(status_code=400, detail="Podaj poprawny adres email.")
+
+    # Znajdź lub utwórz użytkownika
+    user = await db.execute(select(User).where(User.email == email_lower))
+    user = user.scalar_one_or_none()
+    is_new = False
+
+    if not user:
+        pwd = generate_password()
+        user = User(
+            email=email_lower,
+            password_hash=hash_password(pwd),
+            role="user",
+            email_verified=True,  # auto-verified for join flow
+        )
+        db.add(user)
+        await db.flush()
+
+        profile = Profile(
+            id=user.id,
+            display_name=body.display_name.strip() or email_lower.split("@")[0],
+            created_at=datetime.now(timezone.utc),
+        )
+        db.add(profile)
+        is_new = True
+
+    # Sprawdź czy już ma dostęp do obozu
     existing_access = await db.execute(
         select(CampAccess).where(
             CampAccess.camp_id == join_code.camp_id,
-            CampAccess.user_id == user_id,
+            CampAccess.user_id == user.id,
         )
     )
     if existing_access.scalar_one_or_none():
-        return {"success": True, "camp_id": join_code.camp_id, "already_member": True}
+        token = create_jwt(user.id, user.email, user.role)
+        return {
+            "success": True,
+            "token": token,
+            "user": {"id": user.id, "email": user.email, "display_name": body.display_name.strip()},
+            "camp_id": join_code.camp_id,
+            "already_member": True,
+        }
 
     # Dodaj dostęp
     access = CampAccess(
-        user_id=user_id,
+        user_id=user.id,
         camp_id=join_code.camp_id,
         permissions=join_code.role,
     )
     db.add(access)
-
     join_code.uses += 1
     await db.commit()
 
-    return {"success": True, "camp_id": join_code.camp_id, "already_member": False}
+    token = create_jwt(user.id, user.email, user.role)
+    return {
+        "success": True,
+        "token": token,
+        "user": {"id": user.id, "email": user.email, "display_name": body.display_name.strip()},
+        "camp_id": join_code.camp_id,
+        "already_member": False,
+    }

@@ -381,10 +381,8 @@ export default function App() {
         )}
         {showJoinFlow && (
           <JoinCampFlow
-            user={null}
             onClose={() => setShowJoinFlow(false)}
-            onJoined={() => {}}
-            onNeedAuth={(code) => { setPendingJoinCode(code); setShowAuth(true); setShowJoinFlow(false) }}
+            onJoined={() => { window.location.href = '/camp/'; }}
           />
         )}
       </>
@@ -983,9 +981,8 @@ function AppRoutes({
         )
       })()}
 
-      {showJoinFlow && user && (
+      {showJoinFlow && (
         <JoinCampFlow
-          user={user}
           onClose={() => { setShowJoinFlow(false); setPendingJoinCode(null) }}
           onJoined={async (newCampId) => {
             setShowJoinFlow(false)
@@ -997,7 +994,6 @@ function AppRoutes({
               if (camps?.length) setCampsList(camps)
             } catch {}
           }}
-          onNeedAuth={() => {}}
         />
       )}
     </div>

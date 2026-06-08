@@ -28,9 +28,10 @@ from routers import tasks, calendar, external_users, files, ingredients, robert,
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Upewnij się, że katalog uploads istnieje
+    # Upewnij się, że katalog uploads istnieje i ma prawa
     upload_dir = Path(os.getenv("UPLOAD_DIR", "/data/uploads"))
     upload_dir.mkdir(parents=True, exist_ok=True)
+    os.chmod(upload_dir, 0o777)
 
     # W dev mode tworzy tabele automatycznie (produkcja używa Alembic)
     async with engine.begin() as conn:
