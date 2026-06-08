@@ -18,7 +18,7 @@ from models.files import AppSharedFile
 
 router = APIRouter(prefix="/api/camps/{camp_id}/files", tags=["files"])
 
-UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", "/data/uploads"))
+UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", "/app/uploads"))
 MAX_UPLOAD_SIZE = 20 * 1024 * 1024  # 20 MB per file
 MAX_CAMP_STORAGE = 100 * 1024 * 1024  # 100 MB per camp
 ALLOWED_MIME_TYPES = {
@@ -103,7 +103,10 @@ async def upload_file(
     # Bezpieczna nazwa pliku
     safe_name = f"{uuid.uuid4().hex}_{file.filename}"
     camp_dir = UPLOAD_DIR / camp_id
-    camp_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        camp_dir.mkdir(parents=True, exist_ok=True)
+    except PermissionError:
+        raise HTTPException(status_code=500, detail="Nie można utworzyć katalogu na pliki. Skontaktuj się z administratorem.")
     dest = camp_dir / safe_name
 
     async with aiofiles.open(dest, "wb") as f:

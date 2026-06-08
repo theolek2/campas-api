@@ -28,7 +28,7 @@ from routers import tasks, calendar, external_users, files, ingredients, robert,
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Upewnij się, że katalog uploads istnieje i ma prawa
+    # Upewnij się, że katalog uploads istnieje
     upload_dir = Path(os.getenv("UPLOAD_DIR", "/data/uploads"))
     upload_dir.mkdir(parents=True, exist_ok=True)
     try:
