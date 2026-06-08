@@ -75,9 +75,9 @@ export default function TaskModal({ task, onClose, onUpdate, isDruzynowy, user }
     const campId = localStorage.getItem('campas_camp_id') || ''
     const text = commentText.trim()
     if (!text || !campId) return
-    await addTaskComment(campId, task.id, { content: text, user_type: user ? 'internal' : 'guest', user_id: user?.id || null })
+    const newComment = await addTaskComment(campId, task.id, { content: text, user_type: user ? 'internal' : 'guest', user_id: user?.id || null })
     setCommentText('')
-    load()
+    if (newComment) setComments(prev => [...prev, newComment])
   }
 
   const uploadAttachment = async (e) => {
