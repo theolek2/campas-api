@@ -262,7 +262,8 @@ export default function DuringCampTab({ meta, days, view: externalView, selected
 
         {/* Lista zakupów (2-dniowe okna) */}
         {view === 'shopping' && (() => {
-          const windows = campStart ? getShoppingList(days, campStart) : []
+          const ppl = parseInt(meta?.uczestnicy) || 0
+          const windows = campStart ? getShoppingList(days, campStart, ppl) : []
           return (
             <div className="flex-1 overflow-y-auto p-4">
               <div className="flex items-center justify-between mb-1">

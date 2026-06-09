@@ -62,7 +62,7 @@ export function generateJadlospisPdf({ meta, days }) {
   doc.save('jadlospis.pdf')
 }
 
-export function getShoppingList(days, dateStart) {
+export function getShoppingList(days, dateStart, peopleCount) {
   const windows = []
   for (let i = 0; i < days.length; i += 2) {
     const d1 = new Date(dateStart); d1.setDate(d1.getDate() + i)
@@ -76,11 +76,11 @@ export function getShoppingList(days, dateStart) {
       slots.forEach(s => {
         const ings = s.ingredients
         if (!ings) return
-        // Nowy format: tablica obiektów {name, qty, unit}
+        // Nowy format: tablica obiektów {name, qty, unit, perPerson}
         if (Array.isArray(ings)) {
           ings.forEach(ing => {
             const key = (ing.name || '').toLowerCase()
-            const qty = ing.qty || 0
+            const qty = (ing.qty || 0) * (ing.perPerson !== false ? (peopleCount || 1) : 1)
             items[key] = { name: ing.name, qty: (items[key]?.qty || 0) + qty, unit: ing.unit || 'szt' }
           })
         // Stary format: string z przecinkami
@@ -97,8 +97,8 @@ export function getShoppingList(days, dateStart) {
   return windows
 }
 
-export function generateShoppingListPdf({ days, dateStart }) {
-  const list = getShoppingList(days, dateStart)
+export function generateShoppingListPdf({ days, dateStart, peopleCount }) {
+  const list = getShoppingList(days, dateStart, peopleCount)
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
   const W = 210; const H = 297
 
@@ -139,7 +139,7 @@ export function generateShoppingListPdf({ days, dateStart }) {
 }
 
 // ── Agregowana lista (wszystkie dni razem) ──────────────────────────────────
-export function getAggregatedShoppingList(days) {
+export function getAggregatedShoppingList(days, peopleCount) {
   const items = {}
   for (const day of (days || [])) {
     const slots = day.mealSlots || []
@@ -150,7 +150,7 @@ export function getAggregatedShoppingList(days) {
         for (const ing of ings) {
           const key = (ing.name || '').toLowerCase()
           if (!key) continue
-          const qty = (ing.qty || 0) * (ing.perPerson !== false ? 1 : 1)
+          const qty = (ing.qty || 0) * (ing.perPerson !== false ? (peopleCount || 1) : 1)
           items[key] = { name: ing.name, qty: (items[key]?.qty || 0) + qty, unit: ing.unit || 'szt' }
         }
       }
@@ -161,7 +161,8 @@ export function getAggregatedShoppingList(days) {
 
 // ── Kompaktowy PDF A4, 3 kolumny, z kategoriami ────────────────────────────
 export async function generateCompactShoppingPdf(days, meta) {
-  const all = getAggregatedShoppingList(days)
+  const ppl = parseInt(meta?.uczestnicy) || 0
+  const all = getAggregatedShoppingList(days, ppl)
   if (!all.length) { alert('Brak składników w jadłospisie'); return }
 
   // Kategoryzuj przez AI

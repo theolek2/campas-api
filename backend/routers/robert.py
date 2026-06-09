@@ -234,12 +234,11 @@ async def suggest_meal_ingredients(
         raise HTTPException(status_code=503, detail="Brak DEEPSEEK_API_KEY")
 
     prompt = (
-        f'Podaj listę składników do przygotowania: "{data.meal_name}" dla {data.people_count} osób '
+        f'Podaj listę składników do przygotowania: "{data.meal_name}" dla 1 osoby '
         f'na obozie harcerskim w terenie.\n\n'
-        f'Odpowiedz WYŁĄCZNIE jako tablica JSON (zero innych słów):\n'
-        f'[{{"name":"składnik","qty":100,"unit":"g","perPerson":false}},...]\n\n'
-        f'Dozwolone jednostki: g, kg, ml, L, szt, łyżka, łyżeczka, szklanka, opakowanie, puszka, plaster, kromka.\n'
-        f'perPerson=true gdy qty dotyczy 1 osoby, false gdy całości.'
+        f'Odpowiedz WYŁĄCZNIE jako tablica JSON:\n'
+        f'[{{"name":"składnik","qty":100,"unit":"g","perPerson":true}},...]\n\n'
+        f'perPerson musi być ZAWSZE true — ilości na 1 osobę. Program pomnoży przez liczbę uczestników.'
     )
 
     try:
