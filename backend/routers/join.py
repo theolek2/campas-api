@@ -7,7 +7,7 @@ import string
 from datetime import datetime, timezone, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -103,7 +103,7 @@ async def get_join_info(
 ):
     code_upper = code.upper()
     result = await db.execute(
-        select(CampJoinCode).where(CampJoinCode.code == code_upper)
+        select(CampJoinCode).where(func.upper(CampJoinCode.code) == code_upper)
     )
     join_code = result.scalar_one_or_none()
     if not join_code:
@@ -145,7 +145,7 @@ async def use_join_code(
 ):
     code_upper = code.upper()
     result = await db.execute(
-        select(CampJoinCode).where(CampJoinCode.code == code_upper)
+        select(CampJoinCode).where(func.upper(CampJoinCode.code) == code_upper)
     )
     join_code = result.scalar_one_or_none()
     if not join_code:
