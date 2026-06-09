@@ -1,8 +1,8 @@
 ﻿import { useState } from 'react'
 import { signIn, signUp, upsertProfile } from '../lib/api'
 
-export default function AuthModal({ onClose, onAuth, resetToken: initResetToken }) {
-  const [mode, setMode]         = useState(initResetToken ? 'reset' : 'login')   // 'login' | 'register' | 'guest' | 'reset' | 'forgot'
+export default function AuthModal({ onClose, onAuth, resetToken: initResetToken, initialMode }) {
+  const [mode, setMode]         = useState(initResetToken ? 'reset' : initialMode || 'login')   // 'login' | 'register' | 'guest' | 'reset' | 'forgot'
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
   const [name, setName]         = useState('')

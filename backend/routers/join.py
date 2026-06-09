@@ -21,7 +21,7 @@ router = APIRouter(tags=["join"])
 
 
 def _generate_code() -> str:
-    return secrets.token_urlsafe(6)  # 8 znaków, ~2.8 biliona kombinacji
+    return secrets.token_urlsafe(6).upper()  # 8 znaków uppercase, ~2.8 biliona kombinacji
 
 
 # ── Generuj kod dołączenia (tylko owner obozu) ────────────────────────────────

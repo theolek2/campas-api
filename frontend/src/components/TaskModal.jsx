@@ -2,6 +2,7 @@
 import {
   updateTask, deleteTask, toggleChecklistItem, addChecklistItem, deleteChecklistItem,
   addTaskComment, getTaskComments, uploadSharedFile, getTeamMembers, logActivity,
+  getSharedFiles, getFileDownloadUrl,
 } from '../lib/api'
 
 const COLORS = { urgent: '#ef4444', high: '#f97316', medium: '#eab308', low: '#6b7280' }
@@ -25,12 +26,13 @@ export default function TaskModal({ task, onClose, onUpdate, isDruzynowy, user }
   }
   const [assignee, setAssignee] = useState(getAssignedId())
   const [members, setMembers] = useState([])
+  const [campFiles, setCampFiles] = useState([])
+  const [fileDropdown, setFileDropdown] = useState(null)
   const [saving, setSaving] = useState(false)
   const fileRef = useRef(null)
 
   const load = async () => {
     const campId = localStorage.getItem('campas_camp_id') || ''
-    // Checklista i komentarze są w task.checklists (zwracane przez GET /tasks)
     setChecklist(task.checklists || [])
     if (campId) {
       const cm = await getTaskComments(campId, task.id)
@@ -38,6 +40,10 @@ export default function TaskModal({ task, onClose, onUpdate, isDruzynowy, user }
       try {
         const m = await getTeamMembers(campId)
         setMembers(m || [])
+      } catch {}
+      try {
+        const files = await getSharedFiles(campId)
+        setCampFiles(Array.isArray(files) ? files : files?.files || [])
       } catch {}
     }
   }
@@ -198,12 +204,39 @@ export default function TaskModal({ task, onClose, onUpdate, isDruzynowy, user }
                 </label>
                 <div className="space-y-1 mb-2">
                   {checklist.map(item => (
-                    <label key={item.id} className="flex items-center gap-2 text-sm cursor-pointer px-2 py-1 rounded hover:bg-gray-50">
-                      <input type="checkbox" checked={item.done} onChange={() => toggleSubtask(item)}
-                        className="accent-green-600 w-4 h-4" />
-                      <span className={item.done ? 'line-through text-gray-400' : 'text-gray-700'}>{item.text}</span>
-                      {item.done_by && <span className="text-xs text-gray-400 ml-auto">✓</span>}
-                    </label>
+                    <div key={item.id}>
+                      <label className="flex items-center gap-2 text-sm cursor-pointer px-2 py-1 rounded hover:bg-gray-50">
+                        <input type="checkbox" checked={item.done} onChange={() => toggleSubtask(item)}
+                          className="accent-green-600 w-4 h-4" />
+                        <span className={item.done ? 'line-through text-gray-400' : 'text-gray-700'}>{item.text}</span>
+                        {item.done_by && <span className="text-xs text-gray-400 ml-auto">✓</span>}
+                        <button onClick={e => { e.preventDefault(); e.stopPropagation(); setFileDropdown(fileDropdown === item.id ? null : item.id) }}
+                          className="text-gray-300 hover:text-blue-500 text-xs ml-1" title="Podepnij plik">📎</button>
+                      </label>
+                      {item.file_id && item.file_name && (
+                        <a href={getFileDownloadUrl(task.camp_id || localStorage.getItem('campas_camp_id') || '', item.file_id)}
+                          download={item.file_name}
+                          className="text-xs text-blue-500 hover:text-blue-700 ml-8 flex items-center gap-1">
+                          📄 {item.file_name}
+                        </a>
+                      )}
+                      {fileDropdown === item.id && (
+                        <div className="ml-8 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-36 overflow-y-auto">
+                          {campFiles.length === 0 && <p className="text-xs text-gray-400 px-2 py-1">Brak plików w obozie</p>}
+                          {campFiles.map(f => (
+                            <button key={f.id} onClick={() => {
+                              setChecklist(prev => prev.map(c => c.id === item.id ? { ...c, file_id: f.id, file_name: f.filename } : c))
+                              setFileDropdown(null)
+                            }}
+                              className="w-full text-left text-xs px-2 py-1 hover:bg-green-50 text-gray-700 truncate block">
+                              📄 {f.filename}
+                            </button>
+                          ))}
+                          <button onClick={() => setFileDropdown(null)}
+                            className="w-full text-center text-xs text-gray-400 py-1 hover:bg-gray-50 border-t">✕ zamknij</button>
+                        </div>
+                      )}
+                    </div>
                   ))}
                 </div>
                 <div className="flex gap-1.5">

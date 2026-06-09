@@ -44,6 +44,7 @@ export default function App() {
   })
   const [user, setUser]               = useState(null)
   const [showAuth, setShowAuth]       = useState(false)
+  const [registerMode, setRegisterMode] = useState(false)
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [progress, setProgress] = useState(() => {
     try { return JSON.parse(localStorage.getItem('skauting_progress') || '{}') } catch { return {} }
@@ -361,6 +362,10 @@ export default function App() {
               className="w-full bg-green-700 text-white py-3 rounded-xl font-bold text-lg hover:bg-green-800 transition">
               🔐 Zaloguj się
             </button>
+            <button onClick={() => { setRegisterMode(true); setShowAuth(true) }}
+              className="w-full border-2 border-green-300 text-green-600 py-2.5 rounded-xl font-semibold hover:bg-green-50 transition text-sm">
+              📝 Zarejestruj się
+            </button>
             <button onClick={() => setShowJoinFlow(true)}
               className="w-full border-2 border-orange-300 text-orange-600 py-2.5 rounded-xl font-semibold hover:bg-orange-50 transition text-sm">
               🔑 Dołącz do obozu (mam kod)
@@ -370,7 +375,8 @@ export default function App() {
         {showAuth && (
           <AuthModal
             resetToken={resetToken}
-            onClose={() => { setShowAuth(false); setResetToken(null) }}
+            initialMode={registerMode ? 'register' : undefined}
+            onClose={() => { setShowAuth(false); setResetToken(null); setRegisterMode(false) }}
               onAuth={u => {
               setUser(u)
               setShowAuth(false)
