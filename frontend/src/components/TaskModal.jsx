@@ -34,6 +34,7 @@ export default function TaskModal({ task, onClose, onUpdate, isDruzynowy, user }
   const load = async () => {
     const campId = localStorage.getItem('campas_camp_id') || ''
     setChecklist(task.checklists || [])
+    setAttachments(task.attachments || [])
     if (campId) {
       const cm = await getTaskComments(campId, task.id)
       setComments(cm || [])
@@ -57,6 +58,14 @@ export default function TaskModal({ task, onClose, onUpdate, isDruzynowy, user }
       onUpdate?.()
     } catch {}
     setSaving(false)
+  }
+
+  const saveAttachments = async (newAttachments) => {
+    setAttachments(newAttachments)
+    const campId = localStorage.getItem('campas_camp_id') || ''
+    try {
+      await updateTask(campId, task.id, { attachments: newAttachments })
+    } catch {}
   }
 
   useEffect(() => { load() }, [task.id])
@@ -187,7 +196,7 @@ export default function TaskModal({ task, onClose, onUpdate, isDruzynowy, user }
                         <span>📄</span>
                         <span className="truncate">{a.file_name}</span>
                       </a>
-                      <button onClick={() => setAttachments(prev => prev.filter((_, j) => j !== i))}
+                      <button onClick={() => saveAttachments(attachments.filter((_, j) => j !== i))}
                         className="text-gray-300 hover:text-red-500 text-sm leading-none shrink-0">×</button>
                     </div>
                   ))}
@@ -209,7 +218,7 @@ export default function TaskModal({ task, onClose, onUpdate, isDruzynowy, user }
                     {campFiles.map(f => (
                       <button key={f.id} onClick={() => {
                         if (!attachments.find(a => a.file_id === f.id)) {
-                          setAttachments(prev => [...prev, { file_id: f.id, file_name: f.filename }])
+                          saveAttachments([...attachments, { file_id: f.id, file_name: f.filename }])
                         }
                         setShowFilePicker(false)
                       }}

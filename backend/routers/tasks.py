@@ -33,6 +33,7 @@ def _task_dict(t: AppTask, checklists=None, comments=None) -> dict:
         "assigned_to": t.assigned_to,
         "created_by":  t.created_by,
         "notes":       t.notes,
+        "attachments": t.attachments or [],
         "order":       t.order,
         "created_at":  t.created_at.isoformat() if t.created_at else None,
         "updated_at":  t.updated_at.isoformat() if t.updated_at else None,
@@ -134,7 +135,7 @@ async def update_task(
         raise HTTPException(status_code=404, detail="Task nie istnieje")
 
     old_column = task.column
-    allowed = ("title", "description", "column", "priority", "assigned_to", "notes", "order")
+    allowed = ("title", "description", "column", "priority", "assigned_to", "notes", "order", "attachments")
     for field in allowed:
         val = getattr(data, field, None)
         if val is not None:

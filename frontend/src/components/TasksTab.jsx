@@ -52,8 +52,14 @@ function TaskCard({ task, onClick, members, onUpdate, onComplete }) {
     e.stopPropagation()
     const campId = localStorage.getItem('campas_camp_id') || ''
     const newDone = !item.done
-    setLocalChecklists(prev => prev.map(c => c.id === item.id ? { ...c, done: newDone } : c))
+    const updated = localChecklists.map(c => c.id === item.id ? { ...c, done: newDone } : c)
+    setLocalChecklists(updated)
     toggleChecklistItem(campId, task.id, item.id, newDone)
+
+    if (updated.length > 0 && updated.every(c => c.done) && task.column !== 'done') {
+      await updateTask(campId, task.id, { column: 'done' })
+      onUpdate?.()
+    }
   }
 
   return (

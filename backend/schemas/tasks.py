@@ -54,6 +54,7 @@ class TaskUpdate(BaseModel):
     priority: Optional[str] = None
     assigned_to: Optional[str] = None
     notes: Optional[str] = None
+    attachments: Optional[list] = None
     order: Optional[int] = None
     deadline: Optional[str] = None
 
