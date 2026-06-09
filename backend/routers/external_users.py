@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from database import get_db
 from dependencies import get_current_user, require_camp_access, require_camp_owner
 from models.external import AppExternalUser, AppRole
+from models.shared import CampAccess, User, Profile
 from services.auth import hash_password as _hash_bcrypt, verify_password as _verify_bcrypt, validate_password, generate_password
 from schemas.external_users import InviteMember, CreateGuest, GuestLogin, ChangePassword, UpdateMember
 
@@ -75,10 +76,38 @@ async def list_team(
     user_id: str = Depends(require_camp_access),
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(
+    # Pobierz external userów (przyboczni z linków magicznych)
+    ext_result = await db.execute(
         select(AppExternalUser).where(AppExternalUser.camp_id == camp_id)
     )
-    return [_user_dict(u) for u in result.scalars().all()]
+    team = [_user_dict(u) for u in ext_result.scalars().all()]
+
+    # Pobierz internal userów z CampAccess (użytkownicy z kontem)
+    int_result = await db.execute(
+        select(User, CampAccess, Profile)
+        .join(CampAccess, CampAccess.user_id == User.id)
+        .outerjoin(Profile, Profile.id == User.id)
+        .where(CampAccess.camp_id == camp_id)
+    )
+    seen = {u.get("email") for u in team}
+    for user, access, profile in int_result.all():
+        if user.email in seen:
+            continue
+        seen.add(user.email)
+        team.append({
+            "id":             user.id,
+            "email":          user.email,
+            "display_name":   profile.display_name if profile else user.email.split("@")[0],
+            "phone":          None,
+            "role":           access.permissions or "przyboczny",
+            "active":         True,
+            "robert_enabled": False,
+            "camp_id":        camp_id,
+            "last_login":     None,
+            "created_at":     user.created_at.isoformat() if user.created_at else None,
+        })
+
+    return team
 
 
 # ── Wyślij magic link ─────────────────────────────────────────────────────────
